@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Platform,
   Dimensions,
+  Image,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -306,44 +307,53 @@ const SignatureField = ({
 
     return (
       <View style={[commonStyles.previewContainer, styles.previewContainer]}>
-        <TouchableOpacity
-          style={styles.previewTouchable}
-          onPress={() => !disabled && handleEdit()}
-          disabled={disabled}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel={
-            disabled ? 'View saved signature' : 'Edit saved signature'
-          }
-        >
-          <View style={styles.previewImage}>
-            <Icon name="draw" size={40} color={COLORS.primary} />
-            <View style={styles.previewTextContainer}>
-              <Text style={styles.previewText}>Signature saved</Text>
-              <Text style={styles.previewSubtext}>
-                {disabled ? 'View only' : 'Tap to edit'}
-              </Text>
+        <View style={styles.previewContent}>
+          {/* Signature Preview with background */}
+          <View style={styles.signaturePreviewBox}>
+            <View style={styles.signatureBackground}>
+              {signature ? (
+                <Image
+                  source={{ uri: signature }}
+                  style={styles.signaturePreviewImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.noSignaturePreview}>
+                  <Icon name="draw" size={24} color={COLORS.text.secondary} />
+                </View>
+              )}
+            </View>
+            <View style={styles.previewBadge}>
+              <Icon name="check" size={12} color={COLORS.surface} />
             </View>
           </View>
-        </TouchableOpacity>
-        {!disabled && (
-          <TouchableOpacity
-            style={[commonStyles.secondaryButton, styles.editButton]}
-            onPress={handleEdit}
-            disabled={disabled}
-            activeOpacity={0.6}
-            accessibilityRole="button"
-            accessibilityLabel="Edit signature"
-            accessibilityHint="Tap to clear and redraw signature"
-          >
-            <Icon name="edit" size={20} color={COLORS.primary} />
-            <Text
-              style={[commonStyles.secondaryButtonText, styles.editButtonText]}
-            >
-              Edit
+
+          {/* Preview Info */}
+          <View style={styles.previewInfo}>
+            <Text style={styles.previewTitle}>Signature Captured</Text>
+            <Text style={styles.previewSize}>
+              {signature ? Math.round(signature.length / 1024) : 0} KB
             </Text>
-          </TouchableOpacity>
-        )}
+            <TouchableOpacity
+              onPress={handleEdit}
+              disabled={disabled}
+              activeOpacity={0.6}
+              accessibilityRole="button"
+              accessibilityLabel="Edit signature"
+            >
+              <View>
+                {disabled ? (
+                  <Text style={styles.previewHint}>View only</Text>
+                ) : (
+                  <Text style={styles.previewHint}>
+                    <Icon name="edit" size={11} color={COLORS.primary} /> Tap to
+                    edit
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     );
   };
@@ -779,43 +789,82 @@ const styles = StyleSheet.create({
   // Preview
   previewContainer: {
     minHeight: 120,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    flexDirection: 'row',
     padding: 16,
     backgroundColor: COLORS.surface,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  previewTouchable: {
+  previewContent: {
     flex: 1,
-  },
-  previewImage: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  signaturePreviewBox: {
+    position: 'relative',
+    marginRight: 16,
+  },
+  signatureBackground: {
+    width: 150,
+    height: 100,
+    backgroundColor: COLORS.gray[50],
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signaturePreviewImage: {
+    width: '90%',
+    height: '90%',
+  },
+  noSignaturePreview: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: COLORS.success,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.surface,
+  },
+  previewInfo: {
     flex: 1,
   },
-  previewTextContainer: {
-    marginLeft: 12,
-  },
-  previewText: {
+  previewTitle: {
     fontSize: 16,
-    color: COLORS.success,
     fontWeight: '600',
+    color: COLORS.text.primary,
+    marginBottom: 4,
   },
-  previewSubtext: {
+  previewSize: {
     fontSize: 12,
     color: COLORS.text.secondary,
-    marginTop: 2,
+    marginBottom: 4,
   },
-  editButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginLeft: 12,
+  previewHint: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontStyle: 'italic',
+    display: 'flex',
+    alignItems: 'flex-end',
   },
-  editButtonText: {
-    marginLeft: 4,
+  editIconButton: {
+    padding: 8,
+    marginLeft: 8,
   },
 
   // Error container
