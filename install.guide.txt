@@ -1,0 +1,30 @@
+--camera 
+npm install react-native-image-picker - to handle camera image
+
+--navigation
+npm install @react-navigation/native
+npm install react-native-screens react-native-safe-area-context
+--stack navigation
+npm install @react-navigation/stack=
+npm install react-native-gesture-handler @react-native-masked-view/masked-view
+
+--Redux
+npm install @reduxjs/toolkit react-redux
+
+--Async-storage
+npm install @react-native-async-storage/async-storage
+
+--datetimepicker
+npm i @react-native-community/datetimepicker
+
+--signature canvas
+npm i react-native-signature-canvas
+npm i react-native-webview
+
+--icons
+npm install react-native-vector-icons
+at android\app\build.gradle
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
+
+--axios
+npm install axios
