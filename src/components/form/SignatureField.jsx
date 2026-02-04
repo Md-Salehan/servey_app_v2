@@ -47,6 +47,8 @@ const SignatureField = ({
   const [isSigning, setIsSigning] = useState(false);
   const [validationError, setValidationError] = useState(error);
 
+  
+
   // Mobile screen dimensions
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -568,7 +570,7 @@ const SignatureField = ({
             disabled && commonStyles.buttonTextDisabled,
           ]}
         >
-          {description || 'Tap to start signing'}
+          {description || ' Tap to start signing'}
         </Text>
       </TouchableOpacity>
     );
@@ -713,7 +715,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 120,
+    minHeight: 220,
   },
   startButtonText: {
     fontSize: 16,
