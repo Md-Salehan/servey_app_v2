@@ -8,6 +8,8 @@ export const ErrorState = ({
   error,
   onRetry 
 }) => {
+  console.log(error, "errr");
+  
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>

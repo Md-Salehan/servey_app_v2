@@ -351,7 +351,7 @@ const RecordEntryScreen = () => {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        scrollEnabled={scrollEnabled}
+        // scrollEnabled={scrollEnabled}
         nestedScrollEnabled={true}
       >
         {/* Form Fields */}

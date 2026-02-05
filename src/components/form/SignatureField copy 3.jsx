@@ -29,8 +29,6 @@ import {
   PaintStyle,
   StrokeCap,
   StrokeJoin,
-  Group,
-  vec,
 } from '@shopify/react-native-skia';
 import {
   Gesture,
@@ -60,14 +58,13 @@ const SignatureField = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [validationError, setValidationError] = useState(error);
+  const [currentPath, setCurrentPath] = useState(null);
   const [paths, setPaths] = useState([]);
-  const [currentPoints, setCurrentPoints] = useState([]);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
   // Refs
   const canvasRef = useRef(null);
   const pathsRef = useRef([]);
-  const currentPointsRef = useRef([]);
   const signatureDataRef = useRef('');
 
   // Mobile screen dimensions
@@ -75,7 +72,7 @@ const SignatureField = ({
 
   // Canvas dimensions (optimized for mobile)
   const containerWidth = useMemo(() => {
-    return Math.floor(screenWidth - 40);
+    return Math.floor(screenWidth - 20);
   }, [screenWidth]);
 
   const containerHeight = useMemo(() => {
@@ -105,113 +102,54 @@ const SignatureField = ({
     return Boolean(signature);
   }, [signature]);
 
-  // Create a smooth path from points
-  const createSmoothPath = useCallback((points) => {
-    if (points.length < 2) return null;
-    
-    const path = Skia.Path.Make();
-    path.moveTo(points[0].x, points[0].y);
-    
-    // For smoother drawing, use quadratic bezier curves
-    for (let i = 1; i < points.length - 1; i++) {
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const midPoint = {
-        x: (p1.x + p2.x) / 2,
-        y: (p1.y + p2.y) / 2
-      };
-      
-      // Use quadratic bezier for smoother curves
-      path.quadTo(p1.x, p1.y, midPoint.x, midPoint.y);
-    }
-    
-    // Connect the last point
-    if (points.length > 1) {
-      const lastPoint = points[points.length - 1];
-      path.lineTo(lastPoint.x, lastPoint.y);
-    }
-    
-    return path;
-  }, []);
-
   // Create gesture for drawing
   const gesture = useMemo(() => {
     return Gesture.Pan()
       .enabled(!disabled && isSigning)
       .minDistance(1)
-      .minPointers(1)
-      .maxPointers(1)
       .onBegin(event => {
-        // Start new stroke with initial point
-        currentPointsRef.current = [{ x: event.x, y: event.y }];
-        setCurrentPoints(currentPointsRef.current);
+        // Start new path
+        const newPath = Skia.Path.Make();
+        newPath.moveTo(event.x, event.y);
+        setCurrentPath(newPath);
       })
       .onUpdate(event => {
-        // Add new point to current stroke
-        currentPointsRef.current = [
-          ...currentPointsRef.current,
-          { x: event.x, y: event.y }
-        ];
-        setCurrentPoints([...currentPointsRef.current]);
-        
-        // Limit points array size for performance
-        if (currentPointsRef.current.length > 100) {
-          // Convert current points to a path and add to paths
-          const newPath = createSmoothPath(currentPointsRef.current);
-          if (newPath) {
-            const updatedPaths = [...pathsRef.current, newPath];
-            pathsRef.current = updatedPaths;
-            setPaths(updatedPaths);
-            currentPointsRef.current = [{ x: event.x, y: event.y }];
-            setCurrentPoints(currentPointsRef.current);
-          }
+        if (currentPath) {
+          // Add point to current path
+          currentPath.lineTo(event.x, event.y);
+          setCurrentPath(currentPath.copy());
         }
       })
       .onEnd(() => {
-        // Convert current points to a final path
-        if (currentPointsRef.current.length > 1) {
-          const newPath = createSmoothPath(currentPointsRef.current);
-          if (newPath) {
-            const updatedPaths = [...pathsRef.current, newPath];
-            pathsRef.current = updatedPaths;
-            setPaths(updatedPaths);
-          }
+        if (currentPath) {
+          // Add completed path to paths array
+          const updatedPaths = [...pathsRef.current, currentPath];
+          pathsRef.current = updatedPaths;
+          setPaths(updatedPaths);
+          setCurrentPath(null);
         }
-        currentPointsRef.current = [];
-        setCurrentPoints([]);
       })
       .onFinalize(() => {
         // Gesture ended
       });
-  }, [disabled, isSigning, createSmoothPath]);
+  }, [disabled, isSigning, currentPath]);
 
   // Clear the signature canvas
   const clearCanvas = useCallback(() => {
     setPaths([]);
     pathsRef.current = [];
-    setCurrentPoints([]);
-    currentPointsRef.current = [];
+    setCurrentPath(null);
     signatureDataRef.current = '';
   }, []);
 
   // Convert paths to base64 image
   const convertToBase64 = useCallback(async () => {
-    if (pathsRef.current.length === 0 && currentPointsRef.current.length === 0) {
+    if (pathsRef.current.length === 0) {
       return '';
     }
 
     try {
-      // Calculate total points for validation
-      const totalPoints = pathsRef.current.reduce((total, path) => {
-        // Estimate points from path (each path has at least 2 points)
-        return total + 10; // Conservative estimate
-      }, currentPointsRef.current.length);
-
-      if (totalPoints < minPoints) {
-        throw new Error(`Minimum ${minPoints} points required`);
-      }
-
-      // Create an offscreen surface
+      // Create an offscreen canvas to render the signature
       const surface = Skia.Surface.MakeOffscreen(
         Math.floor(canvasSize.width),
         Math.floor(canvasSize.height),
@@ -224,32 +162,28 @@ const SignatureField = ({
       const canvas = surface.getCanvas();
       
       // Clear with background color
-      const backgroundPaint = Skia.Paint();
-      backgroundPaint.setColor(Skia.Color(backgroundColor));
+      const paint = Skia.Paint();
+      paint.setColor(Skia.Color(backgroundColor));
       canvas.drawRect(
         Skia.XYWHRect(0, 0, canvasSize.width, canvasSize.height),
-        backgroundPaint,
+        paint,
       );
 
-      // Draw all saved paths
+      // Draw all paths
       const strokePaint = Skia.Paint();
       strokePaint.setColor(Skia.Color(strokeColor));
       strokePaint.setStyle(PaintStyle.Stroke);
       strokePaint.setStrokeWidth(strokeWidth);
       strokePaint.setStrokeCap(StrokeCap.Round);
       strokePaint.setStrokeJoin(StrokeJoin.Round);
-      strokePaint.setAntiAlias(true);
 
       pathsRef.current.forEach(path => {
         canvas.drawPath(path, strokePaint);
       });
 
-      // If there's a current stroke in progress, draw it too
-      if (currentPointsRef.current.length > 1) {
-        const currentPath = createSmoothPath(currentPointsRef.current);
-        if (currentPath) {
-          canvas.drawPath(currentPath, strokePaint);
-        }
+      // If there's a current path (still drawing), draw it too
+      if (currentPath) {
+        canvas.drawPath(currentPath, strokePaint);
       }
 
       // Take snapshot
@@ -270,10 +204,17 @@ const SignatureField = ({
       console.error('Error converting to base64:', error);
       return '';
     }
-  }, [canvasSize, backgroundColor, strokeColor, strokeWidth, minPoints, createSmoothPath]);
+  }, [canvasSize, backgroundColor, strokeColor, strokeWidth, currentPath]);
 
   // Handle signature save
   const handleSignatureSave = useCallback(async () => {
+    if (pathsRef.current.length < minPoints) {
+      setValidationError(
+        `Please provide a more complete signature (minimum ${minPoints} points required)`,
+      );
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -301,11 +242,11 @@ const SignatureField = ({
       }
     } catch (err) {
       console.error('Error saving signature:', err);
-      setValidationError(err.message || 'Failed to save signature. Please try again.');
+      setValidationError('Failed to save signature. Please try again.');
     } finally {
       setIsSaving(false);
     }
-  }, [convertToBase64, onChange, onSave, onSigningEnd]);
+  }, [convertToBase64, minPoints, onChange, onSave, onSigningEnd]);
 
   // Handle signature clear
   const handleSignatureClear = useCallback(() => {
@@ -407,12 +348,6 @@ const SignatureField = ({
     }
   }, [value]);
 
-  // Create path from current points for rendering
-  const currentPath = useMemo(() => {
-    if (currentPoints.length < 2) return null;
-    return createSmoothPath(currentPoints);
-  }, [currentPoints, createSmoothPath]);
-
   // Render signature preview
   const renderSignaturePreview = () => {
     if (!isSigned()) return null;
@@ -476,7 +411,7 @@ const SignatureField = ({
 
     return (
       <GestureHandlerRootView style={styles.gestureRoot}>
-        <View style={[styles.canvasOuterContainer]}>
+        <View style={styles.canvasOuterContainer}>
           {/* Signature Canvas */}
           <View
             style={[
@@ -487,7 +422,6 @@ const SignatureField = ({
                 width: canvasSize.width,
                 height: canvasSize.height,
               },
-              styles.canvasBorder,
             ]}
             onLayout={event => {
               const { width, height } = event.nativeEvent.layout;
@@ -497,9 +431,9 @@ const SignatureField = ({
             }}
           >
             <GestureDetector gesture={gesture}>
-              <View style={[styles.canvasContainer]}>
+              <View style={styles.canvasContainer}>
                 <Canvas
-                  style={[styles.canvas, styles.canvasBorder]}
+                  style={styles.canvas}
                   ref={canvasRef}
                 >
                   {/* Background */}
@@ -511,20 +445,17 @@ const SignatureField = ({
                   />
 
                   {/* Draw all saved paths */}
-                  <Group>
-                    {paths.map((path, index) => (
-                      <Path
-                        key={`path-${index}`}
-                        path={path}
-                        color={strokeColor}
-                        style="stroke"
-                        strokeWidth={strokeWidth}
-                        strokeCap="round"
-                        strokeJoin="round"
-                        antiAlias={true}
-                      />
-                    ))}
-                  </Group>
+                  {paths.map((path, index) => (
+                    <Path
+                      key={`path-${index}`}
+                      path={path}
+                      color={strokeColor}
+                      style="stroke"
+                      strokeWidth={strokeWidth}
+                      strokeCap="round"
+                      strokeJoin="round"
+                    />
+                  ))}
 
                   {/* Draw current path (in progress) */}
                   {currentPath && (
@@ -535,7 +466,6 @@ const SignatureField = ({
                       strokeWidth={strokeWidth}
                       strokeCap="round"
                       strokeJoin="round"
-                      antiAlias={true}
                     />
                   )}
                 </Canvas>
@@ -682,7 +612,6 @@ const SignatureField = ({
         style={[
           commonStyles.secondaryButton,
           styles.startButton,
-          styles.canvasBorder,
           disabled && commonStyles.secondaryButtonDisabled,
         ]}
         onPress={handleStartSigning}
@@ -843,10 +772,13 @@ const styles = StyleSheet.create({
   startButton: {
     paddingVertical: 16,
     paddingHorizontal: 24,
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    borderColor: COLORS.border,
     backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 120,
+    minHeight: 220,
   },
   startButtonText: {
     fontSize: 16,
@@ -859,43 +791,32 @@ const styles = StyleSheet.create({
   // Canvas wrapper
   canvasOuterContainer: {
     alignItems: 'center',
-    overflow: 'hidden',
-  },
-  canvasBorder:{
-    borderStyle: 'dashed',
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    borderRadius: 8,
   },
   signatureCanvasWrapper: {
-    // boxSizing: 'border-box',
-    // paddingVertical: 15,
-    // paddingHorizontal: 12,
-    alignItems: 'center',
-    // borderRadius: 8,
+    borderRadius: 8,
     overflow: 'hidden',
-    // backgroundColor: 'black',
-    // borderWidth: 1,
-    // borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     marginBottom: 12,
-    // ...Platform.select({
-    //   ios: {
-    //     shadowColor: '#000',
-    //     shadowOffset: { width: 0, height: 1 },
-    //     shadowOpacity: 0.1,
-    //     shadowRadius: 2,
-    //   },
-    //   android: {
-    //     elevation: 0,
-    //   },
-    // }),
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   canvasContainer: {
     width: '100%',
     height: '100%',
   },
   canvas: {
-    // flex: 1,
+    flex: 1,
     width: '100%',
     height: '100%',
   },
@@ -1024,4 +945,4 @@ const styles = StyleSheet.create({
   errorContainer: {
     marginTop: 8,
   },
-});
+}); 
