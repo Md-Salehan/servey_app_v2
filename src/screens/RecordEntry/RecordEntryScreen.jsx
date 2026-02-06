@@ -20,6 +20,7 @@ import CheckboxField from '../../components/form/CheckboxField';
 import SignatureField from '../../components/form/SignatureField';
 import SimpleTest from '../../components/form/SimpleTest';
 import DropdownField from '../../components/form/DropdownField';
+import LocationField from '../../components/form/LocationField';
 import styles from './RecordEntry.styles';
 import { Header } from './component';
 
@@ -145,13 +146,13 @@ const RecordEntryScreen = () => {
             value={fieldValues[fcId]}
             onChangeText={value => handleFieldChange(fcId, value)}
             maxLength={
-              props?.['Maximum Length']
-                ? parseInt(props['Maximum Length'])
+              props?.maxLength
+                ? parseInt(props.maxLength)
                 : undefined
             }
-            keyboardType={getKeyboardType(props?.['Key Board Type'])}
+            keyboardType={getKeyboardType(props?.keyboardType)}
             editable={props?.Editable !== 'N'}
-            multiline={props?.['Multiple Line'] === 'Y'}
+            multiline={true}
             required={props?.Required === 'Y'}
           />
         );
@@ -239,6 +240,34 @@ const RecordEntryScreen = () => {
             // error={validationErrors[fcId] || ''}
           />
         );
+
+      case '08': // Location
+        return (
+          <LocationField
+            key={fcId}
+            fcId={fcId}
+            label={props?.Label || 'Location'}
+            value={fieldValues[fcId]}
+            onChange={locationData => handleFieldChange(fcId, locationData)}
+            required={props?.Required === 'Y'}
+            disabled={props?.Editable === 'N'}
+            description={props?.Description}
+            enableHighAccuracy={props?.EnableHighAccuracy === 'true'}
+            timeout={props?.Timeout ? parseInt(props.Timeout) : 15000}
+            maximumAge={props?.MaxAge ? parseInt(props.MaxAge) : 60000}
+            minAccuracy={100}
+            showAddress={true}
+            showMapPreview={props?.ShowMapPreview === 'true'}
+            onCaptureStart={() => console.log('Location capture started')}
+            onCaptureComplete={(location, isAccurate) =>
+              console.log('Location captured:', location)
+            }
+            onCaptureError={error =>
+              console.log('Location capture error:', error)
+            }
+            isMannualEntryAllowed={true}
+          />
+        ); 
 
       case '09': // Signature
         return (

@@ -28,3 +28,9 @@ apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
 --axios
 npm install axios
+
+-- geolocation
+npm i @react-native-community/geolocation
+at android/app/src/main/AndroidManifest.xml
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />

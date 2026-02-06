@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   dateTimePicker: {
     backgroundColor: COLORS.surface,
   },
-  
+
   // Common validation and description styles
   errorText: {
     fontSize: 12,
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     lineHeight: 18,
   },
-  
+
   // Common canvas/border states (used by multiple components)
   canvasContainer: {
     borderRadius: 8,
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.gray[100],
     borderColor: COLORS.gray[300],
   },
-  
+
   // Common button styles (used by multiple components)
   primaryButton: {
     flexDirection: 'row',
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   buttonTextDisabled: {
     color: COLORS.text.disabled,
   },
-  
+
   // Common controls container
   controlsContainer: {
     flexDirection: 'row',
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     width: '100%',
   },
-  
+
   // Common placeholder styles
   placeholderText: {
     fontSize: 16,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   placeholderTextDisabled: {
     color: COLORS.text.disabled,
   },
-  
+
   // Common preview container
   previewContainer: {
     flexDirection: 'row',
@@ -190,6 +190,112 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+  },
+
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minHeight: 48,
+    marginTop: 8,
+  },
+  locationButtonDisabled: {
+    backgroundColor: COLORS.gray[300],
+  },
+  locationButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text.inverse,
+    marginLeft: 8,
+  },
+  locationButtonTextDisabled: {
+    color: COLORS.text.disabled,
+  },
+
+  // Location display styles
+  locationDisplayContainer: {
+    backgroundColor: COLORS.gray[50],
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 12,
+  },
+  locationDisplayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  locationDisplayLabel: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    fontWeight: '500',
+    width: 100,
+  },
+  locationDisplayValue: {
+    fontSize: 14,
+    color: COLORS.text.primary,
+    flex: 1,
+    fontFamily: 'monospace',
+  },
+  locationAccuracyBadge: {
+    backgroundColor: COLORS.successLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  locationAccuracyText: {
+    fontSize: 12,
+    color: COLORS.success,
+    fontWeight: '500',
+  },
+  locationTimestamp: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+
+  // Map preview styles (optional)
+  mapPreviewContainer: {
+    height: 120,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginTop: 12,
+    backgroundColor: COLORS.gray[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapPreviewPlaceholder: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+  },
+
+  // Error and status styles
+  locationErrorContainer: {
+    backgroundColor: COLORS.errorLight,
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+  },
+  locationStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  locationStatusText: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    marginLeft: 8,
   },
 });
 
