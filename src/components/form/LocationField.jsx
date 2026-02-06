@@ -26,11 +26,12 @@ const requestLocationPermission = async () => {
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         {
           title: 'Location Permission',
-          message: 'This app needs access to your location to capture GPS coordinates.',
+          message:
+            'This app needs access to your location to capture GPS coordinates.',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Cancel',
           buttonPositive: 'OK',
-        }
+        },
       );
       return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
@@ -44,7 +45,12 @@ const requestLocationPermission = async () => {
 };
 
 // Helper function to create location data object
-const createLocationData = (coords, timestamp, address = null, isManualEntry = false) => ({
+const createLocationData = (
+  coords,
+  timestamp,
+  address = null,
+  isManualEntry = false,
+) => ({
   latitude: coords.latitude,
   longitude: coords.longitude,
   accuracy: coords.accuracy || 0,
@@ -58,10 +64,11 @@ const createLocationData = (coords, timestamp, address = null, isManualEntry = f
 });
 
 // Helper function to get accuracy status
-const getAccuracyStatus = (accuracy) => {
+const getAccuracyStatus = accuracy => {
   if (accuracy < 20) return { text: 'High Accuracy', color: COLORS.success };
   if (accuracy < 100) return { text: 'Good Accuracy', color: COLORS.info };
-  if (accuracy < 500) return { text: 'Moderate Accuracy', color: COLORS.warning };
+  if (accuracy < 500)
+    return { text: 'Moderate Accuracy', color: COLORS.warning };
   return { text: 'Low Accuracy', color: COLORS.error };
 };
 
@@ -80,24 +87,26 @@ const getAddressFromCoordinates = async (latitude, longitude) => {
         },
         headers: {
           'User-Agent': 'Your-App-Name/1.0', // Required by Nominatim
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
         timeout: 10000, // 10 seconds timeout
-      }
+      },
     );
-    
+
     if (response.data) {
       const data = response.data;
       const addressParts = [];
-      
+
       if (data.address?.road) addressParts.push(data.address.road);
       if (data.address?.suburb) addressParts.push(data.address.suburb);
       if (data.address?.city || data.address?.town || data.address?.village) {
-        addressParts.push(data.address.city || data.address.town || data.address.village);
+        addressParts.push(
+          data.address.city || data.address.town || data.address.village,
+        );
       }
       if (data.address?.state) addressParts.push(data.address.state);
       if (data.address?.country) addressParts.push(data.address.country);
-      
+
       return addressParts.join(', ');
     }
     return null;
@@ -130,7 +139,8 @@ const LocationField = ({
   const [capturedLocation, setCapturedLocation] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [locationError, setLocationError] = useState(null);
-  const [isManualEntryModalVisible, setIsManualEntryModalVisible] = useState(false);
+  const [isManualEntryModalVisible, setIsManualEntryModalVisible] =
+    useState(false);
   const [manualLatitude, setManualLatitude] = useState('');
   const [manualLongitude, setManualLongitude] = useState('');
   const [manualAddress, setManualAddress] = useState('');
@@ -139,7 +149,8 @@ const LocationField = ({
   useEffect(() => {
     if (value) {
       try {
-        const parsedValue = typeof value === 'string' ? JSON.parse(value) : value;
+        const parsedValue =
+          typeof value === 'string' ? JSON.parse(value) : value;
         setCapturedLocation(parsedValue);
       } catch (e) {
         console.error('Error parsing location value:', e);
@@ -147,46 +158,56 @@ const LocationField = ({
     }
   }, [value]);
 
-  const formatTimestamp = useCallback((timestamp) => {
+  const formatTimestamp = useCallback(timestamp => {
     const date = new Date(timestamp);
     return date.toLocaleString();
   }, []);
 
-  const formatCoordinate = useCallback((coord) => {
+  const formatCoordinate = useCallback(coord => {
     return coord.toFixed(6);
   }, []);
 
   // Main location capture handler - calls onChange only once
-  const handleLocationCapture = useCallback(async (position, isAccurate = true) => {
-    const { coords, timestamp } = position;
-    
-    let locationData = createLocationData(coords, timestamp);
-    
-    // Fetch address if needed before updating state
-    if (showAddress) {
-      try {
-        const address = await getAddressFromCoordinates(coords.latitude, coords.longitude);
-        if (address) {
-          locationData = {
-            ...locationData,
-            address,
-          };
+  const handleLocationCapture = useCallback(
+    async (position, isAccurate = true) => {
+      const { coords, timestamp } = position;
+
+      let locationData = createLocationData(coords, timestamp);
+
+      // Fetch address if needed before updating state
+      if (showAddress) {
+        try {
+          const address = await getAddressFromCoordinates(
+            coords.latitude,
+            coords.longitude,
+          );
+          if (address) {
+            locationData = {
+              ...locationData,
+              address,
+            };
+          } else {
+            console.warn(
+              'No address found for coordinates:',
+              coords.latitude,
+              coords.longitude,
+            );
+          }
+        } catch (error) {
+          console.error('Failed to fetch address:', error);
+          // Continue without address - address is optional
         }
-        else {          console.warn('No address found for coordinates:', coords.latitude, coords.longitude);
-        }
-      } catch (error) {
-        console.error('Failed to fetch address:', error);
-        // Continue without address - address is optional
       }
-    }
-    
-    // SINGLE onChange call with complete data
-    setCapturedLocation(locationData);
-    onChange(JSON.stringify(locationData));
-    // setLocationError(null);
-    
-    onCaptureComplete?.(locationData, isAccurate);
-  }, [onChange, showAddress, onCaptureComplete]);
+
+      // SINGLE onChange call with complete data
+      setCapturedLocation(locationData);
+      onChange(JSON.stringify(locationData));
+      // setLocationError(null);
+
+      onCaptureComplete?.(locationData, isAccurate);
+    },
+    [onChange, showAddress, onCaptureComplete],
+  );
 
   const captureLocation = async () => {
     if (disabled) return;
@@ -199,7 +220,9 @@ const LocationField = ({
       // Check and request permission
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
-        throw new Error('Location permission denied. Please enable location access in settings.');
+        throw new Error(
+          'Location permission denied. Please enable location access in settings.',
+        );
       }
 
       // Configure geolocation options
@@ -211,25 +234,26 @@ const LocationField = ({
 
       // Get current position
       Geolocation.getCurrentPosition(
-        async (position) => {
+        async position => {
           try {
             const { coords } = position;
-            
+
             // Check if accuracy meets minimum requirement
             let isAccurate = true;
-            if (coords.accuracy <= minAccuracy) { 
-                           
+            if (coords.accuracy <= minAccuracy) {
               isAccurate = true;
             } else {
-
               const accuracyStatus = getAccuracyStatus(coords.accuracy);
-              setLocationError(`Location accuracy (${coords.accuracy.toFixed(0)}m) is below the required threshold (${minAccuracy}m).`);
+              setLocationError(
+                `Location accuracy (${coords.accuracy.toFixed(
+                  0,
+                )}m) is below the required threshold (${minAccuracy}m).`,
+              );
               isAccurate = false;
             }
-            
+
             // Handle location capture (with address if needed)
             await handleLocationCapture(position, isAccurate);
-            
           } catch (error) {
             console.error('Error processing location:', error);
             setLocationError('Failed to process location data.');
@@ -238,28 +262,31 @@ const LocationField = ({
             setIsCapturing(false);
           }
         },
-        (error) => {
+        error => {
           setIsCapturing(false);
           let errorMessage = 'Failed to capture location. ';
-          
+
           switch (error.code) {
             case error.PERMISSION_DENIED:
-              errorMessage = 'Location permission denied. Please enable location access in settings.';
+              errorMessage =
+                'Location permission denied. Please enable location access in settings.';
               break;
             case error.POSITION_UNAVAILABLE:
               errorMessage = 'Location information is unavailable.';
               break;
             case error.TIMEOUT:
-              errorMessage = `Location request timed out after ${timeout / 1000} seconds.`;
+              errorMessage = `Location request timed out after ${
+                timeout / 1000
+              } seconds.`;
               break;
             default:
               errorMessage += error.message;
           }
-          
+
           setLocationError(errorMessage);
           onCaptureError?.(error);
         },
-        options
+        options,
       );
     } catch (error) {
       setIsCapturing(false);
@@ -289,24 +316,34 @@ const LocationField = ({
   const submitManualEntry = () => {
     const lat = parseFloat(manualLatitude);
     const lng = parseFloat(manualLongitude);
-    
-    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      Alert.alert('Invalid Coordinates', 'Please enter valid latitude (-90 to 90) and longitude (-180 to 180) values.');
+
+    if (
+      isNaN(lat) ||
+      isNaN(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) {
+      Alert.alert(
+        'Invalid Coordinates',
+        'Please enter valid latitude (-90 to 90) and longitude (-180 to 180) values.',
+      );
       return;
     }
-    
+
     const locationData = createLocationData(
       { latitude: lat, longitude: lng },
       Date.now(),
       manualAddress || null,
-      true
+      true,
     );
-    
+
     // SINGLE onChange call for manual entry too
     setCapturedLocation(locationData);
     onChange(JSON.stringify(locationData));
     setIsManualEntryModalVisible(false);
-    
+
     // Clear manual entry fields
     setManualLatitude('');
     setManualLongitude('');
@@ -316,16 +353,27 @@ const LocationField = ({
   const renderLocationDisplay = () => {
     if (!capturedLocation) return null;
 
-    const accuracyStatus = capturedLocation.accuracy > 0 
-      ? getAccuracyStatus(capturedLocation.accuracy)
-      : null;
+    const accuracyStatus =
+      capturedLocation.accuracy > 0
+        ? getAccuracyStatus(capturedLocation.accuracy)
+        : null;
 
     return (
       <View style={styles.locationDisplayContainer}>
-         {accuracyStatus && (
+        {accuracyStatus && (
           <View style={styles.locationDisplayRow}>
-            <View style={[styles.locationAccuracyBadge, { backgroundColor: accuracyStatus.color + '20' }]}>
-              <Text style={[styles.locationAccuracyText, { color: accuracyStatus.color }]}>
+            <View
+              style={[
+                styles.locationAccuracyBadge,
+                { backgroundColor: accuracyStatus.color + '20' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.locationAccuracyText,
+                  { color: accuracyStatus.color },
+                ]}
+              >
                 {accuracyStatus.text} ({capturedLocation.accuracy.toFixed(0)}m)
               </Text>
             </View>
@@ -346,17 +394,24 @@ const LocationField = ({
           </View>
         </View>
 
-                {capturedLocation.address && (
+        {capturedLocation.address && (
           <View style={locationStyles.addressContainer}>
             <Text style={locationStyles.addressLabel}>Address</Text>
-            <Text style={locationStyles.addressText}>{capturedLocation.address}</Text>
+            <Text style={locationStyles.addressText}>
+              {capturedLocation.address}
+            </Text>
           </View>
         )}
 
         {capturedLocation.isManualEntry && (
           <View style={styles.locationDisplayRow}>
             <Icon name="edit" size={14} color={COLORS.warning} />
-            <Text style={[styles.locationDisplayValue, { color: COLORS.warning, marginLeft: 4 }]}>
+            <Text
+              style={[
+                styles.locationDisplayValue,
+                { color: COLORS.warning, marginLeft: 4 },
+              ]}
+            >
               Manually entered
             </Text>
           </View>
@@ -393,9 +448,11 @@ const LocationField = ({
             disabled={disabled || isCapturing}
           >
             <Icon name="refresh" size={18} color={COLORS.text.primary} />
-            <Text style={locationStyles.secondaryActionButtonText}>Recapture</Text>
+            <Text style={locationStyles.secondaryActionButtonText}>
+              Recapture
+            </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={locationStyles.clearButton}
             onPress={clearLocation}
@@ -416,10 +473,18 @@ const LocationField = ({
       animationType="slide"
       onRequestClose={() => setIsManualEntryModalVisible(false)}
     >
-      <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center' }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
+        }}
+      >
         <View style={locationStyles.manualEntryContainer}>
-          <Text style={locationStyles.manualEntryTitle}>Manual Location Entry</Text>
-          
+          <Text style={locationStyles.manualEntryTitle}>
+            Manual Location Entry
+          </Text>
+
           <TextInput
             style={locationStyles.manualInput}
             placeholder="Latitude (e.g., 12.345678)"
@@ -428,7 +493,7 @@ const LocationField = ({
             keyboardType="numeric"
             autoCapitalize="none"
           />
-          
+
           <TextInput
             style={locationStyles.manualInput}
             placeholder="Longitude (e.g., 98.765432)"
@@ -437,7 +502,7 @@ const LocationField = ({
             keyboardType="numeric"
             autoCapitalize="none"
           />
-          
+
           <TextInput
             style={[locationStyles.manualInput, { minHeight: 80 }]}
             placeholder="Address (optional)"
@@ -447,7 +512,7 @@ const LocationField = ({
             numberOfLines={3}
             textAlignVertical="top"
           />
-          
+
           <View style={locationStyles.modalButtonsContainer}>
             <TouchableOpacity
               style={locationStyles.modalCancelButton}
@@ -455,12 +520,14 @@ const LocationField = ({
             >
               <Text style={locationStyles.modalCancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={locationStyles.modalSubmitButton}
               onPress={submitManualEntry}
             >
-              <Text style={locationStyles.modalSubmitButtonText}>Save Location</Text>
+              <Text style={locationStyles.modalSubmitButtonText}>
+                Save Location
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -475,9 +542,7 @@ const LocationField = ({
         {required && <Text style={styles.requiredStar}>*</Text>}
       </View>
 
-      {description && (
-        <Text style={styles.descriptionText}>{description}</Text>
-      )}
+      {description && <Text style={styles.descriptionText}>{description}</Text>}
 
       {!capturedLocation ? (
         <View>
@@ -485,23 +550,14 @@ const LocationField = ({
             style={[
               styles.locationButton,
               disabled && styles.locationButtonDisabled,
-              isCapturing && { backgroundColor: COLORS.primaryLight }
+              isCapturing && { backgroundColor: COLORS.primaryLight },
             ]}
             onPress={captureLocation}
             disabled={disabled || isCapturing}
             activeOpacity={0.8}
           >
-            {isCapturing ? (
-              <>
-                <ActivityIndicator size="small" color={COLORS.text.inverse} />
-                <Text style={styles.locationButtonText}>Capturing...</Text>
-              </>
-            ) : (
-              <>
-                <Icon name="location-on" size={20} color={COLORS.text.inverse} />
-                <Text style={styles.locationButtonText}>Capture Location</Text>
-              </>
-            )}
+            <Icon name="location-on" size={20} color={COLORS.text.inverse} />
+            <Text style={styles.locationButtonText}>Capture Location</Text>
           </TouchableOpacity>
 
           {isMannualEntryAllowed && (
@@ -521,7 +577,13 @@ const LocationField = ({
 
       {locationError && (
         <View style={styles.locationErrorContainer}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginBottom: 8,
+            }}
+          >
             <Icon name="error-outline" size={18} color={COLORS.error} />
             <Text style={[styles.errorText, { marginLeft: 8, flex: 1 }]}>
               {locationError}
@@ -539,9 +601,7 @@ const LocationField = ({
         </View>
       )}
 
-      {error && !locationError && (
-        <Text style={styles.errorText}>{error}</Text>
-      )}
+      {error && !locationError && <Text style={styles.errorText}>{error}</Text>}
 
       {renderManualEntryModal()}
 
