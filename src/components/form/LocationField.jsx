@@ -10,12 +10,12 @@ import {
   Platform,
   Linking,
   PermissionsAndroid,
+  StyleSheet,
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import axios from 'axios'; // Import axios
 import { COLORS } from '../../constants/colors';
-import styles from './FormComponents.styles';
-import locationStyles from './LocationField.styles';
+import commonStyles from './FormComponents.styles';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 // Permission checking helper for Android
@@ -359,18 +359,18 @@ const LocationField = ({
         : null;
 
     return (
-      <View style={styles.locationDisplayContainer}>
+      <View style={commonStyles.locationDisplayContainer}>
         {accuracyStatus && (
-          <View style={styles.locationDisplayRow}>
+          <View style={commonStyles.locationDisplayRow}>
             <View
               style={[
-                styles.locationAccuracyBadge,
+                commonStyles.locationAccuracyBadge,
                 { backgroundColor: accuracyStatus.color + '20' },
               ]}
             >
               <Text
                 style={[
-                  styles.locationAccuracyText,
+                  commonStyles.locationAccuracyText,
                   { color: accuracyStatus.color },
                 ]}
               >
@@ -379,36 +379,36 @@ const LocationField = ({
             </View>
           </View>
         )}
-        <View style={locationStyles.coordinatesContainer}>
-          <View style={locationStyles.coordinateBox}>
-            <Text style={locationStyles.coordinateLabel}>Latitude</Text>
-            <Text style={locationStyles.coordinateValue}>
+        <View style={styles.coordinatesContainer}>
+          <View style={styles.coordinateBox}>
+            <Text style={styles.coordinateLabel}>Latitude</Text>
+            <Text style={styles.coordinateValue}>
               {formatCoordinate(capturedLocation.latitude)}
             </Text>
           </View>
-          <View style={locationStyles.coordinateBox}>
-            <Text style={locationStyles.coordinateLabel}>Longitude</Text>
-            <Text style={locationStyles.coordinateValue}>
+          <View style={styles.coordinateBox}>
+            <Text style={styles.coordinateLabel}>Longitude</Text>
+            <Text style={styles.coordinateValue}>
               {formatCoordinate(capturedLocation.longitude)}
             </Text>
           </View>
         </View>
 
         {capturedLocation.address && (
-          <View style={locationStyles.addressContainer}>
-            <Text style={locationStyles.addressLabel}>Address</Text>
-            <Text style={locationStyles.addressText}>
+          <View style={styles.addressContainer}>
+            <Text style={styles.addressLabel}>Address</Text>
+            <Text style={styles.addressText}>
               {capturedLocation.address}
             </Text>
           </View>
         )}
 
         {capturedLocation.isManualEntry && (
-          <View style={styles.locationDisplayRow}>
+          <View style={commonStyles.locationDisplayRow}>
             <Icon name="edit" size={14} color={COLORS.warning} />
             <Text
               style={[
-                styles.locationDisplayValue,
+                commonStyles.locationDisplayValue,
                 { color: COLORS.warning, marginLeft: 4 },
               ]}
             >
@@ -418,48 +418,48 @@ const LocationField = ({
         )}
 
         {/* {accuracyStatus && (
-          <View style={styles.locationDisplayRow}>
-            <Text style={styles.locationDisplayLabel}>Accuracy:</Text>
-            <View style={[styles.locationAccuracyBadge, { backgroundColor: accuracyStatus.color + '20' }]}>
-              <Text style={[styles.locationAccuracyText, { color: accuracyStatus.color }]}>
+          <View style={commonStyles.locationDisplayRow}>
+            <Text style={commonStyles.locationDisplayLabel}>Accuracy:</Text>
+            <View style={[commonStyles.locationAccuracyBadge, { backgroundColor: accuracyStatus.color + '20' }]}>
+              <Text style={[commonStyles.locationAccuracyText, { color: accuracyStatus.color }]}>
                 {accuracyStatus.text} ({capturedLocation.accuracy.toFixed(0)}m)
               </Text>
             </View>
           </View>
         )} */}
 
-        <Text style={styles.locationTimestamp}>
+        <Text style={commonStyles.locationTimestamp}>
           Captured: {formatTimestamp(capturedLocation.timestamp)}
         </Text>
 
         {showMapPreview && (
-          <View style={styles.mapPreviewContainer}>
+          <View style={commonStyles.mapPreviewContainer}>
             <Icon name="map" size={32} color={COLORS.gray[400]} />
-            <Text style={styles.mapPreviewPlaceholder}>
+            <Text style={commonStyles.mapPreviewPlaceholder}>
               Map preview available with react-native-maps integration
             </Text>
           </View>
         )}
 
-        <View style={locationStyles.actionButtonsContainer}>
+        <View style={styles.actionButtonsContainer}>
           <TouchableOpacity
-            style={locationStyles.secondaryActionButton}
+            style={styles.secondaryActionButton}
             onPress={captureLocation}
             disabled={disabled || isCapturing}
           >
             <Icon name="refresh" size={18} color={COLORS.text.primary} />
-            <Text style={locationStyles.secondaryActionButtonText}>
+            <Text style={styles.secondaryActionButtonText}>
               Recapture
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={locationStyles.clearButton}
+            style={styles.clearButton}
             onPress={clearLocation}
             disabled={disabled}
           >
             <Icon name="delete-outline" size={18} color={COLORS.error} />
-            <Text style={locationStyles.clearButtonText}>Clear</Text>
+            <Text style={styles.clearButtonText}>Clear</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -480,13 +480,13 @@ const LocationField = ({
           justifyContent: 'center',
         }}
       >
-        <View style={locationStyles.manualEntryContainer}>
-          <Text style={locationStyles.manualEntryTitle}>
+        <View style={styles.manualEntryContainer}>
+          <Text style={styles.manualEntryTitle}>
             Manual Location Entry
           </Text>
 
           <TextInput
-            style={locationStyles.manualInput}
+            style={styles.manualInput}
             placeholder="Latitude (e.g., 12.345678)"
             value={manualLatitude}
             onChangeText={setManualLatitude}
@@ -495,7 +495,7 @@ const LocationField = ({
           />
 
           <TextInput
-            style={locationStyles.manualInput}
+            style={styles.manualInput}
             placeholder="Longitude (e.g., 98.765432)"
             value={manualLongitude}
             onChangeText={setManualLongitude}
@@ -504,7 +504,7 @@ const LocationField = ({
           />
 
           <TextInput
-            style={[locationStyles.manualInput, { minHeight: 80 }]}
+            style={[styles.manualInput, { minHeight: 80 }]}
             placeholder="Address (optional)"
             value={manualAddress}
             onChangeText={setManualAddress}
@@ -513,19 +513,19 @@ const LocationField = ({
             textAlignVertical="top"
           />
 
-          <View style={locationStyles.modalButtonsContainer}>
+          <View style={styles.modalButtonsContainer}>
             <TouchableOpacity
-              style={locationStyles.modalCancelButton}
+              style={styles.modalCancelButton}
               onPress={() => setIsManualEntryModalVisible(false)}
             >
-              <Text style={locationStyles.modalCancelButtonText}>Cancel</Text>
+              <Text style={styles.modalCancelButtonText}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={locationStyles.modalSubmitButton}
+              style={styles.modalSubmitButton}
               onPress={submitManualEntry}
             >
-              <Text style={locationStyles.modalSubmitButtonText}>
+              <Text style={styles.modalSubmitButtonText}>
                 Save Location
               </Text>
             </TouchableOpacity>
@@ -536,20 +536,20 @@ const LocationField = ({
   );
 
   return (
-    <View style={styles.fieldContainer}>
-      <View style={styles.labelContainer}>
-        <Text style={styles.labelText}>{label}</Text>
-        {required && <Text style={styles.requiredStar}>*</Text>}
+    <View style={commonStyles.fieldContainer}>
+      <View style={commonStyles.labelContainer}>
+        <Text style={commonStyles.labelText}>{label}</Text>
+        {required && <Text style={commonStyles.requiredStar}>*</Text>}
       </View>
 
-      {description && <Text style={styles.descriptionText}>{description}</Text>}
+      {description && <Text style={commonStyles.descriptionText}>{description}</Text>}
 
       {!capturedLocation ? (
         <View>
           <TouchableOpacity
             style={[
-              styles.locationButton,
-              disabled && styles.locationButtonDisabled,
+              commonStyles.locationButton,
+              disabled && commonStyles.locationButtonDisabled,
               isCapturing && { backgroundColor: COLORS.primaryLight },
             ]}
             onPress={captureLocation}
@@ -557,17 +557,17 @@ const LocationField = ({
             activeOpacity={0.8}
           >
             <Icon name="location-on" size={20} color={COLORS.text.inverse} />
-            <Text style={styles.locationButtonText}>Capture Location</Text>
+            <Text style={commonStyles.locationButtonText}>Capture Location</Text>
           </TouchableOpacity>
 
           {isMannualEntryAllowed && (
             <TouchableOpacity
-              style={[styles.secondaryButton, { marginTop: 8 }]}
+              style={[commonStyles.secondaryButton, { marginTop: 8 }]}
               onPress={handleManualEntry}
               disabled={disabled}
             >
               <Icon name="edit" size={18} color={COLORS.text.primary} />
-              <Text style={styles.secondaryButtonText}>Enter Manually</Text>
+              <Text style={commonStyles.secondaryButtonText}>Enter Manually</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -576,7 +576,7 @@ const LocationField = ({
       )}
 
       {locationError && (
-        <View style={styles.locationErrorContainer}>
+        <View style={commonStyles.locationErrorContainer}>
           <View
             style={{
               flexDirection: 'row',
@@ -585,30 +585,30 @@ const LocationField = ({
             }}
           >
             <Icon name="error-outline" size={18} color={COLORS.error} />
-            <Text style={[styles.errorText, { marginLeft: 8, flex: 1 }]}>
+            <Text style={[commonStyles.errorText, { marginLeft: 8, flex: 1 }]}>
               {locationError}
             </Text>
           </View>
           {locationError.includes('permission') && (
             <TouchableOpacity
-              style={[styles.secondaryButton, { alignSelf: 'flex-start' }]}
+              style={[commonStyles.secondaryButton, { alignSelf: 'flex-start' }]}
               onPress={openSettings}
             >
               <Icon name="settings" size={16} color={COLORS.text.primary} />
-              <Text style={styles.secondaryButtonText}>Open Settings</Text>
+              <Text style={commonStyles.secondaryButtonText}>Open Settings</Text>
             </TouchableOpacity>
           )}
         </View>
       )}
 
-      {error && !locationError && <Text style={styles.errorText}>{error}</Text>}
+      {error && !locationError && <Text style={commonStyles.errorText}>{error}</Text>}
 
       {renderManualEntryModal()}
 
       {isCapturing && (
-        <View style={locationStyles.loadingOverlay}>
+        <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={locationStyles.loadingText}>Getting location...</Text>
+          <Text style={styles.loadingText}>Getting location...</Text>
         </View>
       )}
     </View>
@@ -616,3 +616,179 @@ const LocationField = ({
 };
 
 export default LocationField;
+
+const styles = StyleSheet.create({
+  // Location coordinates display
+  coordinatesContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  coordinateBox: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 6,
+    padding: 12,
+  },
+  coordinateLabel: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  coordinateValue: {
+    fontSize: 14,
+    color: COLORS.text.primary,
+    fontFamily: 'monospace',
+    fontWeight: '600',
+  },
+  
+  // Address display
+  addressContainer: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 6,
+    padding: 12,
+    marginBottom: 12,
+  },
+  addressLabel: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  addressText: {
+    fontSize: 14,
+    color: COLORS.text.primary,
+    lineHeight: 20,
+  },
+  
+  // Action buttons container
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  secondaryActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.gray[100],
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  secondaryActionButtonText: {
+    fontSize: 14,
+    color: COLORS.text.primary,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  clearButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.errorLight,
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  clearButtonText: {
+    fontSize: 14,
+    color: COLORS.error,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  
+  // Manual entry modal
+  manualEntryContainer: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 20,
+    marginHorizontal: 20,
+  },
+  manualEntryTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  manualInput: {
+    backgroundColor: COLORS.gray[50],
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: COLORS.text.primary,
+    marginBottom: 12,
+    fontFamily: 'System',
+  },
+  manualInputRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  manualInputHalf: {
+    flex: 1,
+  },
+  modalButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  modalCancelButton: {
+    flex: 1,
+    backgroundColor: COLORS.gray[100],
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalCancelButtonText: {
+    fontSize: 16,
+    color: COLORS.text.primary,
+    fontWeight: '500',
+  },
+  modalSubmitButton: {
+    flex: 2,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalSubmitButtonText: {
+    fontSize: 16,
+    color: COLORS.text.inverse,
+    fontWeight: '600',
+  },
+  
+  // Loading overlay
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    fontWeight: '500',
+  },
+});

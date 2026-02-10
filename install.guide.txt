@@ -34,3 +34,29 @@ npm i @react-native-community/geolocation
 at android/app/src/main/AndroidManifest.xml
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+
+npm install @react-native-voice/voice react-native-permissions
+at android/app/src/main/AndroidManifest.xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Add these permissions -->
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  
+  <!-- Optional: for network-based speech recognition -->
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  
+  <!-- Inside <application> tag, add this -->
+  <application
+    android:allowBackup="true"
+    android:theme="@style/AppTheme">
+    
+    <!-- Add this meta-data for voice recognition -->
+    <meta-data
+      android:name="com.google.android.gms.version"
+      android:value="@integer/google_play_services_version" />
+      
+  </application>
+</manifest>
+
+at android/app/build.gradle

@@ -4,7 +4,7 @@ import { API_BASE_URL } from '../../constants/api';
 
 // Add mock data for testing
 
-const test_token = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkZW1vMX4yMDI2MDIwNjAwMDAwMDAwMDAwMn5OIiwiaXNzIjoiU2ltYXBob3JlIiwiaWF0IjoxNzcwMzg1ODk2LCJleHAiOjE3NzA0MDM4OTZ9.lYEsBb7nbzWVQ5DzJHIrlimfSoii_uBJAbzLX3rsNUY'
+const test_token = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkZW1vMX4yMDI2MDIxMDAwMDAwMDAwMDAwMn5OIiwiaXNzIjoiU2ltYXBob3JlIiwiaWF0IjoxNzcwNzEyNzExLCJleHAiOjE3NzA3MzA3MTF9.U4FLLejLdwyZmAw8tQm_T_xi_UkrNGYRkPQFY2U-YcM'
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   prepareHeaders: headers => {
