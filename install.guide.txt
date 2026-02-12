@@ -38,25 +38,32 @@ at android/app/src/main/AndroidManifest.xml
 
 npm install @react-native-voice/voice react-native-permissions
 at android/app/src/main/AndroidManifest.xml
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <!-- Add these permissions -->
-  <uses-permission android:name="android.permission.RECORD_AUDIO" />
-  <uses-permission android:name="android.permission.INTERNET" />
-  
-  <!-- Optional: for network-based speech recognition -->
-  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-  
-  <!-- Inside <application> tag, add this -->
-  <application
-    android:allowBackup="true"
-    android:theme="@style/AppTheme">
-    
-    <!-- Add this meta-data for voice recognition -->
-    <meta-data
-      android:name="com.google.android.gms.version"
-      android:value="@integer/google_play_services_version" />
-      
-  </application>
-</manifest>
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
 
-at android/app/build.gradle
+at node_modules/@react-native-voice/voice/android/build.gradle
+replace everything. This is the cleanest fix:
+""
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion rootProject.ext.targetSdkVersion
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.facebook.react:react-native:+'
+}
+""
+ .\gradlew clean 
+
+npm install patch-package postinstall-postinstall --save-dev
+npx patch-package @react-native-voice/voice

@@ -6,16 +6,14 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { useNavigation } from '@react-navigation/native';
-import { useDispatch } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 import { useGetFormsMutation } from '../../features/form/formsApi';
-import TokenService from '../../services/storage/tokenService';
-import { logout } from '../../features/auth/authSlice';
+import TokenService, { tokenService } from '../../services/storage/tokenService';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
 
@@ -25,17 +23,15 @@ import { EmptyState } from './components/EmptyState/EmptyState';
 import { ErrorState } from './components/ErrorState/ErrorState';
 
 import { styles } from './Dashboard.styles';
-
 const getFormsbody = {
   apiId: 'SUA00931',
   criteria: {
     appId: 'AP000001',
   },
 };
-
 const DashboardScreen = () => {
+
   const navigation = useNavigation();
-  const dispatch = useDispatch();
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeSort, setActiveSort] = useState('newest');
@@ -49,75 +45,16 @@ const DashboardScreen = () => {
   }, []);
 
   const fetchForms = useCallback(
-    async (body) => {
+    async body => {
       try {
-        console.log('📋 Fetching forms with token...');
         const result = await getForms(body).unwrap();
-        // console.log('📋 Forms fetched successfully:', result);
-        
-        // Extract forms from the response
-        if (result?.code === 0 && result?.content?.qryRsltSet) {
-          console.log('📋 Forms fetched successfully:', result);
-          // // Transform the data to match your UI needs
-          // const transformedForms = result.content.qryRsltSet.map((item, index) => ({
-          //   id: item.formId || `form-${index}`,
-          //   formId: item.formId,
-          //   title: item.formNm+"k" || 'Untitled Formx',
-          //   formNm: item.formNm,
-          //   description: item.formDesc || "No description available",
-          //   status: item.status || 'active',
-          //   priority: item.priority || 'normal',
-          //   totalFields: item.totalFields || 0,
-          //   estimatedTime: item.estimatedTime || 5,
-          //   completionRate: item.completionRate || 0,
-          //   deadline: item.deadline || null,
-          //   createdAt: item.createdAt || new Date().toISOString(),
-          // }));
-          setForms(result.content.qryRsltSet || []);
-        } else {
-          // Handle error response
-          const errorMsg = result?.appMsgList?.list?.[0]?.errDesc || 'Failed to load forms';
-          console.error('Failed to load forms:', errorMsg);
-          setForms([]);
-          
-          // Check if token expired
-          if (result?.code === 401 || result?.code === 403) {
-            handleTokenExpired();
-          }
-        }
+        setForms(result?.content?.qryRsltSet || []);
       } catch (err) {
         console.error('Failed to fetch forms:', err);
-        
-        // Handle network errors or unauthorized
-        if (err?.status === 401 || err?.status === 403) {
-          handleTokenExpired();
-        }
-        
-        setForms([]);
       }
     },
     [getForms],
   );
-
-  const handleTokenExpired = async () => {
-    Alert.alert(
-      'Session Expired',
-      'Your session has expired. Please login again.',
-      [
-        {
-          text: 'OK',
-          onPress: async () => {
-            await TokenService.clearTokens();
-            dispatch(logout());
-            navigation.reset({
-              index: 0,
-              routes: [{ name: ROUTES.LOGIN }],
-            });
-          },
-        },
-      ]
-    );
-  };
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -132,7 +69,7 @@ const DashboardScreen = () => {
     // Apply filter
     if (activeFilter !== 'all') {
       if (activeFilter === 'priority') {
-        result = result.filter(form => form.priority === 'high' || form.priority === 'geom');
+        result = result.filter(form => form.priority === 'geom');
       } else {
         result = result.filter(form => form.status === activeFilter);
       }
@@ -142,11 +79,11 @@ const DashboardScreen = () => {
     result.sort((a, b) => {
       switch (activeSort) {
         case 'newest':
-          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+          return new Date(b.createdAt) - new Date(a.createdAt);
         case 'oldest':
-          return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+          return new Date(a.createdAt) - new Date(b.createdAt);
         case 'deadline':
-          return new Date(a.deadline || 0) - new Date(b.deadline || 0);
+          return new Date(a.deadline) - new Date(b.deadline);
         case 'progress':
           return (b.completionRate || 0) - (a.completionRate || 0);
         default:
@@ -159,10 +96,11 @@ const DashboardScreen = () => {
 
   const handleFormPress = form => {
     console.log('Form selected:', form.id);
+    // Navigate to form collection screen
     navigation.navigate(ROUTES.RECORD_ENTRY, {
-      appId: 'AP000001',
+      appId: 'AP000001', // Get this from your API response or context
       formId: form.formId,
-      formTitle: form.title,
+      formTitle: form.formNm,
     });
   };
 
@@ -171,37 +109,19 @@ const DashboardScreen = () => {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await TokenService.clearTokens();
-            dispatch(logout());
-            navigation.reset({
-              index: 0,
-              routes: [{ name: ROUTES.LOGIN }],
-            });
-          },
-        },
-      ]
-    );
+    await TokenService.clearTokens();
+    // navigation.reset({
+    //   index: 0,
+    //   routes: [{ name: ROUTES.LOGIN }],
+    // });
   };
 
   const renderItem = ({ item, index }) => (
-    <FormCard 
-      form={item} 
-      index={index} 
-      onPress={() => handleFormPress(item)} 
-    />
+    <FormCard form={item} index={index} onPress={() => handleFormPress(item)} />
   );
 
   const renderContent = () => {
-    if (isLoading && !refreshing) {
+    if (isLoading) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -212,10 +132,7 @@ const DashboardScreen = () => {
 
     if (isError) {
       return (
-        <ErrorState 
-          error={error} 
-          onRetry={() => fetchForms(getFormsbody)} 
-        />
+        <ErrorState error={error} onRetry={() => fetchForms(getFormsbody)} />
       );
     }
 
@@ -241,7 +158,7 @@ const DashboardScreen = () => {
       <FlatList
         data={filteredForms}
         renderItem={renderItem}
-        keyExtractor={item => item.id?.toString() || Math.random().toString()}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
@@ -274,10 +191,7 @@ const DashboardScreen = () => {
           >
             <Icon name="person" size={24} color={COLORS.text.primary} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.iconButton} 
-            onPress={handleLogout}
-          >
+          <TouchableOpacity style={styles.iconButton} onPress={handleLogout}>
             <Icon name="logout" size={24} color={COLORS.error} />
           </TouchableOpacity>
         </View>

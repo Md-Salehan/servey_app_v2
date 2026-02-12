@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -13,6 +14,7 @@ import {
   Dimensions,
   SafeAreaView,
   Animated,
+  Modal,
 } from 'react-native';
 import { 
   useGetOtpConfigQuery,
@@ -35,6 +37,7 @@ const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState({});
   const [otpMethod, setOtpMethod] = useState(null);
+  const [showOtpMethodModal, setShowOtpMethodModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Animations
@@ -61,8 +64,7 @@ const LoginScreen = ({ navigation }) => {
     if (otpConfig) {
       const { otpMobFlg, otpEmailFlg, userOptnSelFlg } = otpConfig;
       
-      if (userOptnSelFlg) {
-        // User can choose - default to null to force selection
+      if (userOptnSelFlg ) { //needtofix 
         setOtpMethod(null);
       } else if (otpMobFlg && !otpEmailFlg) {
         // Only mobile OTP available
@@ -91,18 +93,11 @@ const LoginScreen = ({ navigation }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    // If user can select method but hasn't selected yet
-    if (otpConfig?.userOptnSelFlg && !otpMethod) {
-      newErrors.method = 'Please select OTP method';
-      setErrors(newErrors);
-      return false;
-    }
-
     if (!otpMethod) {
       return true;
     }
     
-    if (otpMethod === 'mobile') {
+    if (otpMethod === 'mobile' || (!otpMethod && otpConfig?.otpMobFlg)) {
       const phoneRegex = /^[0-9]{10}$/;
       if (!phone.trim()) {
         newErrors.phone = 'Phone number is required';
@@ -111,7 +106,7 @@ const LoginScreen = ({ navigation }) => {
       }
     }
     
-    if (otpMethod === 'email') {
+    if (otpMethod === 'email' || (!otpMethod && otpConfig?.otpEmailFlg)) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!email.trim()) {
         newErrors.email = 'Email is required';
@@ -136,6 +131,13 @@ const LoginScreen = ({ navigation }) => {
       }
 
       const { otpMobFlg, otpEmailFlg, userOptnSelFlg } = otpConfig;
+
+      // Show method selection modal if user can choose
+      if (userOptnSelFlg) {
+        setShowOtpMethodModal(true);
+        setIsProcessing(false);
+        return;
+      }
 
       // Determine OTP method
       let selectedMethod = otpMethod;
@@ -189,9 +191,12 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  const selectOtpMethod = (method) => {
+  const handleOtpMethodSelect = (method) => {
+    // if (!validateForm()) return;
     setOtpMethod(method);
-    setErrors({ ...errors, method: '' });
+    setShowOtpMethodModal(false);
+    setIsProcessing(true);
+    proceedWithOTP(method);
   };
 
   const formatPhoneNumber = (text) => {
@@ -204,7 +209,6 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const isLoading = isLoadingConfig || isProcessing || isLoadingLogNo || isGeneratingOTP;
-  const userCanSelectMethod = otpConfig?.userOptnSelFlg;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -252,9 +256,7 @@ const LoginScreen = ({ navigation }) => {
               {otpConfig && (
                 <View style={styles.otpMethodIndicator}>
                   <Text style={styles.otpMethodText}>
-                    {otpConfig.userOptnSelFlg 
-                      ? '🔒 Select OTP method below'
-                      : otpConfig.otpMobFlg && otpConfig.otpEmailFlg 
+                    {otpConfig.otpMobFlg && otpConfig.otpEmailFlg 
                       ? '📱✉️ Mobile & Email OTP available'
                       : otpConfig.otpMobFlg 
                       ? '📱 Mobile OTP enabled'
@@ -269,66 +271,12 @@ const LoginScreen = ({ navigation }) => {
               <View style={styles.formHeader}>
                 <Text style={styles.formTitle}>Welcome</Text>
                 <Text style={styles.formSubtitle}>
-                  {userCanSelectMethod && !otpMethod
-                    ? 'Please select your preferred OTP method'
-                    : otpMethod === 'email' 
-                    ? 'Enter your email address to receive OTP'
-                    : otpMethod === 'mobile'
-                    ? 'Enter your phone number to receive OTP'
-                    : 'Enter your details to receive OTP'}
+                  Enter your {otpMethod === 'email' ? 'email address' : 'phone number'} to receive OTP
                 </Text>
               </View>
 
-              {/* OTP Method Selection Toggle - Show when user can select method */}
-              {userCanSelectMethod && (
-                <View style={styles.methodToggleContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.methodToggleButton,
-                      otpMethod === 'mobile' && styles.methodToggleActive,
-                    ]}
-                    onPress={() => selectOtpMethod('mobile')}
-                    disabled={isLoading}
-                  >
-                    <Text style={styles.methodToggleEmoji}>📱</Text>
-                    <Text 
-                      style={[
-                        styles.methodToggleText,
-                        otpMethod === 'mobile' && styles.methodToggleTextActive,
-                      ]}
-                    >
-                      Mobile OTP
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[
-                      styles.methodToggleButton,
-                      otpMethod === 'email' && styles.methodToggleActive,
-                    ]}
-                    onPress={() => selectOtpMethod('email')}
-                    disabled={isLoading}
-                  >
-                    <Text style={styles.methodToggleEmoji}>✉️</Text>
-                    <Text 
-                      style={[
-                        styles.methodToggleText,
-                        otpMethod === 'email' && styles.methodToggleTextActive,
-                      ]}
-                    >
-                      Email OTP
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {/* Method selection error */}
-              {errors.method && (
-                <Text style={[styles.errorText, styles.methodError]}>{errors.method}</Text>
-              )}
-
               {/* Phone Input - Show for mobile OTP */}
-              {otpMethod === 'mobile' && (
+              {(otpMethod === 'mobile' || (!otpMethod && otpConfig?.otpMobFlg)) && (
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Phone number</Text>
                   <View
@@ -362,7 +310,7 @@ const LoginScreen = ({ navigation }) => {
               )}
 
               {/* Email Input - Show for email OTP */}
-              {otpMethod === 'email' && (
+              {(otpMethod === 'email' || (!otpMethod && otpConfig?.otpEmailFlg)) && (
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Email address</Text>
                   <View
@@ -400,13 +348,13 @@ const LoginScreen = ({ navigation }) => {
                   isLoading && styles.buttonDisabled,
                   (otpMethod === 'mobile' && !phone) && styles.buttonDisabled,
                   (otpMethod === 'email' && !email) && styles.buttonDisabled,
-                  (userCanSelectMethod && !otpMethod) && styles.buttonDisabled,
+                  (!otpMethod && !phone && !email) && styles.buttonDisabled,
                 ]}
                 onPress={handleGetOTP}
                 disabled={isLoading || 
                   (otpMethod === 'mobile' && !phone) || 
                   (otpMethod === 'email' && !email) ||
-                  (userCanSelectMethod && !otpMethod)
+                  (!otpMethod && !phone && !email)
                 }
                 activeOpacity={0.8}
               >
@@ -429,6 +377,59 @@ const LoginScreen = ({ navigation }) => {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* OTP Method Selection Modal */}
+      <Modal
+        visible={showOtpMethodModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowOtpMethodModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select OTP Method</Text>
+            <Text style={styles.modalSubtitle}>
+              Choose how you want to receive your OTP
+            </Text>
+            
+            <TouchableOpacity
+              style={styles.optionButton}
+              onPress={() => handleOtpMethodSelect('mobile')}
+            >
+              <Text style={styles.optionEmoji}>📱</Text>
+              <View style={styles.optionTextContainer}>
+                <Text style={styles.optionTitle}>Mobile OTP</Text>
+                <Text style={styles.optionDescription}>
+                  OTP will be sent to your mobile number
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionButton}
+              onPress={() => handleOtpMethodSelect('email')}
+            >
+              <Text style={styles.optionEmoji}>✉️</Text>
+              <View style={styles.optionTextContainer}>
+                <Text style={styles.optionTitle}>Email OTP</Text>
+                <Text style={styles.optionDescription}>
+                  OTP will be sent to your email address
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => {
+                setShowOtpMethodModal(false);
+                setIsProcessing(false);
+              }}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -528,44 +529,6 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     lineHeight: 20,
   },
-  // Method Toggle Styles
-  methodToggleContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  methodToggleButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    backgroundColor: COLORS.surface,
-    gap: 8,
-  },
-  methodToggleActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
-  },
-  methodToggleEmoji: {
-    fontSize: 18,
-  },
-  methodToggleText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.gray[600],
-  },
-  methodToggleTextActive: {
-    color: COLORS.primary,
-  },
-  methodError: {
-    marginBottom: 16,
-    textAlign: 'center',
-  },
   inputGroup: {
     marginBottom: 20,
   },
@@ -653,6 +616,79 @@ const styles = StyleSheet.create({
   footerLink: {
     color: COLORS.primary,
     textDecorationLine: 'underline',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: COLORS.surface,
+  },
+  optionEmoji: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  optionTextContainer: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    marginBottom: 4,
+  },
+  optionDescription: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+  },
+  modalCancelButton: {
+    marginTop: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 });
 

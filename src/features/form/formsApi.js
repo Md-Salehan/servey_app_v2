@@ -1,15 +1,14 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { tokenService } from '../../services/storage/tokenService';
 import { API_BASE_URL } from '../../constants/api';
+import TokenService from '../../services/storage/tokenService';
 
 // Add mock data for testing
 
-const test_token = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkZW1vMX4yMDI2MDIxMDAwMDAwMDAwMDAwMn5OIiwiaXNzIjoiU2ltYXBob3JlIiwiaWF0IjoxNzcwNzEyNzExLCJleHAiOjE3NzA3MzA3MTF9.U4FLLejLdwyZmAw8tQm_T_xi_UkrNGYRkPQFY2U-YcM'
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
-  prepareHeaders: headers => {
-    // const token = tokenService.getAccessToken();
-    const token = test_token;
+  prepareHeaders: async (headers) => {
+    // ✅ FIX: Make this async and await the token
+    const token = await TokenService.getAccessToken();
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }

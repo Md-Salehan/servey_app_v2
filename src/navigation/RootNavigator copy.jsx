@@ -10,9 +10,10 @@ const RootNavigator = () => {
 
   return (
     <NavigationContainer>
-      <ProtectedRoute>
+      <MainNavigator />
+      {/* <ProtectedRoute>
         {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
-      </ProtectedRoute>
+      </ProtectedRoute> */}
     </NavigationContainer>
   );
 };

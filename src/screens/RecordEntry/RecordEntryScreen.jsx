@@ -21,6 +21,7 @@ import SignatureField from '../../components/form/SignatureField';
 import SimpleTest from '../../components/form/SimpleTest';
 import DropdownField from '../../components/form/DropdownField';
 import LocationField from '../../components/form/LocationField';
+// import VoiceTest from '../../../screen/VoiceTest';
 import styles from './RecordEntry.styles';
 import { Header } from './component';
 
@@ -396,6 +397,7 @@ const RecordEntryScreen = () => {
 
         <SimpleTest />
         <ImageCaptureScreen />
+        {/* <VoiceTest /> */}
 
         {/* Submission Error */}
         {submissionError && (
