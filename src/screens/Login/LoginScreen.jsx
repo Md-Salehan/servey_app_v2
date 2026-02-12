@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     color: COLORS.gray[600],
   },
   methodToggleTextActive: {
-    color: COLORS.primary,
+    color: COLORS.text.inverse,
   },
   methodError: {
     marginBottom: 16,

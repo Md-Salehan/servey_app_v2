@@ -5,7 +5,8 @@ export const ROUTES = {
   HOME: 'Home',
   OTP: 'OTP', 
   DASHBOARD: 'Dashboard',
-  RECORD_ENTRY: 'RecordEntry'
+  RECORD_ENTRY: 'RecordEntry',
+  PREVIEW_ENTRY: 'PreviewEntry'
 };
 
 export const STORAGE_KEYS = {

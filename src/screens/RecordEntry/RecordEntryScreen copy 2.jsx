@@ -9,10 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import {
-  useGetFormComponentsMutation,
-  useSubmitFormDataMutation,
-} from '../../features/form/formComponentsApi';
+import { useGetFormComponentsMutation } from '../../features/form/formComponentsApi';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import TextInputField from '../../components/form/TextInputField';
@@ -33,7 +30,6 @@ const RecordEntryScreen = () => {
   const navigation = useNavigation();
   const [getFormComponents, { isLoading, error }] =
     useGetFormComponentsMutation();
-  const [submitFormData] = useSubmitFormDataMutation();
 
   const { appId, formId, formTitle } = route.params || {};
 
@@ -103,7 +99,7 @@ const RecordEntryScreen = () => {
     }));
   };
 
-  const handleNext = () => {
+  const handleSubmit = () => {
     // Validate required fields
     const errors = [];
     formComponents.forEach(component => {
@@ -117,25 +113,25 @@ const RecordEntryScreen = () => {
       return;
     }
 
-    // Navigate to preview screen with all form data
-    navigation.navigate(ROUTES.PREVIEW_ENTRY, {
-      formData: {
-        apiId: 'SUA00935',
-        mst: { appId, formId },
-        dtl01: formComponents.map(component => ({
-          fcId: component.fcId,
-          value: fieldValues[component.fcId],
-          compTyp: component.compTyp,
-        })),
+    // Prepare submission data
+    const submissionData = {
+      apiId: 'SUA00935', // Assuming different API for submission
+      mst: {
+        appId,
+        formId,
       },
-      formTitle,
-      appId,
-      formId,
-      fieldValues,
-      formComponents,
-    });
-  };
+      dtl01: formComponents.map(component => ({
+        fcId: component.fcId,
+        value: fieldValues[component.fcId],
+        compTyp: component.compTyp,
+      })),
+    };
 
+    console.log('Submitting form data:', submissionData);
+    Alert.alert('Success', 'Form submitted successfully!', [
+      { text: 'OK', onPress: () => navigation.goBack() },
+    ]);
+  };
 
   const renderFieldComponent = component => {
     const { fcId, compTyp, compTypTxt, props } = component;
@@ -150,7 +146,11 @@ const RecordEntryScreen = () => {
             placeholder={props?.Placeholder || ''}
             value={fieldValues[fcId]}
             onChangeText={value => handleFieldChange(fcId, value)}
-            maxLength={props?.maxLength ? parseInt(props.maxLength) : undefined}
+            maxLength={
+              props?.maxLength
+                ? parseInt(props.maxLength)
+                : undefined
+            }
             keyboardType={getKeyboardType(props?.keyboardType)}
             editable={props?.Editable !== 'N'}
             multiline={true}
@@ -268,7 +268,7 @@ const RecordEntryScreen = () => {
             }
             isMannualEntryAllowed={true}
           />
-        );
+        ); 
 
       case '09': // Signature
         return (
@@ -288,8 +288,8 @@ const RecordEntryScreen = () => {
             strokeColor={props?.StrokeColor || COLORS.primary}
             strokeWidth={props?.StrokeWidth ? parseInt(props.StrokeWidth) : 3}
             minPoints={props?.MinPoints ? parseInt(props.MinPoints) : 10}
-            onSigningStart={() => {}}
-            onSigningEnd={() => {}}
+            onSigningStart={() => setScrollEnabled(false)}
+            onSigningEnd={() => setScrollEnabled(true)}
           />
         );
 
@@ -406,7 +406,6 @@ const RecordEntryScreen = () => {
           </View>
         )}
       </ScrollView>
-
       {/* Action Buttons */}
       <View style={styles.actionsContainer}>
         <TouchableOpacity
@@ -418,10 +417,10 @@ const RecordEntryScreen = () => {
 
         <TouchableOpacity
           style={styles.submitButton}
-          onPress={handleNext}
+          onPress={handleSubmit}
           disabled={formComponents.length === 0}
         >
-          <Text style={styles.submitButtonText}>Preview Form</Text>
+          <Text style={styles.submitButtonText}>Submit Form</Text>
         </TouchableOpacity>
       </View>
 
