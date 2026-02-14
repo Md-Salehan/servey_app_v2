@@ -9,142 +9,31 @@ import {
   Alert,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { useGetFormComponentsMutation } from '../../features/form/formsApi';
+import {
+  useGetFormComponentsMutation,
+} from '../../features/form/formsApi';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
+import TextInputField from '../../components/form/TextInputField';
+import DatePickerField from '../../components/form/DatePickerField';
+import ImageUploadField from '../../components/form/ImageUploadField';
+import ImageCaptureScreen from '../../components/form/ImageCaptureScreen';
+import CheckboxField from '../../components/form/CheckboxField';
+import SignatureField from '../../components/form/SignatureField';
+import SimpleTest from '../../components/form/SimpleTest';
+import DropdownField from '../../components/form/DropdownField';
+import LocationField from '../../components/form/LocationField';
 // import VoiceTest from '../../../screen/VoiceTest';
 import styles from './RecordEntry.styles';
 import { Header } from './component';
-import {
-  CheckboxField,
-  DatePickerField,
-  DropdownField,
-  ImageUploadField,
-  LocationField,
-  SignatureField,
-  TextInputField,
-} from '../../components';
 
-// const allFormComp = {
-//     "msg": "Successful operation",
-//     "code": 0,
-//     "appMsgList": {
-//         "errorStatus": false,
-//         "list": [
-//             {
-//                 "errCd": "CMAI000008",
-//                 "errDesc": "Record/Records Found",
-//                 "errType": "AI"
-//             }
-//         ]
-//     },
-//     "content": {
-//         "mst": {
-//             "appId": "AP000001",
-//             "appDesc": "E-Physical Progress",
-//             "formId": "F0000004",
-//             "formNm": "XYZ",
-//             "dtl01": [
-//                 {
-//                     "fcId": "C0028",
-//                     "compSlNo": 1,
-//                     "compTyp": "01",
-//                     "compTypTxt": "Text input",
-//                     "props": {
-//                         "Placeholder": "Enter your name",
-//                         "Maximum Length": "",
-//                         "Label": "Name",
-//                         "Value": "",
-//                         "Key Board Type": "default",
-//                         "Editable": "",
-//                         "Multiple Line  ": ""
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0022",
-//                     "compSlNo": 2,
-//                     "compTyp": "07",
-//                     "compTypTxt": "Image",
-//                     "props": {
-//                         "Label": "Image Upload"
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0029",
-//                     "compSlNo": 2,
-//                     "compTyp": "03",
-//                     "compTypTxt": "Dropdown",
-//                     "props": {
-//                         "Placeholder": "Enter your country name",
-//                         "Options": "IND~India; BN~Bangladesh; S~Saudi",
-//                         "Label": "Country",
-//                         "multiple": true,
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0030",
-//                     "compSlNo": 3,
-//                     "compTyp": "08",
-//                     "compTypTxt": "Location",
-//                     "props": {
-//                         "Label": "Current Location"
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0031",
-//                     "compSlNo": 4,
-//                     "compTyp": "02",
-//                     "compTypTxt": "Date Picker",
-//                     "props": {
-//                         "Placeholder": "Select Date",
-//                         "Maximum Date?": "N~No",
-//                         "Label": "Date",
-//                         "Enter Maximum Date": "",
-//                         "Date": ""
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0032",
-//                     "compSlNo": 5,
-//                     "compTyp": "06",
-//                     "compTypTxt": "Voice input",
-//                     "props": {
-//                         "Placeholder": "Speak Something",
-//                         "Label": "Description"
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0033",
-//                     "compSlNo": 6,
-//                     "compTyp": "05",
-//                     "compTypTxt": "Check Box",
-//                     "props": {
-//                         "Placeholder": "",
-//                         "Label": "Terms & Condition",
-//                         "Data": "N~No"
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0034",
-//                     "compSlNo": 7,
-//                     "compTyp": "09",
-//                     "compTypTxt": "Signature",
-//                     "props": {
-//                         "Label": "eSignature"
-//                     }
-//                 }
-//             ],
-//             "dtl02": []
-//         }
-//     }
-// };
 const RecordEntryScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const [getFormComponents, { isLoading, error }] =
     useGetFormComponentsMutation();
 
-  const { appId, formId, formTitle } = route.params || {}; //{ appId:'appId', formId:'formId', formTitle:'formTitle' };
+  const { appId, formId, formTitle } = route.params || {};
 
   const [formData, setFormData] = useState({
     mst: {
@@ -180,7 +69,7 @@ const RecordEntryScreen = () => {
         },
       };
 
-      const response = await getFormComponents(payload).unwrap(); // allFormComp
+      const response = await getFormComponents(payload).unwrap();
 
       if (response?.appMsgList?.errorStatus === false) {
         const components = response?.content?.mst?.dtl01 || [];
@@ -244,6 +133,7 @@ const RecordEntryScreen = () => {
       formComponents,
     });
   };
+
 
   const renderFieldComponent = component => {
     const { fcId, compTyp, compTypTxt, props } = component;
@@ -502,6 +392,10 @@ const RecordEntryScreen = () => {
             </View>
           )}
         </View>
+
+        <SimpleTest />
+        <ImageCaptureScreen />
+        {/* <VoiceTest /> */}
 
         {/* Submission Error */}
         {submissionError && (

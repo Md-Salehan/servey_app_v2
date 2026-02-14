@@ -13,6 +13,7 @@ const RootNavigator = () => {
       <ProtectedRoute>
         {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
       </ProtectedRoute>
+      {/* <MainNavigator /> */}
     </NavigationContainer>
   );
 };

@@ -17,9 +17,9 @@ const ProtectedRoute = ({ children }) => {
       <View style={styles.container}>
         <View style={styles.logoContainer}>
           <View style={styles.logo}>
-            <Text style={styles.logoText}>🛍️</Text>
+            <Text style={styles.logoText}>📋</Text>
           </View>
-          <Text style={styles.title}>SurveyApp</Text>
+          <Text style={styles.title}>Survey App</Text>
         </View>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>

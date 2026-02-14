@@ -1,5 +1,7 @@
 // export const API_BASE_URL = 'http://192.168.0.44/SuV4Sa';
-export const API_BASE_URL = 'http://192.168.0.44/SuV4SaPg';
+export const API_BASE_URL = 'http://192.168.0.39/SuV4SaPg';
+
+// export const API_BASE_URL = 'http://192.168.0.44/SuV4SaPg';
 
 
 export const API_ENDPOINTS = {

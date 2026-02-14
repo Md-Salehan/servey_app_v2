@@ -54,6 +54,7 @@ const SignatureField = ({
   onSave,
   onSigningStart,
   onSigningEnd,
+  isPreview = false, // New prop for preview mode
 }) => {
   // State for signature
   const [signature, setSignature] = useState(value);
@@ -137,7 +138,7 @@ const SignatureField = ({
   // Create gesture for drawing
   const gesture = useMemo(() => {
     return Gesture.Pan()
-      .enabled(!disabled && isSigning)
+      .enabled(!disabled && !isPreview && isSigning)
       .minDistance(1)
       .minPointers(1)
       .maxPointers(1)
@@ -183,16 +184,17 @@ const SignatureField = ({
       .onFinalize(() => {
         // Gesture ended
       });
-  }, [disabled, isSigning, createSmoothPath]);
+  }, [disabled, isSigning, createSmoothPath, isPreview]);
 
   // Clear the signature canvas
   const clearCanvas = useCallback(() => {
+    if (isPreview) return;
     setPaths([]);
     pathsRef.current = [];
     setCurrentPoints([]);
     currentPointsRef.current = [];
     signatureDataRef.current = '';
-  }, []);
+  }, [isPreview]);
 
   // Convert paths to base64 image
   const convertToBase64 = useCallback(async () => {
@@ -274,6 +276,8 @@ const SignatureField = ({
 
   // Handle signature save
   const handleSignatureSave = useCallback(async () => {
+    if (isPreview) return;
+    
     setIsSaving(true);
 
     try {
@@ -305,11 +309,11 @@ const SignatureField = ({
     } finally {
       setIsSaving(false);
     }
-  }, [convertToBase64, onChange, onSave, onSigningEnd]);
+  }, [convertToBase64, onChange, onSave, onSigningEnd, isPreview]);
 
   // Handle signature clear
   const handleSignatureClear = useCallback(() => {
-    if (disabled) return;
+    if (disabled || isPreview) return;
 
     if (isSigning) {
       // If currently signing, clear the canvas
@@ -334,11 +338,11 @@ const SignatureField = ({
         ],
       );
     }
-  }, [disabled, onChange, isSigning, clearCanvas]);
+  }, [disabled, onChange, isSigning, clearCanvas, isPreview]);
 
   // Handle start signing
   const handleStartSigning = useCallback(() => {
-    if (disabled) return;
+    if (disabled || isPreview) return;
 
     setIsSigning(true);
     setValidationError('');
@@ -348,11 +352,11 @@ const SignatureField = ({
     if (onSigningStart) {
       onSigningStart();
     }
-  }, [disabled, onSigningStart, clearCanvas]);
+  }, [disabled, onSigningStart, clearCanvas, isPreview]);
 
   // Handle edit existing signature
   const handleEdit = useCallback(() => {
-    if (disabled) return;
+    if (disabled || isPreview) return;
 
     Alert.alert(
       'Edit Signature',
@@ -371,10 +375,12 @@ const SignatureField = ({
         },
       ],
     );
-  }, [disabled, onChange, onSigningStart, clearCanvas]);
+  }, [disabled, onChange, onSigningStart, clearCanvas, isPreview]);
 
   // Handle cancel signing
   const handleCancelSigning = useCallback(() => {
+    if (isPreview) return;
+    
     setIsSigning(false);
     clearCanvas();
 
@@ -382,16 +388,16 @@ const SignatureField = ({
     if (onSigningEnd) {
       onSigningEnd();
     }
-  }, [onSigningEnd, clearCanvas]);
+  }, [onSigningEnd, clearCanvas, isPreview]);
 
   // Validate on mount and when value changes
   useEffect(() => {
-    if (required && !isSigned() && !validationError) {
+    if (required && !isSigned() && !validationError && !isPreview) {
       setValidationError('Signature is required');
     } else if (isSigned() && validationError) {
       setValidationError('');
     }
-  }, [required, isSigned, validationError]);
+  }, [required, isSigned, validationError, isPreview]);
 
   // Update when external error changes
   useEffect(() => {
@@ -413,323 +419,66 @@ const SignatureField = ({
     return createSmoothPath(currentPoints);
   }, [currentPoints, createSmoothPath]);
 
-  // Render signature preview
-  const renderSignaturePreview = () => {
-    if (!isSigned()) return null;
+  // Preview mode render
+  if (isPreview) {
+    const hasSignature = isSigned();
 
     return (
-      <View style={[commonStyles.previewContainer, styles.previewContainer]}>
-        <View style={styles.previewContent}>
-          {/* Signature Preview with background */}
-          <View style={styles.signaturePreviewBox}>
-            <View style={styles.signatureBackground}>
-              {signature ? (
-                <Image
-                  source={{ uri: signature }}
-                  style={styles.signaturePreviewImage}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={styles.noSignaturePreview}>
-                  <Icon name="draw" size={24} color={COLORS.text.secondary} />
-                </View>
-              )}
-            </View>
-            <View style={styles.previewBadge}>
-              <Icon name="check" size={12} color={COLORS.surface} />
-            </View>
-          </View>
-
-          {/* Preview Info */}
-          <View style={styles.previewInfo}>
-            <Text style={styles.previewTitle}>Signature Captured</Text>
-            <Text style={styles.previewSize}>
-              {signature ? Math.round(signature.length / 1024) : 0} KB
-            </Text>
-            <TouchableOpacity
-              onPress={handleEdit}
-              disabled={disabled}
-              activeOpacity={0.6}
-              accessibilityRole="button"
-              accessibilityLabel="Edit signature"
-            >
-              <View>
-                {disabled ? (
-                  <Text style={styles.previewHint}>View only</Text>
-                ) : (
-                  <Text style={styles.previewHint}>
-                    <Icon name="edit" size={11} color={COLORS.primary} /> Tap to
-                    edit
-                  </Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          </View>
+      <View style={[commonStyles.fieldContainer, styles.container]}>
+        {/* Label */}
+        <View style={commonStyles.labelContainer}>
+          <Text style={[commonStyles.labelText, hasSignature && styles.labelTextSigned]}>
+            {label}
+            {required && <Text style={commonStyles.requiredStar}> *</Text>}
+          </Text>
         </View>
-      </View>
-    );
-  };
 
-  // Render signature canvas
-  const renderSignatureCanvas = () => {
-    if (isSigned() && !isSigning) return null;
-
-    return (
-      <GestureHandlerRootView style={styles.gestureRoot}>
-        <View style={[styles.canvasOuterContainer]}>
-          {/* Signature Canvas */}
-          <View
-            style={[
-              styles.signatureCanvasWrapper,
-              validationError && commonStyles.canvasError,
-              disabled && commonStyles.canvasDisabled,
-              {
-                width: canvasSize.width,
-                height: canvasSize.height,
-              },
-              styles.canvasBorder,
-            ]}
-            onLayout={event => {
-              const { width, height } = event.nativeEvent.layout;
-              if (width > 0 && height > 0) {
-                setCanvasSize({ width, height });
-              }
-            }}
-          >
-            <GestureDetector gesture={gesture}>
-              <View style={[styles.canvasContainer]}>
-                <Canvas
-                  style={[styles.canvas, styles.canvasBorder]}
-                  ref={canvasRef}
-                >
-                  {/* Background */}
-                  <Path
-                    path={Skia.Path.Make().addRect(
-                      Skia.XYWHRect(0, 0, canvasSize.width, canvasSize.height),
-                    )}
-                    color={backgroundColor}
+        {/* Signature Preview */}
+        <View style={[commonStyles.previewValueContainer, !hasSignature && commonStyles.previewEmptyValue]}>
+          {hasSignature ? (
+            <View style={styles.previewSignatureContainer}>
+              <View style={styles.previewSignatureBox}>
+                <View style={styles.previewSignatureBackground}>
+                  <Image
+                    source={{ uri: signature }}
+                    style={styles.previewSignatureImage}
+                    resizeMode="contain"
                   />
-
-                  {/* Draw all saved paths */}
-                  <Group>
-                    {paths.map((path, index) => (
-                      <Path
-                        key={`path-${index}`}
-                        path={path}
-                        color={strokeColor}
-                        style="stroke"
-                        strokeWidth={strokeWidth}
-                        strokeCap="round"
-                        strokeJoin="round"
-                        antiAlias={true}
-                      />
-                    ))}
-                  </Group>
-
-                  {/* Draw current path (in progress) */}
-                  {currentPath && (
-                    <Path
-                      path={currentPath}
-                      color={strokeColor}
-                      style="stroke"
-                      strokeWidth={strokeWidth}
-                      strokeCap="round"
-                      strokeJoin="round"
-                      antiAlias={true}
-                    />
-                  )}
-                </Canvas>
+                </View>
+                <View style={styles.previewSignatureBadge}>
+                  <Icon name="check" size={12} color={COLORS.surface} />
+                </View>
               </View>
-            </GestureDetector>
-          </View>
-
-          {/* Control buttons - optimized for mobile touch targets */}
-          <View
-            style={[commonStyles.controlsContainer, styles.controlsContainer]}
-          >
-            {/* Clear button */}
-            <TouchableOpacity
-              style={[
-                commonStyles.secondaryButton,
-                styles.controlButton,
-                disabled && commonStyles.secondaryButtonDisabled,
-              ]}
-              onPress={handleSignatureClear}
-              disabled={disabled || (!isSigning && !isSigned())}
-              activeOpacity={0.6}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityRole="button"
-              accessibilityLabel="Clear signature"
-              accessibilityHint="Tap to clear signature"
-            >
-              <Icon
-                name="delete"
-                size={20}
-                color={
-                  disabled || (!isSigning && !isSigned())
-                    ? COLORS.text.disabled
-                    : COLORS.error
-                }
-              />
-              <Text
-                style={[
-                  commonStyles.secondaryButtonText,
-                  (disabled || (!isSigning && !isSigned())) &&
-                    commonStyles.buttonTextDisabled,
-                ]}
-              >
-                Clear
-              </Text>
-            </TouchableOpacity>
-
-            {/* Cancel button (only shown when signing) */}
-            {isSigning && (
-              <TouchableOpacity
-                style={[
-                  commonStyles.secondaryButton,
-                  styles.controlButton,
-                  disabled && commonStyles.secondaryButtonDisabled,
-                ]}
-                onPress={handleCancelSigning}
-                disabled={disabled}
-                activeOpacity={0.6}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel signing"
-                accessibilityHint="Tap to cancel signature"
-              >
-                <Icon
-                  name="close"
-                  size={20}
-                  color={disabled ? COLORS.text.disabled : COLORS.text.secondary}
-                />
-                <Text
-                  style={[
-                    commonStyles.secondaryButtonText,
-                    disabled && commonStyles.buttonTextDisabled,
-                  ]}
-                >
-                  Cancel
+              <View style={styles.previewSignatureInfo}>
+                <Text style={styles.previewSignatureTitle}>Signature Captured</Text>
+                <Text style={styles.previewSignatureSize}>
+                  {signature ? Math.round(signature.length / 1024) : 0} KB
                 </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Save button */}
-            <TouchableOpacity
-              style={[
-                commonStyles.primaryButton,
-                styles.saveButton,
-                (disabled || !isSigning) && commonStyles.primaryButtonDisabled,
-              ]}
-              onPress={handleSignatureSave}
-              disabled={disabled || !isSigning || isSaving}
-              activeOpacity={0.6}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityRole="button"
-              accessibilityLabel="Save signature"
-              accessibilityHint="Tap to save your signature"
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color={COLORS.surface} />
-              ) : (
-                <>
-                  <Icon
-                    name="check"
-                    size={20}
-                    color={
-                      disabled || !isSigning
-                        ? COLORS.text.disabled
-                        : COLORS.surface
-                    }
-                  />
-                  <Text
-                    style={[
-                      commonStyles.primaryButtonText,
-                      (disabled || !isSigning) && commonStyles.buttonTextDisabled,
-                    ]}
-                  >
-                    Save
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Mobile-specific instructions */}
-          {isSigning && !disabled && (
-            <View style={styles.instructionsContainer}>
-              <Text style={styles.instructionsText}>
-                {Platform.OS === 'ios'
-                  ? 'Draw your signature with your finger'
-                  : 'Draw your signature in the box above'}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.previewEmptySignature}>
+              <Icon name="draw" size={32} color={COLORS.text.disabled} />
+              <Text style={[commonStyles.previewValueText, commonStyles.previewPlaceholderText]}>
+                No signature provided
               </Text>
-              {Platform.OS === 'android' && (
-                <Text style={styles.instructionsHint}>Use finger or stylus</Text>
-              )}
             </View>
           )}
         </View>
-      </GestureHandlerRootView>
+
+        {/* Error message for required fields */}
+        {required && !hasSignature && (
+          <View style={styles.errorContainer}>
+            <Text style={commonStyles.errorText}>
+              This field is required
+            </Text>
+          </View>
+        )}
+      </View>
     );
-  };
+  }
 
-  // Render start signature button
-  const renderStartSignatureButton = () => {
-    if (isSigned() || isSigning) return null;
-
-    return (
-      <TouchableOpacity
-        style={[
-          commonStyles.secondaryButton,
-          styles.startButton,
-          styles.canvasBorder,
-          disabled && commonStyles.secondaryButtonDisabled,
-        ]}
-        onPress={handleStartSigning}
-        disabled={disabled}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Start signature"
-        accessibilityHint="Tap to start drawing your signature"
-      >
-        <Icon
-          name="gesture"
-          size={24}
-          color={disabled ? COLORS.text.disabled : COLORS.primary}
-        />
-        <Text
-          style={[
-            styles.startButtonText,
-            disabled && commonStyles.buttonTextDisabled,
-          ]}
-        >
-          {description || ' Tap to start signing'}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
-
-  // Determine what to render
-  const renderSignatureArea = () => {
-    if (isSigned() && !isSigning) {
-      return renderSignaturePreview();
-    } else if (isSigning) {
-      return renderSignatureCanvas();
-    } else {
-      return renderStartSignatureButton();
-    }
-  };
-
-  // Accessibility label optimized for mobile screen readers
-  const accessibilityLabel = useMemo(() => {
-    let labelText = `${label}. ${isSigned() ? 'Signed' : 'Not signed'}.`;
-    if (required) labelText += ' Required.';
-    if (disabled) labelText += ' Disabled.';
-    if (validationError) labelText += ` Error: ${validationError}`;
-    if (isSigning) labelText += ' Currently signing.';
-    return labelText;
-  }, [label, isSigned, required, disabled, validationError, isSigning]);
-
+  // Regular edit mode render
   return (
     <View style={[commonStyles.fieldContainer, styles.container]}>
       {/* Label */}
@@ -756,11 +505,277 @@ const SignatureField = ({
       {/* Signature Area */}
       <View
         style={styles.signatureArea}
-        accessibilityLabel={accessibilityLabel}
+        accessibilityLabel={`${label}. ${isSigned() ? 'Signed' : 'Not signed'}. ${required ? 'Required.' : ''} ${disabled ? 'Disabled.' : ''}`}
         accessible={true}
         importantForAccessibility="yes"
       >
-        {renderSignatureArea()}
+        {isSigned() && !isSigning ? (
+          // Signature Preview
+          <View style={[commonStyles.previewContainer, styles.previewContainer]}>
+            <View style={styles.previewContent}>
+              <View style={styles.signaturePreviewBox}>
+                <View style={styles.signatureBackground}>
+                  <Image
+                    source={{ uri: signature }}
+                    style={styles.signaturePreviewImage}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.previewBadge}>
+                  <Icon name="check" size={12} color={COLORS.surface} />
+                </View>
+              </View>
+
+              <View style={styles.previewInfo}>
+                <Text style={styles.previewTitle}>Signature Captured</Text>
+                <Text style={styles.previewSize}>
+                  {signature ? Math.round(signature.length / 1024) : 0} KB
+                </Text>
+                <TouchableOpacity
+                  onPress={handleEdit}
+                  disabled={disabled}
+                  activeOpacity={0.6}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit signature"
+                >
+                  <View>
+                    {disabled ? (
+                      <Text style={styles.previewHint}>View only</Text>
+                    ) : (
+                      <Text style={styles.previewHint}>
+                        <Icon name="edit" size={11} color={COLORS.primary} /> Tap to edit
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : isSigning ? (
+          // Signature Canvas
+          <GestureHandlerRootView style={styles.gestureRoot}>
+            <View style={[styles.canvasOuterContainer]}>
+              <View
+                style={[
+                  styles.signatureCanvasWrapper,
+                  validationError && commonStyles.canvasError,
+                  disabled && commonStyles.canvasDisabled,
+                  {
+                    width: canvasSize.width,
+                    height: canvasSize.height,
+                  },
+                  styles.canvasBorder,
+                ]}
+                onLayout={event => {
+                  const { width, height } = event.nativeEvent.layout;
+                  if (width > 0 && height > 0) {
+                    setCanvasSize({ width, height });
+                  }
+                }}
+              >
+                <GestureDetector gesture={gesture}>
+                  <View style={[styles.canvasContainer]}>
+                    <Canvas
+                      style={[styles.canvas, styles.canvasBorder]}
+                      ref={canvasRef}
+                    >
+                      {/* Background */}
+                      <Path
+                        path={Skia.Path.Make().addRect(
+                          Skia.XYWHRect(0, 0, canvasSize.width, canvasSize.height),
+                        )}
+                        color={backgroundColor}
+                      />
+
+                      {/* Draw all saved paths */}
+                      <Group>
+                        {paths.map((path, index) => (
+                          <Path
+                            key={`path-${index}`}
+                            path={path}
+                            color={strokeColor}
+                            style="stroke"
+                            strokeWidth={strokeWidth}
+                            strokeCap="round"
+                            strokeJoin="round"
+                            antiAlias={true}
+                          />
+                        ))}
+                      </Group>
+
+                      {/* Draw current path (in progress) */}
+                      {currentPath && (
+                        <Path
+                          path={currentPath}
+                          color={strokeColor}
+                          style="stroke"
+                          strokeWidth={strokeWidth}
+                          strokeCap="round"
+                          strokeJoin="round"
+                          antiAlias={true}
+                        />
+                      )}
+                    </Canvas>
+                  </View>
+                </GestureDetector>
+              </View>
+
+              {/* Control buttons */}
+              <View style={[commonStyles.controlsContainer, styles.controlsContainer]}>
+                {/* Clear button */}
+                <TouchableOpacity
+                  style={[
+                    commonStyles.secondaryButton,
+                    styles.controlButton,
+                    disabled && commonStyles.secondaryButtonDisabled,
+                  ]}
+                  onPress={handleSignatureClear}
+                  disabled={disabled || (!isSigning && !isSigned())}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear signature"
+                  accessibilityHint="Tap to clear signature"
+                >
+                  <Icon
+                    name="delete"
+                    size={20}
+                    color={
+                      disabled || (!isSigning && !isSigned())
+                        ? COLORS.text.disabled
+                        : COLORS.error
+                    }
+                  />
+                  <Text
+                    style={[
+                      commonStyles.secondaryButtonText,
+                      (disabled || (!isSigning && !isSigned())) &&
+                        commonStyles.buttonTextDisabled,
+                    ]}
+                  >
+                    Clear
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Cancel button (only shown when signing) */}
+                {isSigning && (
+                  <TouchableOpacity
+                    style={[
+                      commonStyles.secondaryButton,
+                      styles.controlButton,
+                      disabled && commonStyles.secondaryButtonDisabled,
+                    ]}
+                    onPress={handleCancelSigning}
+                    disabled={disabled}
+                    activeOpacity={0.6}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel signing"
+                    accessibilityHint="Tap to cancel signature"
+                  >
+                    <Icon
+                      name="close"
+                      size={20}
+                      color={disabled ? COLORS.text.disabled : COLORS.text.secondary}
+                    />
+                    <Text
+                      style={[
+                        commonStyles.secondaryButtonText,
+                        disabled && commonStyles.buttonTextDisabled,
+                      ]}
+                    >
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Save button */}
+                <TouchableOpacity
+                  style={[
+                    commonStyles.primaryButton,
+                    styles.saveButton,
+                    (disabled || !isSigning) && commonStyles.primaryButtonDisabled,
+                  ]}
+                  onPress={handleSignatureSave}
+                  disabled={disabled || !isSigning || isSaving}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save signature"
+                  accessibilityHint="Tap to save your signature"
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color={COLORS.surface} />
+                  ) : (
+                    <>
+                      <Icon
+                        name="check"
+                        size={20}
+                        color={
+                          disabled || !isSigning
+                            ? COLORS.text.disabled
+                            : COLORS.surface
+                        }
+                      />
+                      <Text
+                        style={[
+                          commonStyles.primaryButtonText,
+                          (disabled || !isSigning) && commonStyles.buttonTextDisabled,
+                        ]}
+                      >
+                        Save
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Mobile-specific instructions */}
+              {isSigning && !disabled && (
+                <View style={styles.instructionsContainer}>
+                  <Text style={styles.instructionsText}>
+                    {Platform.OS === 'ios'
+                      ? 'Draw your signature with your finger'
+                      : 'Draw your signature in the box above'}
+                  </Text>
+                  {Platform.OS === 'android' && (
+                    <Text style={styles.instructionsHint}>Use finger or stylus</Text>
+                  )}
+                </View>
+              )}
+            </View>
+          </GestureHandlerRootView>
+        ) : (
+          // Start Signature Button
+          <TouchableOpacity
+            style={[
+              commonStyles.secondaryButton,
+              styles.startButton,
+              styles.canvasBorder,
+              disabled && commonStyles.secondaryButtonDisabled,
+            ]}
+            onPress={handleStartSigning}
+            disabled={disabled}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Start signature"
+            accessibilityHint="Tap to start drawing your signature"
+          >
+            <Icon
+              name="gesture"
+              size={24}
+              color={disabled ? COLORS.text.disabled : COLORS.primary}
+            />
+            <Text
+              style={[
+                styles.startButtonText,
+                disabled && commonStyles.buttonTextDisabled,
+              ]}
+            >
+              {description || ' Tap to start signing'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Error message */}
@@ -776,7 +791,7 @@ const SignatureField = ({
 SignatureField.propTypes = {
   fcId: PropTypes.string.isRequired,
   label: PropTypes.string,
-  value: PropTypes.string, // Base64 image data
+  value: PropTypes.string,
   onChange: PropTypes.func.isRequired,
   required: PropTypes.bool,
   disabled: PropTypes.bool,
@@ -789,6 +804,7 @@ SignatureField.propTypes = {
   onSave: PropTypes.func,
   onSigningStart: PropTypes.func,
   onSigningEnd: PropTypes.func,
+  isPreview: PropTypes.bool,
 };
 
 SignatureField.defaultProps = {
@@ -804,6 +820,7 @@ SignatureField.defaultProps = {
   onSave: null,
   onSigningStart: null,
   onSigningEnd: null,
+  isPreview: false,
 };
 
 export default React.memo(SignatureField);
@@ -821,6 +838,9 @@ const styles = StyleSheet.create({
   },
   labelTextError: {
     color: COLORS.error,
+  },
+  labelTextSigned: {
+    color: COLORS.success,
   },
 
   // Description
@@ -861,13 +881,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
   },
-  canvasBorder:{
+  canvasBorder: {
     borderStyle: 'dashed',
     borderWidth: 2,
     borderColor: COLORS.border,
     borderRadius: 8,
   },
-  signatureCanvasWrapper: {
+    signatureCanvasWrapper: {
     // boxSizing: 'border-box',
     // paddingVertical: 15,
     // paddingHorizontal: 12,
@@ -895,7 +915,6 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   canvas: {
-    // flex: 1,
     width: '100%',
     height: '100%',
   },
@@ -934,12 +953,12 @@ const styles = StyleSheet.create({
   },
   instructionsHint: {
     fontSize: 11,
-    color: COLORS.text.tertiary,
+    color: COLORS.text.secondary,
     textAlign: 'center',
     marginTop: 2,
   },
 
-  // Preview
+  // Preview (edit mode)
   previewContainer: {
     minHeight: 120,
     flexDirection: 'row',
@@ -1015,9 +1034,61 @@ const styles = StyleSheet.create({
     display: 'flex',
     alignItems: 'flex-end',
   },
-  editIconButton: {
-    padding: 8,
-    marginLeft: 8,
+
+  // Preview mode styles
+  previewSignatureContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  previewSignatureBox: {
+    position: 'relative',
+    marginRight: 16,
+  },
+  previewSignatureBackground: {
+    width: 120,
+    height: 80,
+    backgroundColor: COLORS.gray[50],
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewSignatureImage: {
+    width: '90%',
+    height: '90%',
+  },
+  previewSignatureBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: COLORS.success,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.surface,
+  },
+  previewSignatureInfo: {
+    flex: 1,
+  },
+  previewSignatureTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    marginBottom: 2,
+  },
+  previewSignatureSize: {
+    fontSize: 11,
+    color: COLORS.text.secondary,
+  },
+  previewEmptySignature: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
   },
 
   // Error container

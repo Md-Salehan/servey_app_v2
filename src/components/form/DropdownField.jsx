@@ -31,13 +31,13 @@ const DropdownField = ({
   disabled = false,
   searchable = true,
   maxSelections,
+  isPreview = false, // New prop for preview mode
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const dropdownRef = useRef(null);
   const rotateAnim = useRef(new Animated.Value(0)).current;
-
 
   // Animation for dropdown arrow
   useEffect(() => {
@@ -89,7 +89,7 @@ const DropdownField = ({
 
   // Handle selection
   const handleSelect = (option) => {
-    if (disabled) return;
+    if (disabled || isPreview) return;
 
     let newValue;
     
@@ -118,14 +118,14 @@ const DropdownField = ({
 
   // Handle select all
   const handleSelectAll = () => {
-    if (!multiple || disabled || parsedOptions.length === 0) return;
+    if (!multiple || disabled || isPreview || parsedOptions.length === 0) return;
     const allKeys = parsedOptions.map(opt => opt.key);
     onChange(allKeys);
   };
 
   // Handle clear all
   const handleClearAll = () => {
-    if (disabled) return;
+    if (disabled || isPreview) return;
     onChange(multiple ? [] : '');
   };
 
@@ -166,17 +166,12 @@ const DropdownField = ({
     if (Platform.OS !== 'web') return;
 
     const handleClickOutside = (event) => {
-      // Use a different approach for web - check if click is outside the component
-      if (dropdownRef.current) {
-        const dropdownElement = dropdownRef.current;
-        // In React Native Web, we can use getBoundingClientRect
-        // This is a simplified approach
+      if (isOpen) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      // Add event listener with capture phase
       document.addEventListener('mousedown', handleClickOutside, true);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside, true);
@@ -226,29 +221,30 @@ const DropdownField = ({
       style={[
         styles.optionItem,
         isSelected(item.key) && styles.optionItemSelected,
+        (disabled || isPreview) && styles.optionItemDisabled,
       ]}
       onPress={() => handleSelect(item)}
-      disabled={disabled}
+      disabled={disabled || isPreview}
       activeOpacity={0.7}
     >
       {multiple ? (
         <CheckboxComponent
           checked={isSelected(item.key)}
           onPress={() => handleSelect(item)}
-          disabled={disabled}
+          disabled={disabled || isPreview}
         />
       ) : (
         <RadioButtonComponent
           checked={isSelected(item.key)}
           onPress={() => handleSelect(item)}
-          disabled={disabled}
+          disabled={disabled || isPreview}
         />
       )}
       <Text
         style={[
           styles.optionText,
           isSelected(item.key) && styles.selectedOptionText,
-          disabled && styles.disabledText,
+          (disabled || isPreview) && styles.disabledText,
         ]}
         numberOfLines={2}
       >
@@ -261,7 +257,7 @@ const DropdownField = ({
   const renderDropdownContent = () => (
     <View style={styles.dropdownContent}>
       {/* Search input for searchable dropdowns */}
-      {searchable && parsedOptions.length > 5 && (
+      {searchable && parsedOptions.length > 5 && !isPreview && (
         <View style={styles.searchContainer}>
           <Icon name="search" size={20} color={COLORS.text.secondary} />
           <TextInput
@@ -270,7 +266,7 @@ const DropdownField = ({
             value={searchText}
             onChangeText={setSearchText}
             placeholderTextColor={COLORS.text.disabled}
-            editable={!disabled}
+            editable={!disabled && !isPreview}
           />
           {searchText ? (
             <TouchableOpacity onPress={() => setSearchText('')}>
@@ -281,30 +277,30 @@ const DropdownField = ({
       )}
 
       {/* Action buttons for multiple selection */}
-      {multiple && parsedOptions.length > 0 && (
+      {multiple && parsedOptions.length > 0 && !isPreview && (
         <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleSelectAll}
-            disabled={disabled || parsedOptions.length === 0}
+            disabled={disabled || isPreview || parsedOptions.length === 0}
             activeOpacity={0.7}
           >
-            <Icon name="check-box" size={16} color={disabled ? COLORS.text.disabled : COLORS.text.secondary} />
+            <Icon name="check-box" size={16} color={disabled || isPreview ? COLORS.text.disabled : COLORS.text.secondary} />
             <Text style={[
               styles.actionButtonText,
-              disabled && styles.disabledText
+              (disabled || isPreview) && styles.disabledText
             ]}>Select All</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleClearAll}
-            disabled={disabled}
+            disabled={disabled || isPreview}
             activeOpacity={0.7}
           >
-            <Icon name="check-box-outline-blank" size={16} color={disabled ? COLORS.text.disabled : COLORS.text.secondary} />
+            <Icon name="check-box-outline-blank" size={16} color={disabled || isPreview ? COLORS.text.disabled : COLORS.text.secondary} />
             <Text style={[
               styles.actionButtonText,
-              disabled && styles.disabledText
+              (disabled || isPreview) && styles.disabledText
             ]}>Clear All</Text>
           </TouchableOpacity>
         </View>
@@ -319,14 +315,15 @@ const DropdownField = ({
           style={styles.optionsList}
           initialNumToRender={15}
           maxToRenderPerBatch={10}
-          windowSize={21} // Better performance for mobile
+          windowSize={21}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={!isPreview} // Disable scrolling in preview mode
         />
       ) : (
         <View style={styles.emptyContainer}>
           <Icon name="search-off" size={40} color={COLORS.text.disabled} />
           <Text style={styles.emptyText}>No options found</Text>
-          {searchText && (
+          {searchText && !isPreview && (
             <TouchableOpacity
               style={styles.clearSearchButton}
               onPress={() => setSearchText('')}
@@ -339,7 +336,7 @@ const DropdownField = ({
       )}
 
       {/* Selection info */}
-      {multiple && Array.isArray(value) && value.length > 0 && (
+      {multiple && Array.isArray(value) && value.length > 0 && !isPreview && (
         <View style={styles.selectionInfo}>
           <Text style={styles.selectionInfoText}>
             {value.length} option{value.length !== 1 ? 's' : ''} selected
@@ -357,9 +354,38 @@ const DropdownField = ({
   // Handle modal close
   const handleModalClose = () => {
     setModalVisible(false);
-    setSearchText(''); // Clear search when modal closes
+    setSearchText('');
   };
 
+  // Preview mode render
+  if (isPreview) {
+    const displayValue = getDisplayText();
+    const hasValue = value && (multiple ? value.length > 0 : value !== '');
+    
+    return (
+      <View style={commonStyles.fieldContainer}>
+        <View style={commonStyles.labelContainer}>
+          <Text style={commonStyles.labelText}>{label}</Text>
+          {required && <Text style={commonStyles.requiredStar}>*</Text>}
+        </View>
+
+        <View style={[commonStyles.previewValueContainer, !hasValue && commonStyles.previewEmptyValue]}>
+          <Text style={[
+            commonStyles.previewValueText,
+            !hasValue && commonStyles.previewPlaceholderText
+          ]}>
+            {hasValue ? displayValue : placeholder}
+          </Text>
+        </View>
+
+        {required && !hasValue && (
+          <Text style={commonStyles.errorText}>This field is required</Text>
+        )}
+      </View>
+    );
+  }
+
+  // Regular edit mode render
   return (
     <View style={commonStyles.fieldContainer} ref={Platform.OS === 'web' ? dropdownRef : null}>
       {/* Label */}
@@ -378,7 +404,7 @@ const DropdownField = ({
           required && !value && styles.errorBorder,
         ]}
         onPress={() => {
-          if (disabled) return;
+          if (disabled || isPreview) return;
           if (Platform.OS === 'ios' || Platform.OS === 'android') {
             setModalVisible(true);
             Keyboard.dismiss();
@@ -387,7 +413,7 @@ const DropdownField = ({
           }
         }}
         activeOpacity={0.7}
-        disabled={disabled}
+        disabled={disabled || isPreview}
         accessibilityLabel={`${label} dropdown. ${getDisplayText()}. Tap to open options.`}
         accessibilityRole="button"
         accessibilityState={{ expanded: isOpen }}
@@ -456,7 +482,7 @@ const DropdownField = ({
       )}
 
       {/* Web dropdown */}
-      {Platform.OS === 'web' && isOpen && (
+      {Platform.OS === 'web' && isOpen && !isPreview && (
         <View style={styles.webDropdown}>
           {renderDropdownContent()}
         </View>
@@ -465,9 +491,8 @@ const DropdownField = ({
   );
 };
 
-
 const styles = StyleSheet.create({
-   modalOverlayTouchable: {
+  modalOverlayTouchable: {
     flex: 1,
     justifyContent: 'flex-end',
   },
@@ -618,6 +643,9 @@ const styles = StyleSheet.create({
   },
   optionItemSelected: {
     backgroundColor: COLORS.gray[50],
+  },
+  optionItemDisabled: {
+    opacity: 0.7,
   },
   optionText: {
     flex: 1,

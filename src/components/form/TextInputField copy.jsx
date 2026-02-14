@@ -14,28 +14,7 @@ const TextInputField = ({
   editable = true,
   multiline = false,
   required = false,
-  isPreview = false, // New prop for preview mode
 }) => {
-  // For preview mode, we want to show the value in a non-editable container
-  if (isPreview) {
-    return (
-      <View style={styles.fieldContainer}>
-        <View style={styles.labelContainer}>
-          <Text style={styles.labelText}>
-            {label}
-          </Text>
-          {required && <Text style={styles.requiredStar}>*</Text>}
-        </View>
-        <View style={[styles.previewValueContainer, !value && styles.previewEmptyValue]}>
-          <Text style={[styles.previewValueText, !value && styles.previewPlaceholderText]}>
-            {value || '—'}
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  // Regular edit mode
   return (
     <View style={styles.fieldContainer}>
       <View style={styles.labelContainer}>

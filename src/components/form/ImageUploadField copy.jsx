@@ -15,23 +15,24 @@ import {
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS } from '../../constants/colors';
-import commonStyles from './FormComponents.styles';
+
+
 const { width: screenWidth } = Dimensions.get('window');
+
 
 const ImageUploadField = ({
   fcId,
   label,
   required = false,
-  multiple = false,
-  maxImages = 5,
+  multiple = false, // allow multiple image selection
+  maxImages = 5, // maximum number of images allowed
   imageQuality = 0.8,
   compressImageMaxWidth = 1024,
   compressImageMaxHeight = 1024,
   allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'],
-  maxFileSize = 5,
+  maxFileSize = 5, // in MB
   onImagesChange,
   initialImages = [],
-  isPreview = false, // New prop for preview mode
 }) => {
   const [images, setImages] = useState(initialImages || []);
   const [uploading, setUploading] = useState(false);
@@ -50,7 +51,7 @@ const ImageUploadField = ({
             buttonNeutral: 'Ask Me Later',
             buttonNegative: 'Cancel',
             buttonPositive: 'OK',
-          },
+          }
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
@@ -58,14 +59,14 @@ const ImageUploadField = ({
         return false;
       }
     }
-    return true;
+    return true; // iOS handles permissions differently
   };
 
   const requestStoragePermission = async () => {
     if (Platform.OS === 'android' && Platform.Version >= 33) {
       try {
         const photosGranted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
+          PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
         );
         return photosGranted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
@@ -75,7 +76,7 @@ const ImageUploadField = ({
     } else if (Platform.OS === 'android') {
       try {
         const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
@@ -83,20 +84,20 @@ const ImageUploadField = ({
         return false;
       }
     }
-    return true;
+    return true; // iOS handles permissions differently
   };
 
   // Validate image file
-  const validateImage = file => {
+  const validateImage = (file) => {
+    // Check file type
     if (!allowedTypes.includes(file.type)) {
       return {
         valid: false,
-        error: `File type not supported. Allowed types: ${allowedTypes
-          .map(t => t.split('/')[1])
-          .join(', ')}`,
+        error: `File type not supported. Allowed types: ${allowedTypes.map(t => t.split('/')[1]).join(', ')}`,
       };
     }
 
+    // Check file size (convert bytes to MB)
     const fileSizeInMB = file.fileSize / (1024 * 1024);
     if (fileSizeInMB > maxFileSize) {
       return {
@@ -108,15 +109,63 @@ const ImageUploadField = ({
     return { valid: true };
   };
 
-  // Handle image selection
-  const handleImageSelection = async source => {
-    if (isPreview) return;
+  // Compress image data for display
+  const compressImageForDisplay = (base64, width, height) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new window.Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions maintaining aspect ratio
+        let newWidth = width;
+        let newHeight = height;
+        
+        if (width > compressImageMaxWidth) {
+          const ratio = compressImageMaxWidth / width;
+          newWidth = compressImageMaxWidth;
+          newHeight = height * ratio;
+        }
+        
+        if (newHeight > compressImageMaxHeight) {
+          const ratio = compressImageMaxHeight / newHeight;
+          newHeight = compressImageMaxHeight;
+          newWidth = newWidth * ratio;
+        }
+        
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        ctx.drawImage(img, 0, 0, newWidth, newHeight);
+        resolve(canvas.toDataURL('image/jpeg', imageQuality));
+      };
+      
+      img.src = `data:image/jpeg;base64,${base64}`;
+    });
+  };
 
+  // Handle image selection
+  const handleImageSelection = async (source) => {
     try {
+      // Check if maximum images reached
       if (images.length >= maxImages && !multiple) {
         Alert.alert('Limit Reached', `Maximum ${maxImages} image(s) allowed`);
         return;
       }
+
+      // Request permissions
+      // if (source === 'camera') {
+      //   const hasCameraPermission = await requestCameraPermission();
+      //   if (!hasCameraPermission) {
+      //     Alert.alert('Permission Required', 'Camera permission is required to take photos');
+      //     return;
+      //   }
+      // } else {
+      //   const hasStoragePermission = await requestStoragePermission();
+      //   if (!hasStoragePermission) {
+      //     Alert.alert('Permission Required', 'Storage permission is required to select photos');
+      //     return;
+      //   }
+      // }
 
       const options = {
         mediaType: 'photo',
@@ -128,10 +177,9 @@ const ImageUploadField = ({
         saveToPhotos: source === 'camera',
       };
 
-      const result =
-        source === 'camera'
-          ? await launchCamera(options)
-          : await launchImageLibrary(options);
+      const result = source === 'camera' 
+        ? await launchCamera(options)
+        : await launchImageLibrary(options);
 
       if (result.didCancel) {
         return;
@@ -152,18 +200,20 @@ const ImageUploadField = ({
   };
 
   // Process selected images
-  const processSelectedImages = async selectedAssets => {
+  const processSelectedImages = async (selectedAssets) => {
     const newImages = [];
     const errors = [];
 
     for (const asset of selectedAssets) {
       try {
+        // Validate image
         const validation = validateImage(asset);
         if (!validation.valid) {
           errors.push(validation.error);
           continue;
         }
 
+        // Create image object
         const imageObj = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           uri: asset.uri,
@@ -186,30 +236,37 @@ const ImageUploadField = ({
       }
     }
 
+    // Update state with new images
     const updatedImages = multiple ? [...images, ...newImages] : [...newImages];
-    const finalSetOfImages = updatedImages.slice(0, maxImages); // Ensure we don't exceed maxImages limit
-    setImages(finalSetOfImages);
+    setImages(updatedImages.slice(0, maxImages)); // Ensure we don't exceed max
 
+    // Notify parent component
     if (onImagesChange) {
-      onImagesChange(fcId, finalSetOfImages);
+      onImagesChange(fcId, updatedImages.slice(0, maxImages));
     }
 
+    // Show any validation errors
     if (errors.length > 0) {
-      Alert.alert('Validation Errors', errors.join('\n'), [{ text: 'OK' }]);
+      Alert.alert(
+        'Validation Errors',
+        errors.join('\n'),
+        [{ text: 'OK' }]
+      );
     }
   };
 
   // Upload image to server (mock implementation)
-  const uploadImage = async image => {
+  const uploadImage = async (image) => {
     setUploadProgress(prev => ({ ...prev, [image.id]: 0 }));
-
+    
     return new Promise((resolve, reject) => {
+      // Simulate upload progress
       const interval = setInterval(() => {
         setUploadProgress(prev => {
           const currentProgress = prev[image.id] || 0;
           const newProgress = Math.min(currentProgress + 10, 100);
-
-          if (newProgress >= 100) {
+          
+          if (newProgress === 100) {
             clearInterval(interval);
             resolve({
               ...image,
@@ -218,7 +275,7 @@ const ImageUploadField = ({
               uploadedAt: new Date().toISOString(),
             });
           }
-
+          
           return { ...prev, [image.id]: newProgress };
         });
       }, 200);
@@ -226,160 +283,92 @@ const ImageUploadField = ({
   };
 
   // Upload all images
-  // const uploadAllImages = async () => {
-  //   if (images.length === 0 || isPreview) return;
-
-  //   setUploading(true);
-  //   const failedImages = [];
-
-  //   for (const image of images) {
-  //     if (image.uploaded) {
-  //       continue;
-  //     }
-
-  //     try {
-  //       setImages(prev => prev.map(img =>
-  //         img.id === image.id ? { ...img, uploading: true, error: null } : img
-  //       ));
-
-  //       const uploadedImage = await uploadImage(image);
-
-  //       setImages(prev => prev.map(img =>
-  //         img.id === image.id ? { ...uploadedImage, uploading: false } : img
-  //       ));
-
-  //       if (onImagesChange) {
-
-  //       }
-
-  //     } catch (error) {
-  //       console.error('Upload error:', error);
-  //       failedImages.push(image.fileName);
-
-  //       setImages(prev => prev.map(img =>
-  //         img.id === image.id ? { ...img, uploading: false, error: 'Upload failed' } : img
-  //       ));
-
-  //       if (onImagesChange) {
-
-  //       }
-  //     }
-  //   }
-
-  //   setUploading(false);
-
-  //   if (failedImages.length > 0) {
-  //     Alert.alert(
-  //       'Upload Issues',
-  //       `Failed to upload: ${failedImages.join(', ')}`,
-  //       [{ text: 'OK' }]
-  //     );
-  //   }
-
-  //   if (failedImages.length === 0) {
-  //     Alert.alert('Success', 'All images uploaded successfully!');
-  //   }
-  // };
-
   const uploadAllImages = async () => {
-    if (images.length === 0 || isPreview) return;
+    if (images.length === 0) return;
 
     setUploading(true);
+    const uploadedImages = [];
     const failedImages = [];
-    let updatedImages = [...images]; // Local copy to track changes
 
     for (const image of images) {
       if (image.uploaded) {
+        uploadedImages.push(image);
         continue;
       }
 
       try {
-        // Mark as uploading
-        setImages(prev =>
-          prev.map(img =>
-            img.id === image.id
-              ? { ...img, uploading: true, error: null }
-              : img,
-          ),
-        );
+        setImages(prev => prev.map(img => 
+          img.id === image.id ? { ...img, uploading: true, error: null } : img
+        ));
 
         const uploadedImage = await uploadImage(image);
+        uploadedImages.push(uploadedImage);
 
-        // Update local copy and state on success
-        updatedImages = updatedImages.map(img =>
-          img.id === image.id ? { ...uploadedImage, uploading: false } : img,
-        );
-        setImages(updatedImages);
+        setImages(prev => prev.map(img => 
+          img.id === image.id ? { ...uploadedImage, uploading: false } : img
+        ));
       } catch (error) {
         console.error('Upload error:', error);
         failedImages.push(image.fileName);
-
-        // Update local copy and state on error
-        updatedImages = updatedImages.map(img =>
-          img.id === image.id
-            ? { ...img, uploading: false, error: 'Upload failed' }
-            : img,
-        );
-        setImages(updatedImages);
+        
+        setImages(prev => prev.map(img => 
+          img.id === image.id ? { ...img, uploading: false, error: 'Upload failed' } : img
+        ));
       }
     }
 
     setUploading(false);
-
-    // Notify parent with the final updated images
-    if (onImagesChange) {
-      onImagesChange(fcId, updatedImages);
-    }
-
+    
     if (failedImages.length > 0) {
       Alert.alert(
         'Upload Issues',
         `Failed to upload: ${failedImages.join(', ')}`,
-        [{ text: 'OK' }],
+        [{ text: 'OK' }]
       );
     }
 
-    if (failedImages.length === 0) {
+    if (uploadedImages.length > 0 && failedImages.length === 0) {
       Alert.alert('Success', 'All images uploaded successfully!');
     }
   };
 
   // Remove image
-  const removeImage = imageId => {
-    if (isPreview) return;
-
-    Alert.alert('Remove Image', 'Are you sure you want to remove this image?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => {
-          const updatedImages = images.filter(img => img.id !== imageId);
-          setImages(updatedImages);
-
-          if (onImagesChange) {
-            onImagesChange(fcId, updatedImages);
-          }
+  const removeImage = (imageId) => {
+    Alert.alert(
+      'Remove Image',
+      'Are you sure you want to remove this image?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            const updatedImages = images.filter(img => img.id !== imageId);
+            setImages(updatedImages);
+            
+            if (onImagesChange) {
+              onImagesChange(fcId, updatedImages);
+            }
+          },
         },
-      },
-    ]);
-  };
-
-  // Retry failed upload
-  const retryUpload = image => {
-    if (isPreview) return;
-    setImages(prev =>
-      prev.map(img => (img.id === image.id ? { ...img, error: null } : img)),
+      ]
     );
   };
 
+  // Retry failed upload
+  const retryUpload = (image) => {
+    setImages(prev => prev.map(img => 
+      img.id === image.id ? { ...img, error: null } : img
+    ));
+  };
+
   // Handle errors
-  const handleError = errorMessage => {
+  const handleError = (errorMessage) => {
     Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
   };
 
   // Render image item
-  const renderImageItem = image => {
+  const renderImageItem = (image) => {
     const progress = uploadProgress[image.id] || 0;
     const isUploading = image.uploading;
     const hasError = image.error;
@@ -392,37 +381,35 @@ const ImageUploadField = ({
             style={styles.image}
             resizeMode="cover"
           />
-
+          
           {isUploading && (
             <View style={styles.uploadOverlay}>
               <ActivityIndicator size="small" color={COLORS.primary} />
               <Text style={styles.progressText}>{progress}%</Text>
             </View>
           )}
-
+          
           {hasError && (
             <View style={styles.errorOverlay}>
               <Icon name="error-outline" size={24} color={COLORS.error} />
               <Text style={styles.errorText}>Upload Failed</Text>
             </View>
           )}
-
+          
           {image.uploaded && (
             <View style={styles.successOverlay}>
               <Icon name="check-circle" size={24} color={COLORS.success} />
             </View>
           )}
-
-          {!isPreview && (
-            <TouchableOpacity
-              style={styles.removeButton}
-              onPress={() => removeImage(image.id)}
-            >
-              <Icon name="close" size={16} color={COLORS.text.inverse} />
-            </TouchableOpacity>
-          )}
+          
+          <TouchableOpacity
+            style={styles.removeButton}
+            onPress={() => removeImage(image.id)}
+          >
+            <Icon name="close" size={16} color={COLORS.text.inverse} />
+          </TouchableOpacity>
         </View>
-
+        
         <View style={styles.imageInfo}>
           <Text style={styles.fileName} numberOfLines={1}>
             {image.fileName}
@@ -430,7 +417,7 @@ const ImageUploadField = ({
           <Text style={styles.fileSize}>
             {(image.fileSize / (1024 * 1024)).toFixed(2)} MB
           </Text>
-          {hasError && !isPreview && (
+          {hasError && (
             <TouchableOpacity
               style={styles.retryButton}
               onPress={() => retryUpload(image)}
@@ -443,85 +430,6 @@ const ImageUploadField = ({
     );
   };
 
-  // Preview mode render
-  if (isPreview) {
-    const hasImages = images && images.length > 0;
-
-    return (
-      <View style={[styles.fieldContainer, styles.previewFieldContainer]}>
-        <View style={styles.header}>
-          <View style={styles.labelContainer}>
-            <Text style={styles.labelText}>{label}</Text>
-            {required && <Text style={styles.requiredStar}>*</Text>}
-          </View>
-
-          {hasImages && (
-            <View style={styles.countContainer}>
-              <Text style={styles.countText}>
-                {images.length}/{maxImages}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View
-          style={[
-            commonStyles.previewValueContainer,
-            !hasImages && commonStyles.previewEmptyValue,
-          ]}
-        >
-          {hasImages ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.previewImagesScroll}
-            >
-              {images.map(image => (
-                <View key={image.id} style={styles.previewImageWrapper}>
-                  <Image
-                    source={{ uri: image.uri }}
-                    style={styles.previewImage}
-                    resizeMode="cover"
-                  />
-                  {image.uploaded && (
-                    <View style={styles.previewSuccessBadge}>
-                      <Icon
-                        name="check-circle"
-                        size={16}
-                        color={COLORS.success}
-                      />
-                    </View>
-                  )}
-                </View>
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={styles.previewEmptyState}>
-              <Icon
-                name="photo-library"
-                size={32}
-                color={COLORS.text.disabled}
-              />
-              <Text
-                style={[
-                  commonStyles.previewValueText,
-                  commonStyles.previewPlaceholderText,
-                ]}
-              >
-                No images uploaded
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {required && !hasImages && (
-          <Text style={styles.validationText}>This field is required</Text>
-        )}
-      </View>
-    );
-  }
-
-  // Regular edit mode render
   return (
     <View style={styles.fieldContainer}>
       <View style={styles.header}>
@@ -529,7 +437,7 @@ const ImageUploadField = ({
           <Text style={styles.labelText}>{label}</Text>
           {required && <Text style={styles.requiredStar}>*</Text>}
         </View>
-
+        
         <View style={styles.countContainer}>
           <Text style={styles.countText}>
             {images.length}/{maxImages}
@@ -538,7 +446,7 @@ const ImageUploadField = ({
       </View>
 
       <Text style={styles.description}>
-        {multiple
+        {multiple 
           ? `Upload up to ${maxImages} images (${maxFileSize}MB max each)`
           : 'Upload a single image'}
       </Text>
@@ -588,14 +496,8 @@ const ImageUploadField = ({
               <ActivityIndicator size="small" color={COLORS.text.inverse} />
             ) : (
               <>
-                <Icon
-                  name="cloud-upload"
-                  size={20}
-                  color={COLORS.text.inverse}
-                />
-                <Text
-                  style={[styles.actionButtonText, styles.uploadButtonText]}
-                >
+                <Icon name="cloud-upload" size={20} color={COLORS.text.inverse} />
+                <Text style={[styles.actionButtonText, styles.uploadButtonText]}>
                   Upload
                 </Text>
               </>
@@ -606,7 +508,9 @@ const ImageUploadField = ({
 
       {/* Validation Messages */}
       {images.length === 0 && required && (
-        <Text style={styles.validationText}>* This field is required</Text>
+        <Text style={styles.validationText}>
+          * This field is required
+        </Text>
       )}
 
       {images.length >= maxImages && (
@@ -638,9 +542,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-  },
-  previewFieldContainer: {
-    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -863,36 +764,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textTransform: 'uppercase',
   },
-
-  // Preview mode styles
-  previewImagesScroll: {
-    flexDirection: 'row',
-  },
-  previewImageWrapper: {
-    width: 80,
-    height: 80,
-    marginRight: 8,
-    borderRadius: 6,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  previewSuccessBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: COLORS.surface,
-    borderRadius: 10,
-    padding: 2,
-  },
-  previewEmptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-  },
 });
+
 
 export default ImageUploadField;

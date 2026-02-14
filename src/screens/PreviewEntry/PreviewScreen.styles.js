@@ -111,6 +111,35 @@ const styles = StyleSheet.create({
     color: COLORS.text.inverse,
     fontFamily: 'System',
   },
+
+   formContainer: {
+    padding: 20,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: COLORS.text.secondary,
+    fontFamily: 'System',
+    textAlign: 'center',
+  },
+  unsupportedContainer: {
+    backgroundColor: COLORS.warningLight,
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.warning,
+  },
+  unsupportedText: {
+    fontSize: 14,
+    color: COLORS.warning,
+    fontFamily: 'System',
+    fontWeight: '500',
+  },
 });
 
 export default styles;

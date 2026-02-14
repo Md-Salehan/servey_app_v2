@@ -11,7 +11,7 @@ import {
   Keyboard,
   Animated,
   Dimensions,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS } from '../../constants/colors';
@@ -37,6 +37,7 @@ const DropdownField = ({
   const [modalVisible, setModalVisible] = useState(false);
   const dropdownRef = useRef(null);
   const rotateAnim = useRef(new Animated.Value(0)).current;
+
 
   // Animation for dropdown arrow
   useEffect(() => {
@@ -65,7 +66,7 @@ const DropdownField = ({
           const [key, ...valueParts] = option.split('~');
           return {
             key: key.trim(),
-            value: valueParts.join('~').trim(), // In case value contains ~
+            value: valueParts.join('~').trim(),
             label: valueParts.join('~').trim(),
           };
         })
@@ -117,7 +118,7 @@ const DropdownField = ({
 
   // Handle select all
   const handleSelectAll = () => {
-    if (!multiple || disabled) return;
+    if (!multiple || disabled || parsedOptions.length === 0) return;
     const allKeys = parsedOptions.map(opt => opt.key);
     onChange(allKeys);
   };
@@ -160,17 +161,26 @@ const DropdownField = ({
     return value === optionKey;
   };
 
-  // Close dropdown when clicking outside (web only)
+  // Web-specific click outside handling
   useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      // Use a different approach for web - check if click is outside the component
+      if (dropdownRef.current) {
+        const dropdownElement = dropdownRef.current;
+        // In React Native Web, we can use getBoundingClientRect
+        // This is a simplified approach
         setIsOpen(false);
       }
     };
 
-    if (isOpen && Platform.OS === 'web') {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+    if (isOpen) {
+      // Add event listener with capture phase
+      document.addEventListener('mousedown', handleClickOutside, true);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside, true);
+      };
     }
   }, [isOpen]);
 
@@ -276,11 +286,14 @@ const DropdownField = ({
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleSelectAll}
-            disabled={disabled}
+            disabled={disabled || parsedOptions.length === 0}
             activeOpacity={0.7}
           >
-            <Icon name="check-box" size={16} color={COLORS.text.secondary} />
-            <Text style={styles.actionButtonText}>Select All</Text>
+            <Icon name="check-box" size={16} color={disabled ? COLORS.text.disabled : COLORS.text.secondary} />
+            <Text style={[
+              styles.actionButtonText,
+              disabled && styles.disabledText
+            ]}>Select All</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
@@ -288,8 +301,11 @@ const DropdownField = ({
             disabled={disabled}
             activeOpacity={0.7}
           >
-            <Icon name="check-box-outline-blank" size={16} color={COLORS.text.secondary} />
-            <Text style={styles.actionButtonText}>Clear All</Text>
+            <Icon name="check-box-outline-blank" size={16} color={disabled ? COLORS.text.disabled : COLORS.text.secondary} />
+            <Text style={[
+              styles.actionButtonText,
+              disabled && styles.disabledText
+            ]}>Clear All</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -303,7 +319,7 @@ const DropdownField = ({
           style={styles.optionsList}
           initialNumToRender={15}
           maxToRenderPerBatch={10}
-          windowSize={5}
+          windowSize={21} // Better performance for mobile
           showsVerticalScrollIndicator={false}
         />
       ) : (
@@ -338,8 +354,14 @@ const DropdownField = ({
     </View>
   );
 
+  // Handle modal close
+  const handleModalClose = () => {
+    setModalVisible(false);
+    setSearchText(''); // Clear search when modal closes
+  };
+
   return (
-    <View style={commonStyles.fieldContainer} ref={dropdownRef}>
+    <View style={commonStyles.fieldContainer} ref={Platform.OS === 'web' ? dropdownRef : null}>
       {/* Label */}
       <View style={commonStyles.labelContainer}>
         <Text style={commonStyles.labelText}>{label}</Text>
@@ -349,7 +371,7 @@ const DropdownField = ({
       {/* Dropdown trigger */}
       <TouchableOpacity
         style={[
-          commonStyles.selectionButton, // Reusing date picker button style
+          commonStyles.selectionButton,
           styles.triggerButton,
           isOpen && styles.triggerButtonOpen,
           disabled && styles.disabled,
@@ -400,34 +422,36 @@ const DropdownField = ({
           visible={modalVisible}
           animationType="fade"
           transparent={true}
-          onRequestClose={() => setModalVisible(false)}
+          onRequestClose={handleModalClose}
         >
-          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-            <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={styles.modalContent}>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>{label}</Text>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={handleModalClose}>
+              <View style={styles.modalOverlayTouchable}>
+                <TouchableWithoutFeedback>
+                  <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>{label}</Text>
+                      <TouchableOpacity
+                        onPress={handleModalClose}
+                        style={styles.closeButton}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name="close" size={24} color={COLORS.text.primary} />
+                      </TouchableOpacity>
+                    </View>
+                    {renderDropdownContent()}
                     <TouchableOpacity
-                      onPress={() => setModalVisible(false)}
-                      style={styles.closeButton}
+                      style={styles.doneButton}
+                      onPress={handleModalClose}
                       activeOpacity={0.7}
                     >
-                      <Icon name="close" size={24} color={COLORS.text.primary} />
+                      <Text style={styles.doneButtonText}>Done</Text>
                     </TouchableOpacity>
                   </View>
-                  {renderDropdownContent()}
-                  <TouchableOpacity
-                    style={styles.doneButton}
-                    onPress={() => setModalVisible(false)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.doneButtonText}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
         </Modal>
       )}
 
@@ -443,6 +467,10 @@ const DropdownField = ({
 
 
 const styles = StyleSheet.create({
+   modalOverlayTouchable: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   // Dropdown trigger button
   triggerButton: {
     flexDirection: 'row',

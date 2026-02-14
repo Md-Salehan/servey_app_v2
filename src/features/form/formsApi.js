@@ -6,7 +6,7 @@ import TokenService from '../../services/storage/tokenService';
 
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
-  prepareHeaders: async (headers) => {
+  prepareHeaders: async headers => {
     // ✅ FIX: Make this async and await the token
     const token = await TokenService.getAccessToken();
     if (token) {
@@ -58,7 +58,45 @@ export const formsApi = createApi({
         return data;
       },
     }),
+    getFormComponents: builder.mutation({
+      query: formData => {
+        console.log(
+          '🔵 Form Components API Request - URL:',
+          `${API_BASE_URL}/SUF00191/getAllFormComponents`,
+        );
+        console.log('🔵 Form Components API Request - Payload:', formData);
+
+        return {
+          url: '/SUF00191/getAllFormComponents',
+          method: 'POST',
+          body: formData,
+        };
+      },
+      transformResponse: response => {
+        console.log('🟢 Form Components API Response:', response);
+        let data = [];
+        if (response?.appMsgList?.errorStatus === false) {
+          data = response.content?.mst?.dtl01 || [];
+        }
+        return response;
+      },
+      transformErrorResponse: response => {
+        console.error('🔴 Form Components API Error:', response);
+        return response;
+      },
+    }),
+    submitFormData: builder.mutation({
+      query: formData => ({
+        url: '/SUF00191/submitFormData',
+        method: 'POST',
+        body: formData,
+      }),
+    }),
   }),
 });
 
-export const { useGetFormsMutation } = formsApi;
+export const { 
+  useGetFormsMutation,
+  useGetFormComponentsMutation,
+  useSubmitFormDataMutation,
+ } = formsApi;

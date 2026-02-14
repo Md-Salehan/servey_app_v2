@@ -13,7 +13,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
-import axios from 'axios';
+import axios from 'axios'; // Import axios
 import { COLORS } from '../../constants/colors';
 import commonStyles from './FormComponents.styles';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -86,10 +86,10 @@ const getAddressFromCoordinates = async (latitude, longitude) => {
           addressdetails: 1,
         },
         headers: {
-          'User-Agent': 'Your-App-Name/1.0',
+          'User-Agent': 'Your-App-Name/1.0', // Required by Nominatim
           Accept: 'application/json',
         },
-        timeout: 10000,
+        timeout: 10000, // 10 seconds timeout
       },
     );
 
@@ -119,23 +119,22 @@ const getAddressFromCoordinates = async (latitude, longitude) => {
 const LocationField = ({
   fcId,
   label,
-  value,
-  onChange,
+  value, // JSON string of location data
+  onChange, // function to call with updated location data
   required = false,
   disabled = false,
   description,
   error,
   enableHighAccuracy = true,
-  timeout = 25000,
-  maximumAge = 0,
-  minAccuracy = 100,
+  timeout = 25000, // in milliseconds
+  maximumAge = 0, // in milliseconds
+  minAccuracy = 100, // in meters
   showAddress = false,
   showMapPreview = false,
   onCaptureStart,
   onCaptureComplete,
   onCaptureError,
   isMannualEntryAllowed = true,
-  isPreview = false,
 }) => {
   const [capturedLocation, setCapturedLocation] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -175,6 +174,7 @@ const LocationField = ({
 
       let locationData = createLocationData(coords, timestamp);
 
+      // Fetch address if needed before updating state
       if (showAddress) {
         try {
           const address = await getAddressFromCoordinates(
@@ -186,27 +186,38 @@ const LocationField = ({
               ...locationData,
               address,
             };
+          } else {
+            console.warn(
+              'No address found for coordinates:',
+              coords.latitude,
+              coords.longitude,
+            );
           }
         } catch (error) {
           console.error('Failed to fetch address:', error);
+          // Continue without address - address is optional
         }
       }
 
+      // SINGLE onChange call with complete data
       setCapturedLocation(locationData);
       onChange(JSON.stringify(locationData));
+      // setLocationError(null);
+
       onCaptureComplete?.(locationData, isAccurate);
     },
     [onChange, showAddress, onCaptureComplete],
   );
 
   const captureLocation = async () => {
-    if (disabled || isPreview) return;
+    if (disabled) return;
 
     setIsCapturing(true);
     setLocationError(null);
     onCaptureStart?.();
 
     try {
+      // Check and request permission
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
         throw new Error(
@@ -214,17 +225,20 @@ const LocationField = ({
         );
       }
 
+      // Configure geolocation options
       const options = {
         enableHighAccuracy,
         timeout,
         maximumAge,
       };
 
+      // Get current position
       Geolocation.getCurrentPosition(
         async position => {
           try {
             const { coords } = position;
 
+            // Check if accuracy meets minimum requirement
             let isAccurate = true;
             if (coords.accuracy <= minAccuracy) {
               isAccurate = true;
@@ -238,6 +252,7 @@ const LocationField = ({
               isAccurate = false;
             }
 
+            // Handle location capture (with address if needed)
             await handleLocationCapture(position, isAccurate);
           } catch (error) {
             console.error('Error processing location:', error);
@@ -281,7 +296,6 @@ const LocationField = ({
   };
 
   const clearLocation = () => {
-    if (disabled || isPreview) return;
     setCapturedLocation(null);
     setLocationError(null);
     onChange('');
@@ -296,7 +310,6 @@ const LocationField = ({
   };
 
   const handleManualEntry = () => {
-    if (disabled || isPreview) return;
     setIsManualEntryModalVisible(true);
   };
 
@@ -326,16 +339,133 @@ const LocationField = ({
       true,
     );
 
+    // SINGLE onChange call for manual entry too
     setCapturedLocation(locationData);
     onChange(JSON.stringify(locationData));
     setIsManualEntryModalVisible(false);
 
+    // Clear manual entry fields
     setManualLatitude('');
     setManualLongitude('');
     setManualAddress('');
   };
 
-  // Define renderManualEntryModal function
+  const renderLocationDisplay = () => {
+    if (!capturedLocation) return null;
+
+    const accuracyStatus =
+      capturedLocation.accuracy > 0
+        ? getAccuracyStatus(capturedLocation.accuracy)
+        : null;
+
+    return (
+      <View style={commonStyles.locationDisplayContainer}>
+        {accuracyStatus && (
+          <View style={commonStyles.locationDisplayRow}>
+            <View
+              style={[
+                commonStyles.locationAccuracyBadge,
+                { backgroundColor: accuracyStatus.color + '20' },
+              ]}
+            >
+              <Text
+                style={[
+                  commonStyles.locationAccuracyText,
+                  { color: accuracyStatus.color },
+                ]}
+              >
+                {accuracyStatus.text} ({capturedLocation.accuracy.toFixed(0)}m)
+              </Text>
+            </View>
+          </View>
+        )}
+        <View style={styles.coordinatesContainer}>
+          <View style={styles.coordinateBox}>
+            <Text style={styles.coordinateLabel}>Latitude</Text>
+            <Text style={styles.coordinateValue}>
+              {formatCoordinate(capturedLocation.latitude)}
+            </Text>
+          </View>
+          <View style={styles.coordinateBox}>
+            <Text style={styles.coordinateLabel}>Longitude</Text>
+            <Text style={styles.coordinateValue}>
+              {formatCoordinate(capturedLocation.longitude)}
+            </Text>
+          </View>
+        </View>
+
+        {capturedLocation.address && (
+          <View style={styles.addressContainer}>
+            <Text style={styles.addressLabel}>Address</Text>
+            <Text style={styles.addressText}>
+              {capturedLocation.address}
+            </Text>
+          </View>
+        )}
+
+        {capturedLocation.isManualEntry && (
+          <View style={commonStyles.locationDisplayRow}>
+            <Icon name="edit" size={14} color={COLORS.warning} />
+            <Text
+              style={[
+                commonStyles.locationDisplayValue,
+                { color: COLORS.warning, marginLeft: 4 },
+              ]}
+            >
+              Manually entered
+            </Text>
+          </View>
+        )}
+
+        {/* {accuracyStatus && (
+          <View style={commonStyles.locationDisplayRow}>
+            <Text style={commonStyles.locationDisplayLabel}>Accuracy:</Text>
+            <View style={[commonStyles.locationAccuracyBadge, { backgroundColor: accuracyStatus.color + '20' }]}>
+              <Text style={[commonStyles.locationAccuracyText, { color: accuracyStatus.color }]}>
+                {accuracyStatus.text} ({capturedLocation.accuracy.toFixed(0)}m)
+              </Text>
+            </View>
+          </View>
+        )} */}
+
+        <Text style={commonStyles.locationTimestamp}>
+          Captured: {formatTimestamp(capturedLocation.timestamp)}
+        </Text>
+
+        {showMapPreview && (
+          <View style={commonStyles.mapPreviewContainer}>
+            <Icon name="map" size={32} color={COLORS.gray[400]} />
+            <Text style={commonStyles.mapPreviewPlaceholder}>
+              Map preview available with react-native-maps integration
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity
+            style={styles.secondaryActionButton}
+            onPress={captureLocation}
+            disabled={disabled || isCapturing}
+          >
+            <Icon name="refresh" size={18} color={COLORS.text.primary} />
+            <Text style={styles.secondaryActionButtonText}>
+              Recapture
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={clearLocation}
+            disabled={disabled}
+          >
+            <Icon name="delete-outline" size={18} color={COLORS.error} />
+            <Text style={styles.clearButtonText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   const renderManualEntryModal = () => (
     <Modal
       visible={isManualEntryModalVisible}
@@ -343,7 +473,13 @@ const LocationField = ({
       animationType="slide"
       onRequestClose={() => setIsManualEntryModalVisible(false)}
     >
-      <View style={styles.modalOverlay}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
+        }}
+      >
         <View style={styles.manualEntryContainer}>
           <Text style={styles.manualEntryTitle}>
             Manual Location Entry
@@ -399,77 +535,6 @@ const LocationField = ({
     </Modal>
   );
 
-  // Preview mode render
-  if (isPreview) {
-    return (
-      <View style={commonStyles.fieldContainer}>
-        <View style={commonStyles.labelContainer}>
-          <Text style={commonStyles.labelText}>{label}</Text>
-          {required && <Text style={commonStyles.requiredStar}>*</Text>}
-        </View>
-
-        {description && <Text style={commonStyles.descriptionText}>{description}</Text>}
-
-        <View style={[commonStyles.previewValueContainer, !capturedLocation && commonStyles.previewEmptyValue]}>
-          {capturedLocation ? (
-            <View>
-              <View style={styles.coordinatesContainer}>
-                <View style={styles.coordinateBox}>
-                  <Text style={styles.coordinateLabel}>Latitude</Text>
-                  <Text style={styles.coordinateValue}>
-                    {formatCoordinate(capturedLocation.latitude)}
-                  </Text>
-                </View>
-                <View style={styles.coordinateBox}>
-                  <Text style={styles.coordinateLabel}>Longitude</Text>
-                  <Text style={styles.coordinateValue}>
-                    {formatCoordinate(capturedLocation.longitude)}
-                  </Text>
-                </View>
-              </View>
-
-              {capturedLocation.address && (
-                <View style={styles.addressContainer}>
-                  <Text style={styles.addressLabel}>Address</Text>
-                  <Text style={styles.addressText}>
-                    {capturedLocation.address}
-                  </Text>
-                </View>
-              )}
-
-              {capturedLocation.accuracy > 0 && (
-                <View style={styles.accuracyContainer}>
-                  <Icon name="gps-fixed" size={14} color={COLORS.text.secondary} />
-                  <Text style={styles.accuracyText}>
-                    Accuracy: ±{capturedLocation.accuracy.toFixed(0)}m
-                  </Text>
-                </View>
-              )}
-
-              {capturedLocation.isManualEntry && (
-                <View style={styles.manualEntryIndicator}>
-                  <Icon name="edit" size={14} color={COLORS.warning} />
-                  <Text style={[styles.manualEntryText, { color: COLORS.warning }]}>
-                    Manually entered
-                  </Text>
-                </View>
-              )}
-
-              <Text style={styles.timestampText}>
-                {formatTimestamp(capturedLocation.timestamp)}
-              </Text>
-            </View>
-          ) : (
-            <Text style={[commonStyles.previewValueText, commonStyles.previewPlaceholderText]}>
-              No location captured
-            </Text>
-          )}
-        </View>
-      </View>
-    );
-  }
-
-  // Regular edit mode render
   return (
     <View style={commonStyles.fieldContainer}>
       <View style={commonStyles.labelContainer}>
@@ -484,7 +549,7 @@ const LocationField = ({
           <TouchableOpacity
             style={[
               commonStyles.locationButton,
-              (disabled || isCapturing) && commonStyles.locationButtonDisabled,
+              disabled && commonStyles.locationButtonDisabled,
               isCapturing && { backgroundColor: COLORS.primaryLight },
             ]}
             onPress={captureLocation}
@@ -492,9 +557,7 @@ const LocationField = ({
             activeOpacity={0.8}
           >
             <Icon name="location-on" size={20} color={COLORS.text.inverse} />
-            <Text style={commonStyles.locationButtonText}>
-              {isCapturing ? 'Capturing...' : 'Capture Location'}
-            </Text>
+            <Text style={commonStyles.locationButtonText}>Capture Location</Text>
           </TouchableOpacity>
 
           {isMannualEntryAllowed && (
@@ -509,75 +572,7 @@ const LocationField = ({
           )}
         </View>
       ) : (
-        <View style={commonStyles.locationDisplayContainer}>
-          <View style={styles.coordinatesContainer}>
-            <View style={styles.coordinateBox}>
-              <Text style={styles.coordinateLabel}>Latitude</Text>
-              <Text style={styles.coordinateValue}>
-                {formatCoordinate(capturedLocation.latitude)}
-              </Text>
-            </View>
-            <View style={styles.coordinateBox}>
-              <Text style={styles.coordinateLabel}>Longitude</Text>
-              <Text style={styles.coordinateValue}>
-                {formatCoordinate(capturedLocation.longitude)}
-              </Text>
-            </View>
-          </View>
-
-          {capturedLocation.address && (
-            <View style={styles.addressContainer}>
-              <Text style={styles.addressLabel}>Address</Text>
-              <Text style={styles.addressText}>
-                {capturedLocation.address}
-              </Text>
-            </View>
-          )}
-
-          {capturedLocation.accuracy > 0 && (
-            <View style={styles.accuracyContainer}>
-              <Icon name="gps-fixed" size={14} color={COLORS.text.secondary} />
-              <Text style={styles.accuracyText}>
-                Accuracy: ±{capturedLocation.accuracy.toFixed(0)}m
-              </Text>
-            </View>
-          )}
-
-          {capturedLocation.isManualEntry && (
-            <View style={styles.manualEntryIndicator}>
-              <Icon name="edit" size={14} color={COLORS.warning} />
-              <Text style={[styles.manualEntryText, { color: COLORS.warning }]}>
-                Manually entered
-              </Text>
-            </View>
-          )}
-
-          <Text style={styles.timestampText}>
-            {formatTimestamp(capturedLocation.timestamp)}
-          </Text>
-
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity
-              style={styles.secondaryActionButton}
-              onPress={captureLocation}
-              disabled={disabled || isCapturing}
-            >
-              <Icon name="refresh" size={18} color={COLORS.text.primary} />
-              <Text style={styles.secondaryActionButtonText}>
-                Recapture
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={clearLocation}
-              disabled={disabled}
-            >
-              <Icon name="delete-outline" size={18} color={COLORS.error} />
-              <Text style={styles.clearButtonText}>Clear</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        renderLocationDisplay()
       )}
 
       {locationError && (
@@ -623,13 +618,6 @@ const LocationField = ({
 export default LocationField;
 
 const styles = StyleSheet.create({
-  // Modal overlay
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-  },
-  
   // Location coordinates display
   coordinatesContainer: {
     flexDirection: 'row',
@@ -676,38 +664,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text.primary,
     lineHeight: 20,
-  },
-  
-  // Accuracy display
-  accuracyContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  accuracyText: {
-    fontSize: 13,
-    color: COLORS.text.secondary,
-    marginLeft: 6,
-  },
-
-  // Manual entry indicator
-  manualEntryIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  manualEntryText: {
-    fontSize: 13,
-    marginLeft: 6,
-    fontWeight: '500',
-  },
-
-  // Timestamp
-  timestampText: {
-    fontSize: 12,
-    color: COLORS.text.secondary,
-    fontStyle: 'italic',
-    marginTop: 4,
   },
   
   // Action buttons container

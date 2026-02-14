@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,7 +25,6 @@ const CheckboxField = ({
   error = '',
   size = 'medium',
   customStyle = {},
-  isPreview = false, // New prop for preview mode
 }) => {
   // Parse boolean value - handle string "true"/"false" as well
   const isChecked = useMemo(() => {
@@ -43,7 +42,7 @@ const CheckboxField = ({
 
   // Handle checkbox press
   const handlePress = useCallback(() => {
-    if (disabled || isPreview) return;
+    if (disabled) return;
     
     // Scale animation
     Animated.sequence([
@@ -70,19 +69,17 @@ const CheckboxField = ({
     }).start();
 
     onChange(!isChecked);
-  }, [disabled, isChecked, onChange, scaleAnim, checkmarkAnim, isPreview]);
+  }, [disabled, isChecked, onChange, scaleAnim, checkmarkAnim]);
 
   // Update checkmark animation when value changes externally
-  useEffect(() => {
-    if (!isPreview) {
-      Animated.timing(checkmarkAnim, {
-        toValue: isChecked ? 1 : 0,
-        duration: 200,
-        easing: Easing.ease,
-        useNativeDriver: false,
-      }).start();
-    }
-  }, [isChecked, checkmarkAnim, isPreview]);
+  React.useEffect(() => {
+    Animated.timing(checkmarkAnim, {
+      toValue: isChecked ? 1 : 0,
+      duration: 200,
+      easing: Easing.ease,
+      useNativeDriver: false,
+    }).start();
+  }, [isChecked, checkmarkAnim]);
 
   // Determine styles based on state
   const checkboxStyle = useMemo(() => {
@@ -94,16 +91,16 @@ const CheckboxField = ({
     
     // State styles
     if (isChecked) {
-      baseStyles.push(disabled || isPreview ? styles.checkboxDisabledChecked : styles.checkboxChecked);
+      baseStyles.push(disabled ? styles.checkboxDisabledChecked : styles.checkboxChecked);
     } else {
       baseStyles.push(styles.checkboxUnchecked);
     }
     
-    if (disabled || isPreview) baseStyles.push(styles.checkboxDisabled);
+    if (disabled) baseStyles.push(styles.checkboxDisabled);
     if (error && !isChecked && required) baseStyles.push(styles.checkboxError);
     
     return baseStyles;
-  }, [isChecked, disabled, error, required, size, isPreview]);
+  }, [isChecked, disabled, error, required, size]);
 
   const labelStyle = useMemo(() => {
     const baseStyles = [styles.labelText];
@@ -113,12 +110,12 @@ const CheckboxField = ({
     if (size === 'large') baseStyles.push(styles.labelTextLarge);
     
     // State styles
-    if (isChecked && !disabled && !isPreview) baseStyles.push(styles.labelTextChecked);
-    if (disabled || isPreview) baseStyles.push(styles.labelTextDisabled);
+    if (isChecked && !disabled) baseStyles.push(styles.labelTextChecked);
+    if (disabled) baseStyles.push(styles.labelTextDisabled);
     if (error && !isChecked && required) baseStyles.push(styles.labelTextError);
     
     return baseStyles;
-  }, [isChecked, disabled, error, required, size, isPreview]);
+  }, [isChecked, disabled, error, required, size]);
 
   const checkmarkStyle = useMemo(() => {
     const baseStyles = [styles.checkmark];
@@ -128,10 +125,10 @@ const CheckboxField = ({
     if (size === 'large') baseStyles.push(styles.checkmarkLarge);
     
     // State styles
-    if (disabled || isPreview) baseStyles.push(styles.checkmarkDisabled);
+    if (disabled) baseStyles.push(styles.checkmarkDisabled);
     
     return baseStyles;
-  }, [size, disabled, isPreview]);
+  }, [size, disabled]);
 
   // Animated opacity for checkmark (fade in/out)
   const checkmarkOpacity = checkmarkAnim.interpolate({
@@ -162,58 +159,10 @@ const CheckboxField = ({
     let labelText = `${label}. ${isChecked ? 'Checked' : 'Unchecked'}.`;
     if (required) labelText += ' Required.';
     if (disabled) labelText += ' Disabled.';
-    if (isPreview) labelText += ' Preview mode.';
     if (error) labelText += ` Error: ${error}`;
     return labelText;
-  }, [label, isChecked, required, disabled, error, isPreview]);
+  }, [label, isChecked, required, disabled, error]);
 
-  // Preview mode render
-  if (isPreview) {
-    return (
-      <View style={[commonStyles.fieldContainer, styles.container, customStyle.container]}>
-        <View style={styles.checkboxWrapper}>
-          <View style={styles.previewContainer}>
-            {/* Checkbox box */}
-            <View style={checkboxStyle}>
-              {isChecked && (
-                <Icon name="check" style={[checkmarkStyle, styles.previewCheckmark]} />
-              )}
-            </View>
-
-            {/* Label */}
-            <View style={styles.labelContainer}>
-              <Text style={labelStyle}>
-                {label}
-                {required && (
-                  <Text style={commonStyles.requiredStar}> *</Text>
-                )}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Description */}
-        {description ? (
-          <View style={styles.descriptionContainer}>
-            <Text style={commonStyles.descriptionText}>
-              {description}
-            </Text>
-          </View>
-        ) : null}
-
-        {/* Error message for required fields */}
-        {required && !isChecked && (
-          <View style={styles.errorContainer}>
-            <Text style={commonStyles.errorText}>
-              This field is required
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  }
-
-  // Regular edit mode render
   return (
     <View style={[commonStyles.fieldContainer, styles.container, customStyle.container]}>
       <View style={styles.checkboxWrapper}>
@@ -294,7 +243,6 @@ CheckboxField.propTypes = {
   error: PropTypes.string,
   size: PropTypes.oneOf(['small', 'medium', 'large']),
   customStyle: PropTypes.object,
-  isPreview: PropTypes.bool,
 };
 
 CheckboxField.defaultProps = {
@@ -305,10 +253,10 @@ CheckboxField.defaultProps = {
   error: '',
   size: 'medium',
   customStyle: {},
-  isPreview: false,
 };
 
 export default React.memo(CheckboxField);
+
 
 const styles = StyleSheet.create({
   // Container styles
@@ -329,16 +277,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 8,
     paddingRight: 8,
-  },
-
-  // Preview container (non-interactive)
-  previewContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-    paddingRight: 8,
-    opacity: 0.8,
   },
   
   // Checkbox box styles
@@ -424,9 +362,6 @@ const styles = StyleSheet.create({
   },
   checkmarkDisabled: {
     color: COLORS.gray[100],
-  },
-  previewCheckmark: {
-    color: COLORS.gray[500],
   },
   
   // Error message container

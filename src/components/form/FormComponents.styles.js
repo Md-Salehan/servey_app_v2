@@ -297,6 +297,31 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginLeft: 8,
   },
+
+  //preview mode styles
+  previewValueContainer: {
+    backgroundColor: COLORS.gray[50],
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  previewEmptyValue: {
+    backgroundColor: COLORS.gray[100],
+    borderStyle: 'dashed',
+  },
+  previewValueText: {
+    fontSize: 16,
+    color: COLORS.text.primary,
+    fontFamily: 'System',
+  },
+  previewPlaceholderText: {
+    color: COLORS.text.disabled,
+    fontStyle: 'italic',
+  },
 });
 
 export default styles;
