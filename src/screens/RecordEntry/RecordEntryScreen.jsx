@@ -146,17 +146,11 @@ const RecordEntryScreen = () => {
 
   const { appId, formId, formTitle } = route.params || {}; //{ appId:'appId', formId:'formId', formTitle:'formTitle' };
 
-  const [formData, setFormData] = useState({
-    mst: {
-      appId: appId || '',
-      formId: formId || '',
-    },
-  });
+
 
   const [formComponents, setFormComponents] = useState([]);
   const [fieldValues, setFieldValues] = useState({});
   const [submissionError, setSubmissionError] = useState(null);
-  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   useEffect(() => {
     if (appId && formId) {
