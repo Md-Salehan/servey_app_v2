@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView,
   ScrollView,
   View,
   Text,
@@ -24,6 +23,7 @@ import {
   SignatureField,
   TextInputField,
 } from '../../components';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // const allFormComp = {
 //     "msg": "Successful operation",

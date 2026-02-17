@@ -35,7 +35,7 @@ at android/app/src/main/AndroidManifest.xml
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-
+__________________________________________________________________________________
 npm install @react-native-voice/voice react-native-permissions
 at android/app/src/main/AndroidManifest.xml
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -67,3 +67,17 @@ dependencies {
 
 npm install patch-package postinstall-postinstall --save-dev
 npx patch-package @react-native-voice/voice
+
+___________________________________________________
+___________________________________________________
+UPDATES
+
+FOR to accept HTTP REq in Release build -:
+Change your android/app/src/main/AndroidManifest.xml:
+from - android:usesCleartextTraffic="${usesCleartextTraffic}"
+to - android:usesCleartextTraffic="${usesCleartextTraffic}"
+
+
+FOR app icon android
+update android\app\src\main\res file new logo data 
+remove android:roundIcon="@mipmap/ic_launcher_round" from android/app/src/main/AndroidManifest.xml

@@ -1,4 +1,3 @@
-// src/features/auth/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import TokenService from '../../services/storage/tokenService';
 
@@ -20,17 +19,6 @@ export const logout = createAsyncThunk(
   }
 );
 
-// New thunk for updating user profile
-export const updateUserProfile = createAsyncThunk(
-  'auth/updateProfile',
-  async (userData, { getState }) => {
-    const currentUser = getState().auth.user;
-    const updatedUser = { ...currentUser, ...userData };
-    await TokenService.setUserData(updatedUser);
-    return updatedUser;
-  }
-);
-
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
@@ -43,20 +31,11 @@ const authSlice = createSlice({
     setUser: (state, action) => {
       state.user = action.payload;
       state.isAuthenticated = true;
-      // Persist to AsyncStorage
-      TokenService.setUserData(action.payload);
     },
     clearAuth: (state) => {
       state.user = null;
       state.isAuthenticated = false;
       state.error = null;
-    },
-    updateUserField: (state, action) => {
-      if (state.user) {
-        state.user = { ...state.user, ...action.payload };
-        // Persist to AsyncStorage
-        TokenService.setUserData(state.user);
-      }
     },
   },
   extraReducers: (builder) => {
@@ -77,12 +56,9 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.error = null;
-      })
-      .addCase(updateUserProfile.fulfilled, (state, action) => {
-        state.user = action.payload;
       });
   },
 });
 
-export const { setUser, clearAuth, updateUserField } = authSlice.actions;
+export const { setUser, clearAuth } = authSlice.actions;
 export default authSlice.reducer;

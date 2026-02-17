@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  SafeAreaView,
   ScrollView,
   View,
   Text,
@@ -22,6 +21,7 @@ import {
 // Other components will be added gradually
 import styles from './PreviewScreen.styles';
 import { Header } from './component';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PreviewScreen = () => {
   const navigation = useNavigation();

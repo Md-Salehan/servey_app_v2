@@ -305,7 +305,7 @@ const SignatureField = ({
       }
     } catch (err) {
       console.error('Error saving signature:', err);
-      setValidationError(err.message || 'Failed to save signature. Please try again.');
+      setValidationError(err.message || 'Failed to capture signature. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -723,7 +723,7 @@ const SignatureField = ({
                           (disabled || !isSigning) && commonStyles.buttonTextDisabled,
                         ]}
                       >
-                        Save
+                        Capture
                       </Text>
                     </>
                   )}

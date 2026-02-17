@@ -11,7 +11,6 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
-  SafeAreaView,
   Animated,
 } from 'react-native';
 import { 
@@ -21,6 +20,7 @@ import {
 } from '../../features/auth/authApi';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 

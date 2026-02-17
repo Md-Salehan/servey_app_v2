@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  SafeAreaView,
   Keyboard,
   Animated,
   ScrollView,
@@ -19,6 +18,7 @@ import { useValidateLoginOTPMutation } from '../../features/auth/authApi';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
 import { setUser } from '../../features/auth/authSlice';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 

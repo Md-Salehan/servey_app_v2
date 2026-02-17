@@ -10,3 +10,5 @@ export { default as LocationField } from './form/LocationField';
 export { default as ImageUploadField } from './form/ImageUploadField';
 export { default as CheckboxField } from './form/CheckboxField';
 export { default as SignatureField } from './form/SignatureField';
+
+export { default as ErrorState } from './ErrorState/ErrorState';
