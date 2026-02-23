@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ const CheckboxField = ({
   size = 'medium',
   customStyle = {},
   isPreview = false, // New prop for preview mode
+  onError = null // New prop for error handling callback
 }) => {
   // Parse boolean value - handle string "true"/"false" as well
   const isChecked = useMemo(() => {
@@ -34,6 +35,10 @@ const CheckboxField = ({
     }
     return Boolean(value);
   }, [value]);
+  
+  const [isPressed, setIsPressed] = useState(false);
+  const [fieldValidationError, setFieldValidationError] = useState('');
+
 
   // Animation value for scale effect
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -44,7 +49,7 @@ const CheckboxField = ({
   // Handle checkbox press
   const handlePress = useCallback(() => {
     if (disabled || isPreview) return;
-    
+    setIsPressed(true);
     // Scale animation
     Animated.sequence([
       Animated.timing(scaleAnim, {
@@ -84,6 +89,22 @@ const CheckboxField = ({
     }
   }, [isChecked, checkmarkAnim, isPreview]);
 
+  // Validation effect for required fields
+  useEffect(() => {
+    if (isPressed && required && !isChecked) {
+      handleFieldValidation('This field is required', `${label} is required`);
+      return;
+    }
+    handleFieldValidation('');
+  }, [isChecked, required, isPressed]);
+
+  const handleFieldValidation = (errorMessage, externalErrorMessage) => {
+    setFieldValidationError(errorMessage || '');
+    onError && onError(externalErrorMessage || errorMessage || '');
+  };
+
+    
+
   // Determine styles based on state
   const checkboxStyle = useMemo(() => {
     const baseStyles = [styles.checkbox];
@@ -114,7 +135,7 @@ const CheckboxField = ({
     
     // State styles
     if (isChecked && !disabled && !isPreview) baseStyles.push(styles.labelTextChecked);
-    if (disabled || isPreview) baseStyles.push(styles.labelTextDisabled);
+    if (disabled ) baseStyles.push(styles.labelTextDisabled);
     if (error && !isChecked && required) baseStyles.push(styles.labelTextError);
     
     return baseStyles;
@@ -268,10 +289,10 @@ const CheckboxField = ({
             {error}
           </Text>
         </View>
-      ) : required && !isChecked ? (
+      ) : validationError ? (
         <View style={styles.errorContainer}>
           <Text style={commonStyles.errorText}>
-            This field is required
+            {validationError}
           </Text>
         </View>
       ) : null}
@@ -295,6 +316,7 @@ CheckboxField.propTypes = {
   size: PropTypes.oneOf(['small', 'medium', 'large']),
   customStyle: PropTypes.object,
   isPreview: PropTypes.bool,
+  onError: PropTypes.func,
 };
 
 CheckboxField.defaultProps = {
@@ -306,6 +328,7 @@ CheckboxField.defaultProps = {
   size: 'medium',
   customStyle: {},
   isPreview: false,
+  onError: null,
 };
 
 export default React.memo(CheckboxField);
@@ -437,7 +460,7 @@ const styles = StyleSheet.create({
   
   // Description container
   descriptionContainer: {
-    marginTop: 4,
+    marginTop: 0,
     marginLeft: 32, // Align with checkbox position
   },
   

@@ -11,10 +11,10 @@ import TokenService from '../../services/storage/tokenService';
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   prepareHeaders: async (headers) => {
-    const token = await TokenService.getAccessToken();
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
+    // const token = await TokenService.getAccessToken();
+    // if (token) {
+    //   headers.set('Authorization', `Bearer ${token}`);
+    // }
     headers.set('Content-Type', 'application/json');
     return headers;
   },

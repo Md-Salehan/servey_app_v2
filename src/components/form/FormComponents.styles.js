@@ -78,6 +78,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: 'System',
   },
+  errorBorder: {
+    borderColor: COLORS.error,
+    borderWidth: 1,
+  },
   descriptionText: {
     fontSize: 13,
     color: COLORS.text.secondary,

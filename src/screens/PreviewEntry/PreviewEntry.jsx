@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  ScrollView,
-  View,
-  Text,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
@@ -40,57 +34,82 @@ const PreviewScreen = () => {
           <TextInputField
             key={fcId}
             fcId={fcId}
-            label={props?.Label || ''}
-            placeholder={props?.Placeholder || ''}
+            label={props?.label || ''}
+            placeholder={props?.placeholder || ''}
             value={fieldValues[fcId]}
             // No onChange handler - read-only
             maxLength={props?.maxLength ? parseInt(props.maxLength) : undefined}
             keyboardType={getKeyboardType(props?.keyboardType)}
             editable={false} // Always false for preview mode
             multiline={true}
-            required={props?.Required === 'Y'}
+            required={props?.required === 'Y'}
             isPreview={true} // New prop for preview styling
           />
         );
 
       case '02': // Date Picker - Preview mode
+        // Parse time string to a valid Date object with a reference date
+        const parseTimeToDate = timeStr => {
+          if (!timeStr) return undefined;
+
+          // Split the time string (format: "HH:MM")
+          const [hours, minutes] = timeStr.split(':').map(Number);
+
+          // Create a date object with a reference date (today)
+          // This ensures the Date object is valid
+          const date = new Date();
+          date.setHours(hours, minutes, 0, 0);
+
+          // Return the ISO string to maintain consistency
+          return date.toISOString();
+        };
+
         return (
           <DatePickerField
             key={fcId}
             fcId={fcId}
-            label={props?.Label || ''}
-            placeholder={props?.Placeholder || 'Select Date'}
+            label={props?.label || ''}
+            placeholder={props?.placeholder}
             value={fieldValues[fcId]}
-            // No onChange handler - read-only
             maximumDate={
-              props?.['Maximum Date?'] === 'Y'
-                ? new Date(props['Enter Maximum Date'])
+              props?.maximumDate ? new Date(props.maximumDate) : undefined
+            }
+            minimumDate={
+              props?.minimumDate ? new Date(props.minimumDate) : undefined
+            }
+            maximumTime={
+              props?.maximumTime
+                ? parseTimeToDate(props.maximumTime)
                 : undefined
             }
-            required={props?.Required === 'Y'}
-            editable={false} // New prop for preview mode
-            isPreview={true} // New prop for preview styling
+            minimumTime={
+              props?.minimumTime
+                ? parseTimeToDate(props.minimumTime)
+                : undefined
+            }
+            required={props?.required === 'Y'}
+            editable={false}
+            isPreview={true}
+            mode={props?.mode || 'date'}
           />
         );
-
       case '03': // Dropdown - Add this case
         return (
           <DropdownField
             key={fcId}
             fcId={fcId}
-            label={props?.Label || ''}
-            placeholder={props?.Placeholder || 'Select option'}
-            options={props?.Options || ''}
+            label={props?.label || ''}
+            placeholder={props?.placeholder || 'Select option'}
+            options={props?.options || ''}
+            multiple={props?.multiple === 'Y'}
+            required={props?.required === 'Y'}
             value={fieldValues[fcId]}
-            required={props?.Required === 'Y'}
-            multiple={props?.multiple === true}
+            // onChange={value => handleFieldChange(fcId, value)}
+            disabled={true}
+            searchable={false}
             maxSelections={
-              props?.['Maximum Selections']
-                ? parseInt(props['Maximum Selections'])
-                : undefined
+              props?.maxSelections ? parseInt(props.maxSelections) : undefined
             }
-            isPreview={true}
-            searchable={false} // Disable search in preview mode
           />
         );
 
@@ -99,12 +118,17 @@ const PreviewScreen = () => {
           <CheckboxField
             key={fcId}
             fcId={fcId}
-            label={props?.Label || ''}
-            value={fieldValues[fcId]}
-            required={props?.Required === 'Y'}
-            disabled={props?.Editable === 'N'}
-            description={props?.Description}
+            label={props?.label || ''}
+            value={
+              fieldValues[fcId]
+            }
+            // onChange={checked => handleFieldChange(fcId, checked)}
+            required={props?.required === 'Y'}
+            disabled={props?.disabled === 'Y'}
+            description={props?.description || ''}
+            size={props?.size || 'small'}
             isPreview={true}
+            error = ''
           />
         );
 

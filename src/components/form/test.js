@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../../constants/colors';
@@ -20,8 +19,6 @@ const DatePickerField = ({
   isPreview = false,
   mode = 'date', // 'date', 'time', or 'datetime'
   format = 'YYYY-MM-DD', // Format string for display
-  errorText = '', // For external error messages
-  onError = null, // Callback for validation errors
 }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState(mode);
@@ -29,14 +26,7 @@ const DatePickerField = ({
     value ? parseDateString(value) : null,
   );
   const [tempDate, setTempDate] = useState(null);
-  const [fieldValidationError, setFieldValidationError] = useState(
-    errorText || '',
-  );
-
-  const handleFieldValidation = (errorMessage, externalErrorMessage) => {
-    setFieldValidationError(errorMessage || '');
-    onError && onError(externalErrorMessage || errorMessage || '');
-  };
+  const [validationError, setValidationError] = useState('');
 
   // Helper function to parse date string
   function parseDateString(dateString) {
@@ -99,8 +89,6 @@ const DatePickerField = ({
   };
 
   const isTimeWithinConstraints = timeToCheck => {
-    console.log(timeToCheck.toString(), 'ssa');
-
     if (!minimumTime && !maximumTime) return true;
 
     const checkTime = new Date(timeToCheck);
@@ -131,10 +119,9 @@ const DatePickerField = ({
     return result;
   };
 
-  const handleDateChange = (event, selectedValue) => {
+  const handleDateChange = (event, selectedDate) => {
     // Handle cancel/dismiss on Android (event type is 'dismissed')
-
-    if (event.type === 'dismissed' || !selectedValue) {
+    if (event.type === 'dismissed' || !selectedDate) {
       setShowPicker(false);
       setPickerMode(mode); // Reset picker mode to original
       setTempDate(null); // Clear temporary date
@@ -144,105 +131,87 @@ const DatePickerField = ({
     // On iOS, we might keep the picker open
     setShowPicker(Platform.OS === 'ios');
 
-    if (selectedValue) {
-      let finalValue = selectedValue;
-      let errorFlag = false;
-      let errorMessage = '';
+    if (selectedDate) {
+      let finalDate = selectedDate;
 
       if (mode === 'time') {
         // Check if selected time is within constraints
-        if (!isTimeWithinConstraints(selectedValue)) {
-          handleFieldValidation(
+        if (!isTimeWithinConstraints(selectedDate)) {
+          setValidationError(
             `Time must be between ${formatTime(minimumTime)} and ${formatTime(
               maximumTime,
             )}`,
-            `At ${label} time must be between ${formatTime(
-              minimumTime,
-            )} and ${formatTime(maximumTime)}.`,
           );
-          errorFlag = true;
           setShowPicker(false);
-        } else {
-          handleFieldValidation('');
-          finalValue = selectedValue;
+          return;
         }
+        setValidationError('');
+        finalDate = selectedDate;
       } else if (mode === 'date') {
         // Check if selected date is within constraints
-        if (!isDateWithinConstraints(selectedValue)) {
-          handleFieldValidation(
+        if (!isDateWithinConstraints(selectedDate)) {
+          setValidationError(
             `Date must be between ${formatDate(minimumDate)} and ${formatDate(
               maximumDate,
             )}`,
-            `At ${label} date must be between ${formatDate(
-              minimumDate,
-            )} and ${formatDate(maximumDate)}.`,
           );
-          errorFlag = true;
           setShowPicker(false);
-        } else {
-          handleFieldValidation('');
-          finalValue = selectedValue;
+          return;
         }
+        setValidationError('');
+        finalDate = selectedDate;
       } else if (mode === 'datetime') {
         if (pickerMode === 'date') {
           // Check if selected date is within constraints
-          if (!isDateWithinConstraints(selectedValue)) {
-            handleFieldValidation(
+          if (!isDateWithinConstraints(selectedDate)) {
+            setValidationError(
               `Date must be between ${formatDate(minimumDate)} and ${formatDate(
                 maximumDate,
               )}`,
-              `At ${label} date must be between ${formatDate(
-                minimumDate,
-              )} and ${formatDate(maximumDate)}.`,
             );
-            errorFlag = true;
             setShowPicker(false);
-          } else {
-            // Store the date part and show time picker
-            setTempDate(selectedValue);
-            setPickerMode('time');
-            // setShowPicker(true);
-            handleFieldValidation('');
             return;
           }
+          // Store the date part and show time picker
+          setTempDate(selectedDate);
+          setPickerMode('time');
+          setShowPicker(true);
+          setValidationError('');
+          return;
         } else if (pickerMode === 'time') {
           // Check if selected time is within constraints
-          if (!isTimeWithinConstraints(selectedValue)) {
-            handleFieldValidation(
+          if (!isTimeWithinConstraints(selectedDate)) {
+            setValidationError(
               `Time must be between ${formatTime(minimumTime)} and ${formatTime(
                 maximumTime,
               )}`,
-              `At ${label} time must be between ${formatTime(
-                minimumTime,
-              )} and ${formatTime(maximumTime)}.`,
             );
-            errorFlag = true;
             setShowPicker(false);
             setTempDate(null);
-          } else {
-            // Combine date and time
-            finalValue = combineDateAndTime(tempDate, selectedValue);
-            handleFieldValidation('');
-            setTempDate(null);
+            return;
           }
+          // Combine date and time
+          finalDate = combineDateAndTime(tempDate, selectedDate);
+          setValidationError('');
+          setTempDate(null);
         }
       }
 
-      setInternalDate(finalValue);
+      setInternalDate(finalDate);
 
       // Format the output based on mode
       let formattedValue;
       if (mode === 'time') {
         // Format as HH:mm
-        formattedValue = finalValue.toLocaleTimeString('en-US', {
+        formattedValue = finalDate.toLocaleTimeString('en-US', {
           hour: '2-digit',
           minute: '2-digit',
           hour12: false,
         });
       } else if (mode === 'datetime') {
         // Format as YYYY-MM-DDTHH:mm
-        const dateStr = finalValue.toISOString().split('T')[0];
-        const timeStr = finalValue.toLocaleTimeString('en-US', {
+        const dateStr = finalDate.toISOString().split('T')[0];
+        const timeStr = finalDate.toLocaleTimeString('en-US', {
           hour: '2-digit',
           minute: '2-digit',
           hour12: false,
@@ -250,12 +219,7 @@ const DatePickerField = ({
         formattedValue = `${dateStr}T${timeStr}`;
       } else {
         // Default: date only - format as YYYY-MM-DD
-        formattedValue = finalValue.toISOString().split('T')[0];
-      }
-
-      if (errorFlag) {
-        onChange(''); // Clear the value if there's a validation error
-        return;
+        formattedValue = finalDate.toISOString().split('T')[0];
       }
 
       onChange(formattedValue);
@@ -342,7 +306,7 @@ const DatePickerField = ({
 
   const handlePickerButtonPress = () => {
     if (!editable) return;
-    handleFieldValidation(''); // Validate before showing picker
+    setValidationError(''); // Clear any previous error
 
     if (mode === 'datetime') {
       // For datetime, start with date picker
@@ -394,7 +358,7 @@ const DatePickerField = ({
         style={[
           styles.selectionButton,
           !editable && styles.disabledInput,
-          fieldValidationError && styles.errorBorder,
+          validationError && styles.errorBorder,
         ]}
         onPress={handlePickerButtonPress}
         activeOpacity={editable ? 0.7 : 1}
@@ -404,7 +368,7 @@ const DatePickerField = ({
           style={[
             styles.datePickerText,
             !value && styles.datePickerPlaceholder,
-            fieldValidationError && styles.errorText,
+            validationError && styles.errorText,
           ]}
         >
           {value
@@ -414,8 +378,8 @@ const DatePickerField = ({
       </TouchableOpacity>
 
       {/* Display validation error */}
-      {fieldValidationError ? (
-        <Text style={styles.errorText}>{fieldValidationError}</Text>
+      {validationError ? (
+        <Text style={styles.errorMessageText}>{validationError}</Text>
       ) : null}
 
       {showPicker && editable && (
@@ -441,42 +405,6 @@ const DatePickerField = ({
         return 'Select date';
     }
   }
-};
-
-DatePickerField.propTypes = {
-  fcId: PropTypes.string.isRequired,
-  label: PropTypes.string.isRequired,
-  placeholder: PropTypes.string,
-  value: PropTypes.string,
-  onChange: PropTypes.func,
-  maximumDate: PropTypes.string,
-  minimumDate: PropTypes.string,
-  maximumTime: PropTypes.string,
-  minimumTime: PropTypes.string,
-  required: PropTypes.bool,
-  editable: PropTypes.bool,
-  isPreview: PropTypes.bool,
-  mode: PropTypes.oneOf(['date', 'time', 'datetime']),
-  format: PropTypes.string,
-  errorText: PropTypes.string,
-  onError: PropTypes.func,
-};
-
-DatePickerField.defaultProps = {
-  placeholder: '',
-  value: '',
-  onChange: null,
-  maximumDate: null,
-  minimumDate: null,
-  maximumTime: null,
-  minimumTime: null,
-  required: false,
-  editable: true,
-  isPreview: false,
-  mode: 'date',
-  format: 'YYYY-MM-DD',
-  errorText: '',
-  onError: null,
 };
 
 export default DatePickerField;

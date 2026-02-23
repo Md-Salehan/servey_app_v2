@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   View,
   Text,
@@ -32,11 +33,39 @@ const ImageUploadField = ({
   onImagesChange,
   initialImages = [],
   isPreview = false, // New prop for preview mode
+  errorText = '', // New prop for external error messages
+  onError = null, // New prop for error callback
 }) => {
   const [images, setImages] = useState(initialImages || []);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
+  const [isPress, setIsPress] = useState(false);
+  const [fieldValidationError, setFieldValidationError] = useState({
+    message: errorText || '',
+    style: styles.validationText,
+  });
   const scrollViewRef = useRef(null);
+
+  useEffect(() => {
+    if (images.length === 0 && required) {
+      handleFieldValidation('This field is required', styles.validationText);
+    } 
+    else if (images.length > maxImages) {
+      handleFieldValidation(`Maximum ${maxImages} images allowed`, styles.limitText);
+    } else {
+      handleFieldValidation('');
+    }
+  }, [images, required, maxImages]);
+  console.log(onError, "onError");
+  
+  const handleFieldValidation = (errorMessage, errorStyle = null) => {
+    setFieldValidationError({
+      message: errorMessage || '',
+      style: errorStyle || styles.validationErrorText,
+    });
+    onError && onError(errorMessage);
+    return !errorMessage; // Return true if no error, false if there is an error
+  };
 
   // Check and request permissions
   const requestCameraPermission = async () => {
@@ -111,7 +140,7 @@ const ImageUploadField = ({
   // Handle image selection
   const handleImageSelection = async source => {
     if (isPreview) return;
-
+    setIsPress(true);
     try {
       if (images.length >= maxImages && !multiple) {
         Alert.alert('Limit Reached', `Maximum ${maxImages} image(s) allowed`);
@@ -191,7 +220,7 @@ const ImageUploadField = ({
     setImages(finalSetOfImages);
 
     if (onImagesChange) {
-      onImagesChange(fcId, finalSetOfImages);
+      onImagesChange(finalSetOfImages);
     }
 
     if (errors.length > 0) {
@@ -328,7 +357,7 @@ const ImageUploadField = ({
 
     // Notify parent with the final updated images
     if (onImagesChange) {
-      onImagesChange(fcId, updatedImages);
+      onImagesChange(updatedImages);
     }
 
     if (failedImages.length > 0) {
@@ -358,7 +387,7 @@ const ImageUploadField = ({
           setImages(updatedImages);
 
           if (onImagesChange) {
-            onImagesChange(fcId, updatedImages);
+            onImagesChange(updatedImages);
           }
         },
       },
@@ -604,15 +633,8 @@ const ImageUploadField = ({
         )}
       </View>
 
-      {/* Validation Messages */}
-      {images.length === 0 && required && (
-        <Text style={styles.validationText}>* This field is required</Text>
-      )}
-
-      {images.length >= maxImages && (
-        <Text style={styles.limitText}>
-          Maximum image limit reached ({maxImages})
-        </Text>
+      {fieldValidationError && fieldValidationError.message && isPress && (
+        <Text style={fieldValidationError.style}>{fieldValidationError.message}</Text>
       )}
 
       {/* Allowed Types */}
@@ -629,6 +651,56 @@ const ImageUploadField = ({
     </View>
   );
 };
+
+ImageUploadField.propTypes = {
+  fcId: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  required: PropTypes.bool,
+  multiple: PropTypes.bool,
+  maxImages: PropTypes.number,
+  imageQuality: PropTypes.number,
+  compressImageMaxWidth: PropTypes.number,
+  compressImageMaxHeight: PropTypes.number,
+  allowedTypes: PropTypes.arrayOf(PropTypes.string),
+  maxFileSize: PropTypes.number,
+  onImagesChange: PropTypes.func,
+  initialImages: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      uri: PropTypes.string.isRequired,
+      base64: PropTypes.string,
+      type: PropTypes.string,
+      fileName: PropTypes.string,
+      fileSize: PropTypes.number,
+      width: PropTypes.number,
+      height: PropTypes.number,
+      timestamp: PropTypes.string,
+      uploaded: PropTypes.bool,
+      uploading: PropTypes.bool,
+      error: PropTypes.string,
+    }),
+  ),
+  isPreview: PropTypes.bool,
+  errorText: PropTypes.string,
+  onError: PropTypes.func,
+};
+
+ImageUploadField.defaultProps = {
+  required: false,
+  multiple: false,
+  maxImages: 5,
+  imageQuality: 0.8,
+  compressImageMaxWidth: 1024,
+  compressImageMaxHeight: 1024,
+  allowedTypes: ['image/jpeg', 'image/png', 'image/jpg'],
+  maxFileSize: 5,
+  onImagesChange: null,
+  initialImages: [],
+  isPreview: false,
+  errorText: '',
+  onError: null,
+};
+
 
 const styles = StyleSheet.create({
   fieldContainer: {
