@@ -130,21 +130,37 @@ const LocationField = ({
   maximumAge = 0,
   minAccuracy = 100,
   showAddress = false,
-  showMapPreview = false,
   onCaptureStart,
   onCaptureComplete,
   onCaptureError,
   isMannualEntryAllowed = true,
   isPreview = false,
+  errorText = '',
+  onError = null,
 }) => {
   const [capturedLocation, setCapturedLocation] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [locationError, setLocationError] = useState(null);
   const [isManualEntryModalVisible, setIsManualEntryModalVisible] =
     useState(false);
   const [manualLatitude, setManualLatitude] = useState('');
   const [manualLongitude, setManualLongitude] = useState('');
   const [manualAddress, setManualAddress] = useState('');
+
+  const [isPressed, setIsPressed] = useState(false);
+  const [fieldValidationError, setFieldValidationError] = useState('');
+  const handleFieldValidation = (errorMessage, externalErrorMessage) => {
+    setFieldValidationError(errorMessage || '');
+    onError && onError(externalErrorMessage || errorMessage || '');
+  };
+
+  // Validation effect for required fields
+  useEffect(() => {
+    if (isPressed && required && !capturedLocation) {
+      handleFieldValidation('This field is required', `${label} is required`);
+      return;
+    }
+    handleFieldValidation('');
+  }, [capturedLocation, required, isPressed]);
 
   // Initialize with existing value
   useEffect(() => {
@@ -202,8 +218,9 @@ const LocationField = ({
   const captureLocation = async () => {
     if (disabled || isPreview) return;
 
+    setIsPressed(true);
     setIsCapturing(true);
-    setLocationError(null);
+    handleFieldValidation(''); // Clear any existing validation errors
     onCaptureStart?.();
 
     try {
@@ -230,18 +247,21 @@ const LocationField = ({
               isAccurate = true;
             } else {
               const accuracyStatus = getAccuracyStatus(coords.accuracy);
-              setLocationError(
+              handleFieldValidation(
                 `Location accuracy (${coords.accuracy.toFixed(
                   0,
                 )}m) is below the required threshold (${minAccuracy}m).`,
+                `${label} accuracy is too low: ${coords.accuracy.toFixed(0)}m`,
               );
               isAccurate = false;
             }
 
             await handleLocationCapture(position, isAccurate);
           } catch (error) {
-            console.error('Error processing location:', error);
-            setLocationError('Failed to process location data.');
+            handleFieldValidation(
+              'Failed to process location data.',
+              `${label} capture failed: ${error.message || error}`,
+            );
             onCaptureError?.(error);
           } finally {
             setIsCapturing(false);
@@ -268,14 +288,20 @@ const LocationField = ({
               errorMessage += error.message;
           }
 
-          setLocationError(errorMessage);
+          handleFieldValidation(
+            errorMessage,
+            `${label} capture failed: ${errorMessage}`,
+          );
           onCaptureError?.(error);
         },
         options,
       );
     } catch (error) {
       setIsCapturing(false);
-      setLocationError(error.message);
+      handleFieldValidation(
+        error.message,
+        `${label} capture failed: ${error.message}`,
+      );
       onCaptureError?.(error);
     }
   };
@@ -283,7 +309,8 @@ const LocationField = ({
   const clearLocation = () => {
     if (disabled || isPreview) return;
     setCapturedLocation(null);
-    setLocationError(null);
+    handleFieldValidation('');
+    handleFieldValidation('');
     onChange('');
   };
 
@@ -297,6 +324,7 @@ const LocationField = ({
 
   const handleManualEntry = () => {
     if (disabled || isPreview) return;
+    setIsPressed(true);
     setIsManualEntryModalVisible(true);
   };
 
@@ -345,9 +373,7 @@ const LocationField = ({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.manualEntryContainer}>
-          <Text style={styles.manualEntryTitle}>
-            Manual Location Entry
-          </Text>
+          <Text style={styles.manualEntryTitle}>Manual Location Entry</Text>
 
           <TextInput
             style={styles.manualInput}
@@ -389,9 +415,7 @@ const LocationField = ({
               style={styles.modalSubmitButton}
               onPress={submitManualEntry}
             >
-              <Text style={styles.modalSubmitButtonText}>
-                Save Location
-              </Text>
+              <Text style={styles.modalSubmitButtonText}>Save Location</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -408,9 +432,16 @@ const LocationField = ({
           {required && <Text style={commonStyles.requiredStar}>*</Text>}
         </View>
 
-        {description && <Text style={commonStyles.descriptionText}>{description}</Text>}
+        {description && (
+          <Text style={commonStyles.descriptionText}>{description}</Text>
+        )}
 
-        <View style={[commonStyles.previewValueContainer, !capturedLocation && commonStyles.previewEmptyValue]}>
+        <View
+          style={[
+            commonStyles.previewValueContainer,
+            !capturedLocation && commonStyles.previewEmptyValue,
+          ]}
+        >
           {capturedLocation ? (
             <View>
               <View style={styles.coordinatesContainer}>
@@ -439,7 +470,11 @@ const LocationField = ({
 
               {capturedLocation.accuracy > 0 && (
                 <View style={styles.accuracyContainer}>
-                  <Icon name="gps-fixed" size={14} color={COLORS.text.secondary} />
+                  <Icon
+                    name="gps-fixed"
+                    size={14}
+                    color={COLORS.text.secondary}
+                  />
                   <Text style={styles.accuracyText}>
                     Accuracy: ±{capturedLocation.accuracy.toFixed(0)}m
                   </Text>
@@ -449,7 +484,9 @@ const LocationField = ({
               {capturedLocation.isManualEntry && (
                 <View style={styles.manualEntryIndicator}>
                   <Icon name="edit" size={14} color={COLORS.warning} />
-                  <Text style={[styles.manualEntryText, { color: COLORS.warning }]}>
+                  <Text
+                    style={[styles.manualEntryText, { color: COLORS.warning }]}
+                  >
                     Manually entered
                   </Text>
                 </View>
@@ -460,7 +497,12 @@ const LocationField = ({
               </Text>
             </View>
           ) : (
-            <Text style={[commonStyles.previewValueText, commonStyles.previewPlaceholderText]}>
+            <Text
+              style={[
+                commonStyles.previewValueText,
+                commonStyles.previewPlaceholderText,
+              ]}
+            >
               No location captured
             </Text>
           )}
@@ -477,7 +519,9 @@ const LocationField = ({
         {required && <Text style={commonStyles.requiredStar}>*</Text>}
       </View>
 
-      {description && <Text style={commonStyles.descriptionText}>{description}</Text>}
+      {description && (
+        <Text style={commonStyles.descriptionText}>{description}</Text>
+      )}
 
       {!capturedLocation ? (
         <View>
@@ -504,7 +548,9 @@ const LocationField = ({
               disabled={disabled}
             >
               <Icon name="edit" size={18} color={COLORS.text.primary} />
-              <Text style={commonStyles.secondaryButtonText}>Enter Manually</Text>
+              <Text style={commonStyles.secondaryButtonText}>
+                Enter Manually
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -528,9 +574,7 @@ const LocationField = ({
           {capturedLocation.address && (
             <View style={styles.addressContainer}>
               <Text style={styles.addressLabel}>Address</Text>
-              <Text style={styles.addressText}>
-                {capturedLocation.address}
-              </Text>
+              <Text style={styles.addressText}>{capturedLocation.address}</Text>
             </View>
           )}
 
@@ -563,9 +607,7 @@ const LocationField = ({
               disabled={disabled || isCapturing}
             >
               <Icon name="refresh" size={18} color={COLORS.text.primary} />
-              <Text style={styles.secondaryActionButtonText}>
-                Recapture
-              </Text>
+              <Text style={styles.secondaryActionButtonText}>Recapture</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -580,7 +622,7 @@ const LocationField = ({
         </View>
       )}
 
-      {locationError && (
+      {fieldValidationError && (
         <View style={commonStyles.locationErrorContainer}>
           <View
             style={{
@@ -591,22 +633,26 @@ const LocationField = ({
           >
             <Icon name="error-outline" size={18} color={COLORS.error} />
             <Text style={[commonStyles.errorText, { marginLeft: 8, flex: 1 }]}>
-              {locationError}
+              {fieldValidationError}
             </Text>
           </View>
-          {locationError.includes('permission') && (
+          {fieldValidationError.includes('permission') && (
             <TouchableOpacity
-              style={[commonStyles.secondaryButton, { alignSelf: 'flex-start' }]}
+              style={[
+                commonStyles.secondaryButton,
+                { alignSelf: 'flex-start' },
+              ]}
               onPress={openSettings}
             >
               <Icon name="settings" size={16} color={COLORS.text.primary} />
-              <Text style={commonStyles.secondaryButtonText}>Open Settings</Text>
+              <Text style={commonStyles.secondaryButtonText}>
+                Open Settings
+              </Text>
             </TouchableOpacity>
           )}
         </View>
       )}
-
-      {error && !locationError && <Text style={commonStyles.errorText}>{error}</Text>}
+      
 
       {renderManualEntryModal()}
 
@@ -629,7 +675,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
   },
-  
+
   // Location coordinates display
   coordinatesContainer: {
     flexDirection: 'row',
@@ -656,7 +702,7 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     fontWeight: '600',
   },
-  
+
   // Address display
   addressContainer: {
     backgroundColor: COLORS.surface,
@@ -677,7 +723,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     lineHeight: 20,
   },
-  
+
   // Accuracy display
   accuracyContainer: {
     flexDirection: 'row',
@@ -709,7 +755,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 4,
   },
-  
+
   // Action buttons container
   actionButtonsContainer: {
     flexDirection: 'row',
@@ -752,7 +798,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 6,
   },
-  
+
   // Manual entry modal
   manualEntryContainer: {
     backgroundColor: COLORS.surface,
@@ -816,7 +862,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.inverse,
     fontWeight: '600',
   },
-  
+
   // Loading overlay
   loadingOverlay: {
     position: 'absolute',

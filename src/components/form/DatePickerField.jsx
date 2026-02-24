@@ -138,7 +138,9 @@ const DatePickerField = ({
       setShowPicker(false);
       setPickerMode(mode); // Reset picker mode to original
       setTempDate(null); // Clear temporary date
-      return;
+
+      required && handleFieldValidation('This field is required', `${label} is required.`); // Clear any existing validation errors
+      return; 
     }
 
     // On iOS, we might keep the picker open

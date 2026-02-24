@@ -289,10 +289,10 @@ const CheckboxField = ({
             {error}
           </Text>
         </View>
-      ) : validationError ? (
+      ) : fieldValidationError ? (
         <View style={styles.errorContainer}>
           <Text style={commonStyles.errorText}>
-            {validationError}
+            {fieldValidationError}
           </Text>
         </View>
       ) : null}

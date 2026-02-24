@@ -284,15 +284,16 @@ const RecordEntryScreen = () => {
             label={props?.label || 'Location'}
             value={fieldValues[fcId]}
             onChange={locationData => handleFieldChange(fcId, locationData)}
-            required={props?.Required === 'Y'}
-            disabled={props?.Editable === 'N'}
-            description={props?.Description}
-            enableHighAccuracy={props?.EnableHighAccuracy === 'true'}
-            timeout={props?.Timeout ? parseInt(props.Timeout) : 15000}
-            maximumAge={props?.MaxAge ? parseInt(props.MaxAge) : 60000}
+            required={props?.required === 'Y'}
+            disabled={props?.disabled === 'Y'}
+            description={props?.description || ''}
+            isMannualEntryAllowed={props?.isMannualEntryAllowed === 'Y'}
+            enableHighAccuracy={props?.enableHighAccuracy === 'true'}
+            timeout={props?.timeout ? parseInt(props.timeout) : 15000}
+            maximumAge={props?.maximumAge ? parseInt(props.maximumAge) : 60000}
             minAccuracy={100}
             showAddress={true}
-            showMapPreview={props?.ShowMapPreview === 'true'}
+            showMapPreview={props?.showMapPreview === 'true'}
             onCaptureStart={() => console.log('Location capture started')}
             onCaptureComplete={(location, isAccurate) =>
               console.log('Location captured:', location)
@@ -300,7 +301,6 @@ const RecordEntryScreen = () => {
             onCaptureError={error =>
               console.log('Location capture error:', error)
             }
-            isMannualEntryAllowed={true}
           />
         );
 

@@ -13,16 +13,14 @@ import {
   Dimensions,
   StyleSheet,
 } from 'react-native';
+import PropTypes from 'prop-types';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS } from '../../constants/colors';
 import commonStyles from './FormComponents.styles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const ERROR_MESSAGE = {
-  required: 'This field is required',
-  maxSelections: max => `You can select up to ${max} options`,
-};
+
 
 const DropdownField = ({
   fcId,
@@ -571,6 +569,39 @@ const DropdownField = ({
     </View>
   );
 };
+
+DropdownField.propTypes = {
+  fcId: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  placeholder: PropTypes.string,
+  options: PropTypes.string,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),  
+  onChange: PropTypes.func,
+  multiple: PropTypes.bool,
+  required: PropTypes.bool,
+  disabled: PropTypes.bool,
+  searchable: PropTypes.bool,
+  maxSelections: PropTypes.number,
+  isPreview: PropTypes.bool,
+  errorText: PropTypes.string,
+  onError: PropTypes.func,
+};
+
+DropdownField.defaultProps = {
+  placeholder: 'Select option',
+  options: '',
+  value: '',
+  onChange: null,
+  multiple: false,
+  required: false,
+  disabled: false,
+  searchable: true,
+  maxSelections: null,
+  isPreview: false,
+  errorText: '',
+  onError: null,
+};
+
 
 const styles = StyleSheet.create({
   modalOverlayTouchable: {
