@@ -55,16 +55,19 @@ const SignatureField = ({
   onSigningStart,
   onSigningEnd,
   isPreview = false, // New prop for preview mode
+  errorText = '', // New prop for external error messages
+  onError = null, // New prop for error callback
 }) => {
   // State for signature
   const [signature, setSignature] = useState(value);
   const [isSaving, setIsSaving] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
-  const [validationError, setValidationError] = useState(error);
+  const [validationError, setValidationError] = useState(errorText);
   const [paths, setPaths] = useState([]);
   const [currentPoints, setCurrentPoints] = useState([]);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
+  const [fieldValidationError, setFieldValidationError] = useState(errorText || '');
   // Refs
   const canvasRef = useRef(null);
   const pathsRef = useRef([]);
@@ -73,6 +76,11 @@ const SignatureField = ({
 
   // Mobile screen dimensions
   const { width: screenWidth } = Dimensions.get('window');
+
+  const handleFieldValidation = (errorMessage, externalErrorMessage) => {
+    setFieldValidationError(errorMessage || '');
+    onError && onError(externalErrorMessage || errorMessage || '');
+  };
 
   // Canvas dimensions (optimized for mobile)
   const containerWidth = useMemo(() => {
@@ -107,31 +115,31 @@ const SignatureField = ({
   }, [signature]);
 
   // Create a smooth path from points
-  const createSmoothPath = useCallback((points) => {
+  const createSmoothPath = useCallback(points => {
     if (points.length < 2) return null;
-    
+
     const path = Skia.Path.Make();
     path.moveTo(points[0].x, points[0].y);
-    
+
     // For smoother drawing, use quadratic bezier curves
     for (let i = 1; i < points.length - 1; i++) {
       const p1 = points[i];
       const p2 = points[i + 1];
       const midPoint = {
         x: (p1.x + p2.x) / 2,
-        y: (p1.y + p2.y) / 2
+        y: (p1.y + p2.y) / 2,
       };
-      
+
       // Use quadratic bezier for smoother curves
       path.quadTo(p1.x, p1.y, midPoint.x, midPoint.y);
     }
-    
+
     // Connect the last point
     if (points.length > 1) {
       const lastPoint = points[points.length - 1];
       path.lineTo(lastPoint.x, lastPoint.y);
     }
-    
+
     return path;
   }, []);
 
@@ -151,10 +159,10 @@ const SignatureField = ({
         // Add new point to current stroke
         currentPointsRef.current = [
           ...currentPointsRef.current,
-          { x: event.x, y: event.y }
+          { x: event.x, y: event.y },
         ];
         setCurrentPoints([...currentPointsRef.current]);
-        
+
         // Limit points array size for performance
         if (currentPointsRef.current.length > 100) {
           // Convert current points to a path and add to paths
@@ -198,7 +206,10 @@ const SignatureField = ({
 
   // Convert paths to base64 image
   const convertToBase64 = useCallback(async () => {
-    if (pathsRef.current.length === 0 && currentPointsRef.current.length === 0) {
+    if (
+      pathsRef.current.length === 0 &&
+      currentPointsRef.current.length === 0
+    ) {
       return '';
     }
 
@@ -218,13 +229,13 @@ const SignatureField = ({
         Math.floor(canvasSize.width),
         Math.floor(canvasSize.height),
       );
-      
+
       if (!surface) {
         throw new Error('Failed to create surface');
       }
 
       const canvas = surface.getCanvas();
-      
+
       // Clear with background color
       const backgroundPaint = Skia.Paint();
       backgroundPaint.setColor(Skia.Color(backgroundColor));
@@ -272,17 +283,24 @@ const SignatureField = ({
       console.error('Error converting to base64:', error);
       return '';
     }
-  }, [canvasSize, backgroundColor, strokeColor, strokeWidth, minPoints, createSmoothPath]);
+  }, [
+    canvasSize,
+    backgroundColor,
+    strokeColor,
+    strokeWidth,
+    minPoints,
+    createSmoothPath,
+  ]);
 
   // Handle signature save
   const handleSignatureSave = useCallback(async () => {
     if (isPreview) return;
-    
+
     setIsSaving(true);
 
     try {
       const signatureData = await convertToBase64();
-      
+
       if (!signatureData || signatureData === 'data:image/png;base64,') {
         setValidationError('Please provide a signature');
         return;
@@ -305,7 +323,9 @@ const SignatureField = ({
       }
     } catch (err) {
       console.error('Error saving signature:', err);
-      setValidationError(err.message || 'Failed to capture signature. Please try again.');
+      setValidationError(
+        err.message || 'Failed to capture signature. Please try again.',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -380,7 +400,7 @@ const SignatureField = ({
   // Handle cancel signing
   const handleCancelSigning = useCallback(() => {
     if (isPreview) return;
-    
+
     setIsSigning(false);
     clearCanvas();
 
@@ -427,14 +447,24 @@ const SignatureField = ({
       <View style={[commonStyles.fieldContainer, styles.container]}>
         {/* Label */}
         <View style={commonStyles.labelContainer}>
-          <Text style={[commonStyles.labelText, hasSignature && styles.labelTextSigned]}>
+          <Text
+            style={[
+              commonStyles.labelText,
+              hasSignature && styles.labelTextSigned,
+            ]}
+          >
             {label}
-            {required && <Text style={commonStyles.requiredStar}> *</Text>}
           </Text>
+          {required && <Text style={commonStyles.requiredStar}> *</Text>}
         </View>
 
         {/* Signature Preview */}
-        <View style={[commonStyles.previewValueContainer, !hasSignature && commonStyles.previewEmptyValue]}>
+        <View
+          style={[
+            commonStyles.previewValueContainer,
+            !hasSignature && commonStyles.previewEmptyValue,
+          ]}
+        >
           {hasSignature ? (
             <View style={styles.previewSignatureContainer}>
               <View style={styles.previewSignatureBox}>
@@ -450,7 +480,9 @@ const SignatureField = ({
                 </View>
               </View>
               <View style={styles.previewSignatureInfo}>
-                <Text style={styles.previewSignatureTitle}>Signature Captured</Text>
+                <Text style={styles.previewSignatureTitle}>
+                  Signature Captured
+                </Text>
                 <Text style={styles.previewSignatureSize}>
                   {signature ? Math.round(signature.length / 1024) : 0} KB
                 </Text>
@@ -459,7 +491,12 @@ const SignatureField = ({
           ) : (
             <View style={styles.previewEmptySignature}>
               <Icon name="draw" size={32} color={COLORS.text.disabled} />
-              <Text style={[commonStyles.previewValueText, commonStyles.previewPlaceholderText]}>
+              <Text
+                style={[
+                  commonStyles.previewValueText,
+                  commonStyles.previewPlaceholderText,
+                ]}
+              >
                 No signature provided
               </Text>
             </View>
@@ -469,9 +506,7 @@ const SignatureField = ({
         {/* Error message for required fields */}
         {required && !hasSignature && (
           <View style={styles.errorContainer}>
-            <Text style={commonStyles.errorText}>
-              This field is required
-            </Text>
+            <Text style={commonStyles.errorText}>This field is required</Text>
           </View>
         )}
       </View>
@@ -505,13 +540,17 @@ const SignatureField = ({
       {/* Signature Area */}
       <View
         style={styles.signatureArea}
-        accessibilityLabel={`${label}. ${isSigned() ? 'Signed' : 'Not signed'}. ${required ? 'Required.' : ''} ${disabled ? 'Disabled.' : ''}`}
+        accessibilityLabel={`${label}. ${
+          isSigned() ? 'Signed' : 'Not signed'
+        }. ${required ? 'Required.' : ''} ${disabled ? 'Disabled.' : ''}`}
         accessible={true}
         importantForAccessibility="yes"
       >
         {isSigned() && !isSigning ? (
           // Signature Preview
-          <View style={[commonStyles.previewContainer, styles.previewContainer]}>
+          <View
+            style={[commonStyles.previewContainer, styles.previewContainer]}
+          >
             <View style={styles.previewContent}>
               <View style={styles.signaturePreviewBox}>
                 <View style={styles.signatureBackground}>
@@ -543,7 +582,8 @@ const SignatureField = ({
                       <Text style={styles.previewHint}>View only</Text>
                     ) : (
                       <Text style={styles.previewHint}>
-                        <Icon name="edit" size={11} color={COLORS.primary} /> Tap to edit
+                        <Icon name="edit" size={11} color={COLORS.primary} />{' '}
+                        Tap to edit
                       </Text>
                     )}
                   </View>
@@ -582,7 +622,12 @@ const SignatureField = ({
                       {/* Background */}
                       <Path
                         path={Skia.Path.Make().addRect(
-                          Skia.XYWHRect(0, 0, canvasSize.width, canvasSize.height),
+                          Skia.XYWHRect(
+                            0,
+                            0,
+                            canvasSize.width,
+                            canvasSize.height,
+                          ),
                         )}
                         color={backgroundColor}
                       />
@@ -621,7 +666,12 @@ const SignatureField = ({
               </View>
 
               {/* Control buttons */}
-              <View style={[commonStyles.controlsContainer, styles.controlsContainer]}>
+              <View
+                style={[
+                  commonStyles.controlsContainer,
+                  styles.controlsContainer,
+                ]}
+              >
                 {/* Clear button */}
                 <TouchableOpacity
                   style={[
@@ -676,7 +726,9 @@ const SignatureField = ({
                     <Icon
                       name="close"
                       size={20}
-                      color={disabled ? COLORS.text.disabled : COLORS.text.secondary}
+                      color={
+                        disabled ? COLORS.text.disabled : COLORS.text.secondary
+                      }
                     />
                     <Text
                       style={[
@@ -694,7 +746,8 @@ const SignatureField = ({
                   style={[
                     commonStyles.primaryButton,
                     styles.saveButton,
-                    (disabled || !isSigning) && commonStyles.primaryButtonDisabled,
+                    (disabled || !isSigning) &&
+                      commonStyles.primaryButtonDisabled,
                   ]}
                   onPress={handleSignatureSave}
                   disabled={disabled || !isSigning || isSaving}
@@ -720,7 +773,8 @@ const SignatureField = ({
                       <Text
                         style={[
                           commonStyles.primaryButtonText,
-                          (disabled || !isSigning) && commonStyles.buttonTextDisabled,
+                          (disabled || !isSigning) &&
+                            commonStyles.buttonTextDisabled,
                         ]}
                       >
                         Capture
@@ -739,7 +793,9 @@ const SignatureField = ({
                       : 'Draw your signature in the box above'}
                   </Text>
                   {Platform.OS === 'android' && (
-                    <Text style={styles.instructionsHint}>Use finger or stylus</Text>
+                    <Text style={styles.instructionsHint}>
+                      Use finger or stylus
+                    </Text>
                   )}
                 </View>
               )}
@@ -770,9 +826,10 @@ const SignatureField = ({
               style={[
                 styles.startButtonText,
                 disabled && commonStyles.buttonTextDisabled,
+                { marginTop: 0 },
               ]}
             >
-              {description || ' Tap to start signing'}
+              {disabled ? 'Signature is disabled' : 'Tap to start signing'}
             </Text>
           </TouchableOpacity>
         )}
@@ -887,7 +944,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: 8,
   },
-    signatureCanvasWrapper: {
+  signatureCanvasWrapper: {
     // boxSizing: 'border-box',
     // paddingVertical: 15,
     // paddingHorizontal: 12,

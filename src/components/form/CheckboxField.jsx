@@ -26,6 +26,7 @@ const CheckboxField = ({
   size = 'medium',
   customStyle = {},
   isPreview = false, // New prop for preview mode
+  errorText = '', // New prop for external error messages
   onError = null // New prop for error handling callback
 }) => {
   // Parse boolean value - handle string "true"/"false" as well
@@ -37,7 +38,7 @@ const CheckboxField = ({
   }, [value]);
   
   const [isPressed, setIsPressed] = useState(false);
-  const [fieldValidationError, setFieldValidationError] = useState('');
+  const [fieldValidationError, setFieldValidationError] = useState( errorText || ''); // Local state for validation errors
 
 
   // Animation value for scale effect

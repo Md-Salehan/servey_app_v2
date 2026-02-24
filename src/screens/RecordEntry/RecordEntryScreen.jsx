@@ -301,6 +301,8 @@ const RecordEntryScreen = () => {
             onCaptureError={error =>
               console.log('Location capture error:', error)
             }
+            errorText={submissionError[fcId] || ''}
+            onError={error => handleError(fcId, error)}
           />
         );
 
@@ -312,9 +314,9 @@ const RecordEntryScreen = () => {
             label={props?.label || 'Signature'}
             value={fieldValues[fcId]}
             onChange={signatureData => handleFieldChange(fcId, signatureData)}
-            required={props?.Required === 'Y'}
-            disabled={props?.Editable === 'N'}
-            description={props?.Description}
+            required={props?.required === 'Y'}
+            disabled={props?.disabled === 'Y'}
+            description={props?.description || ''}
             canvasWidth={props?.CanvasWidth ? parseInt(props.CanvasWidth) : 300}
             canvasHeight={
               props?.CanvasHeight ? parseInt(props.CanvasHeight) : 150
@@ -324,6 +326,8 @@ const RecordEntryScreen = () => {
             minPoints={props?.MinPoints ? parseInt(props.MinPoints) : 10}
             onSigningStart={() => {}}
             onSigningEnd={() => {}}
+            errorText={submissionError[fcId] || ''}
+            onError={error => handleError(fcId, error)}
           />
         );
 

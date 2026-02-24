@@ -12,6 +12,7 @@ import {
   PermissionsAndroid,
   StyleSheet,
 } from 'react-native';
+import PropTypes from 'prop-types';
 import Geolocation from '@react-native-community/geolocation';
 import axios from 'axios';
 import { COLORS } from '../../constants/colors';
@@ -152,9 +153,10 @@ const LocationField = ({
   const [manualLatitude, setManualLatitude] = useState('');
   const [manualLongitude, setManualLongitude] = useState('');
   const [manualAddress, setManualAddress] = useState('');
-
+  const [locationType, setLocationType] = useState(null);
   const [isPressed, setIsPressed] = useState(false);
-  const [fieldValidationError, setFieldValidationError] = useState('');
+  const [fieldValidationError, setFieldValidationError] = useState(errorText || '');
+
   const handleFieldValidation = (errorMessage, externalErrorMessage) => {
     setFieldValidationError(errorMessage || '');
     onError && onError(externalErrorMessage || errorMessage || '');
@@ -225,6 +227,7 @@ const LocationField = ({
 const captureLocation = async () => {
   if (disabled || isPreview) return;
 
+  setLocationType('gps');
   setIsCapturing(true);
   handleFieldValidation('');
   onCaptureStart?.();
@@ -302,6 +305,7 @@ const captureLocation = async () => {
     setCapturedLocation(null);
     handleFieldValidation('');
     handleFieldValidation('');
+    setLocationType(null);
     onChange('');
   };
 
@@ -316,6 +320,7 @@ const captureLocation = async () => {
   const handleManualEntry = () => {
     if (disabled || isPreview) return;
     setIsPressed(true);
+    setLocationType('manual');
     setIsManualEntryModalVisible(true);
   };
 
@@ -359,7 +364,7 @@ const captureLocation = async () => {
     <Modal
       visible={isManualEntryModalVisible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={() => setIsManualEntryModalVisible(false)}
     >
       <View style={styles.modalOverlay}>
@@ -594,7 +599,7 @@ const captureLocation = async () => {
           <View style={styles.actionButtonsContainer}>
             <TouchableOpacity
               style={styles.secondaryActionButton}
-              onPress={captureLocation}
+              onPress={()=> locationType === 'gps' ? captureLocation() : handleManualEntry()}
               disabled={disabled || isCapturing}
             >
               <Icon name="refresh" size={18} color={COLORS.text.primary} />
@@ -655,6 +660,50 @@ const captureLocation = async () => {
       )}
     </View>
   );
+};
+
+LocationField.propTypes = {
+  fcId: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  value: PropTypes.string,
+  onChange: PropTypes.func,
+  required: PropTypes.bool,
+  disabled: PropTypes.bool,
+  description: PropTypes.string,
+  error: PropTypes.string,
+  enableHighAccuracy: PropTypes.bool,
+  timeout: PropTypes.number,
+  maximumAge: PropTypes.number,
+  minAccuracy: PropTypes.number,
+  showAddress: PropTypes.bool,
+  onCaptureStart: PropTypes.func,
+  onCaptureComplete: PropTypes.func,
+  onCaptureError: PropTypes.func,
+  isMannualEntryAllowed: PropTypes.bool,
+  isPreview: PropTypes.bool,
+  errorText: PropTypes.string,
+  onError: PropTypes.func,
+};
+
+LocationField.defaultProps = {
+  value: '',
+  onChange: null,
+  required: false,
+  disabled: false,
+  description: '',
+  error: '',
+  enableHighAccuracy: true,
+  timeout: 25000,
+  maximumAge: 0,
+  minAccuracy: 100,
+  showAddress: false,
+  onCaptureStart: null,
+  onCaptureComplete: null,
+  onCaptureError: null,
+  isMannualEntryAllowed: true,
+  isPreview: false,
+  errorText: '',
+  onError: null,
 };
 
 export default LocationField;

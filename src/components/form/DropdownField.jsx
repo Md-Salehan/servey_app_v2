@@ -42,7 +42,7 @@ const DropdownField = ({
   const [searchText, setSearchText] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [isModelOpened, setIsModelOpened] = useState(false);
-  const [fieldValidationError, setFieldValidationError] = useState('');
+  const [fieldValidationError, setFieldValidationError] = useState(errorText || ''); // Local state for validation errors
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
