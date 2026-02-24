@@ -20,7 +20,7 @@ const TextInputField = ({
   onError=null, // New prop for error callback
 }) => {
   const [text, setText] = useState(value || '');
-  const [validationError, setValidationError] = useState(errorText ||''); // Local state for validation errors
+  const [fieldValidationError, setFieldValidationError] = useState(errorText ||''); // Local state for validation errors
   
   const handleChangeText = input => {
     setText(input);
@@ -34,11 +34,11 @@ const TextInputField = ({
 
   const checkValidation = () => {
     if (required && !text.trim()) {
-      setValidationError('This field is required');
+      setFieldValidationError('This field is required');
       onError && onError(`${label} is required`);
       return false;
     } else {
-      setValidationError('');
+      setFieldValidationError('');
       onError && onError('');
       return true;
     }
@@ -84,7 +84,7 @@ const TextInputField = ({
           styles.textInput,
           !editable && styles.disabledInput,
           multiline && styles.multilineInput,
-          validationError && styles.errorBorder,
+          fieldValidationError && styles.errorBorder,
         ]}
         placeholder={placeholder}
         placeholderTextColor={COLORS.text.disabled}
@@ -97,8 +97,8 @@ const TextInputField = ({
         multiline={multiline}
         numberOfLines={multiline ? 4 : 1}
       />
-      {validationError ? (
-        <Text style={styles.errorText}>{validationError}</Text>
+      {fieldValidationError ? (
+        <Text style={styles.errorText}>{fieldValidationError}</Text>
       ) : null}
       {maxLength && (
         <Text style={styles.counterText}>

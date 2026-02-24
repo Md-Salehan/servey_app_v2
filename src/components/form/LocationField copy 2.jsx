@@ -44,13 +44,6 @@ const requestLocationPermission = async () => {
   }
 };
 
-// Promisified version of Geolocation.getCurrentPosition for cleaner async/await usage
-const getCurrentPositionAsync = (options = {}) => {
-  return new Promise((resolve, reject) => {
-    Geolocation.getCurrentPosition(resolve, reject, options);
-  });
-};
-
 // Helper function to create location data object
 const createLocationData = (
   coords,
@@ -222,80 +215,100 @@ const LocationField = ({
     [onChange, showAddress, onCaptureComplete],
   );
 
-const captureLocation = async () => {
-  if (disabled || isPreview) return;
+  const captureLocation = async () => {
+    if (disabled || isPreview) return;
 
-  setIsCapturing(true);
-  handleFieldValidation('');
-  onCaptureStart?.();
+    
+    setIsCapturing(true);
+    handleFieldValidation(''); // Clear any existing validation errors
+    onCaptureStart?.();
 
-  try {
-    const hasPermission = await requestLocationPermission();
-    if (!hasPermission) {
-      throw new Error(
-        'Location permission denied. Please enable location access in settings.',
-      );
-    }
-
-    const options = {
-      enableHighAccuracy,
-      timeout,
-      maximumAge,
-    };
-
-    // ✅ PROMISIFIED CALL
-    const position = await getCurrentPositionAsync(options);
-    const { coords } = position;
-
-    let isAccurate = true;
-
-    if (coords.accuracy > minAccuracy) {
-      const accuracyStatus = getAccuracyStatus(coords.accuracy);
-      handleFieldValidation(
-        `Location accuracy (${coords.accuracy.toFixed(
-          0,
-        )}m) is below the required threshold (${minAccuracy}m).`,
-        `${label} accuracy is too low: ${coords.accuracy.toFixed(0)}m`,
-      );
-      isAccurate = false;
-    }
-
-    await handleLocationCapture(position, isAccurate);
-  } catch (error) {
-    let errorMessage = 'Failed to capture location. ';
-
-    if (error?.code !== undefined) {
-      switch (error.code) {
-        case error.PERMISSION_DENIED:
-          errorMessage =
-            'Location permission denied. Please enable location access in settings.';
-          break;
-        case error.POSITION_UNAVAILABLE:
-          errorMessage = 'Location information is unavailable.';
-          break;
-        case error.TIMEOUT:
-          errorMessage = `Location request timed out after ${
-            timeout / 1000
-          } seconds.`;
-          break;
-        default:
-          errorMessage += error.message;
+    try {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        throw new Error(
+          'Location permission denied. Please enable location access in settings.',
+        );
       }
-    } else {
-      errorMessage = error.message || errorMessage;
+
+      const options = {
+        enableHighAccuracy,
+        timeout,
+        maximumAge,
+      };
+
+      Geolocation.getCurrentPosition(
+        async position => {
+          try {
+            const { coords } = position;
+
+            let isAccurate = true;
+            if (coords.accuracy <= minAccuracy) {
+              isAccurate = true;
+            } else {
+              const accuracyStatus = getAccuracyStatus(coords.accuracy);
+              handleFieldValidation(
+                `Location accuracy (${coords.accuracy.toFixed(
+                  0,
+                )}m) is below the required threshold (${minAccuracy}m).`,
+                `${label} accuracy is too low: ${coords.accuracy.toFixed(0)}m`,
+              );
+              isAccurate = false;
+            }
+
+            await handleLocationCapture(position, isAccurate);
+          } catch (error) {
+            handleFieldValidation(
+              'Failed to process location data.',
+              `${label} capture failed: ${error.message || error}`,
+            );
+            onCaptureError?.(error);
+          } finally {
+            setIsCapturing(false);
+          }
+        },
+        error => {
+          setIsCapturing(false);
+          let errorMessage = 'Failed to capture location. ';
+
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage =
+                'Location permission denied. Please enable location access in settings.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = `Location request timed out after ${
+                timeout / 1000
+              } seconds.`;
+              break;
+            default:
+              errorMessage += error.message;
+          }
+
+          handleFieldValidation(
+            errorMessage,
+            `${label} capture failed: ${errorMessage}`,
+          );
+          onCaptureError?.(error);
+        },
+        options,
+      );
+    } catch (error) {
+      setIsCapturing(false);
+      handleFieldValidation(
+        error.message,
+        `${label} capture failed: ${error.message}`,
+      );
+      onCaptureError?.(error);
     }
-
-    handleFieldValidation(
-      errorMessage,
-      `${label} capture failed: ${errorMessage}`,
-    );
-
-    onCaptureError?.(error);
-  } finally {
-    setIsCapturing(false);
-    setIsPressed(true);
-  }
-};
+    finally {
+      setIsPressed(true);
+    }
+    
+  };
 
   const clearLocation = () => {
     if (disabled || isPreview) return;
