@@ -25,15 +25,15 @@ const TextInputField = ({
   const handleChangeText = input => {
     setText(input);
     onChangeText && onChangeText(input);
-    checkValidation(); // Validate on every change for real-time feedback
+    checkValidation(input); // Validate on every change for real-time feedback
   };
 
   const handleValidation = () => {
-    checkValidation(); // Validate on blur as well to catch any remaining issues
+    checkValidation(text); // Validate on blur as well to catch any remaining issues
   };
 
-  const checkValidation = () => {
-    if (required && !text.trim()) {
+  const checkValidation = (input) => {
+    if (required && !input.trim()) {
       setFieldValidationError('This field is required');
       onError && onError(`${label} is required`);
       return false;

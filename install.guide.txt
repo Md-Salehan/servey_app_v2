@@ -35,6 +35,8 @@ at android/app/src/main/AndroidManifest.xml
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+
+
 __________________________________________________________________________________
 npm install @react-native-voice/voice react-native-permissions
 at android/app/src/main/AndroidManifest.xml
@@ -67,6 +69,11 @@ dependencies {
 
 npm install patch-package postinstall-postinstall --save-dev
 npx patch-package @react-native-voice/voice
+
+
+
+
+
 
 ___________________________________________________
 ___________________________________________________

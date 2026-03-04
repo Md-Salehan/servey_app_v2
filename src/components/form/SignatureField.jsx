@@ -62,12 +62,13 @@ const SignatureField = ({
   const [signature, setSignature] = useState(value);
   const [isSaving, setIsSaving] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
-  const [validationError, setValidationError] = useState(errorText);
   const [paths, setPaths] = useState([]);
   const [currentPoints, setCurrentPoints] = useState([]);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-
-  const [fieldValidationError, setFieldValidationError] = useState(errorText || '');
+  const [isTapped, setIsTapped] = useState(false);
+  const [fieldValidationError, setFieldValidationError] = useState(
+    errorText || '',
+  );
   // Refs
   const canvasRef = useRef(null);
   const pathsRef = useRef([]);
@@ -302,7 +303,10 @@ const SignatureField = ({
       const signatureData = await convertToBase64();
 
       if (!signatureData || signatureData === 'data:image/png;base64,') {
-        setValidationError('Please provide a signature');
+        handleFieldValidation(
+          'Please provide a signature',
+          `${label} is required.`,
+        );
         return;
       }
 
@@ -314,7 +318,7 @@ const SignatureField = ({
         onSave(signatureData);
       }
 
-      setValidationError('');
+      handleFieldValidation('');
       setIsSigning(false);
 
       // Notify parent that signing has ended
@@ -323,8 +327,11 @@ const SignatureField = ({
       }
     } catch (err) {
       console.error('Error saving signature:', err);
-      setValidationError(
+      handleFieldValidation(
         err.message || 'Failed to capture signature. Please try again.',
+        `At ${label}: ${
+          err.message || 'Failed to capture signature. Please try again.'
+        }`,
       );
     } finally {
       setIsSaving(false);
@@ -351,7 +358,7 @@ const SignatureField = ({
             onPress: () => {
               setSignature('');
               onChange('');
-              setValidationError('');
+              handleFieldValidation('');
               clearCanvas();
             },
           },
@@ -364,8 +371,9 @@ const SignatureField = ({
   const handleStartSigning = useCallback(() => {
     if (disabled || isPreview) return;
 
+    setIsTapped(true);
     setIsSigning(true);
-    setValidationError('');
+    handleFieldValidation('');
     clearCanvas();
 
     // Notify parent that signing has started
@@ -390,6 +398,7 @@ const SignatureField = ({
             onChange('');
             clearCanvas();
             setIsSigning(true);
+            setIsTapped(true);
             onSigningStart && onSigningStart();
           },
         },
@@ -412,19 +421,15 @@ const SignatureField = ({
 
   // Validate on mount and when value changes
   useEffect(() => {
-    if (required && !isSigned() && !validationError && !isPreview) {
-      setValidationError('Signature is required');
-    } else if (isSigned() && validationError) {
-      setValidationError('');
+    if (isTapped) {
+      // user action occurred, then validate
+      if (required && !isSigned() && !fieldValidationError && !isPreview) {
+        handleFieldValidation('Signature is required');
+      } else if (isSigned() && fieldValidationError) {
+        handleFieldValidation('');
+      }
     }
-  }, [required, isSigned, validationError, isPreview]);
-
-  // Update when external error changes
-  useEffect(() => {
-    if (error !== validationError) {
-      setValidationError(error);
-    }
-  }, [error]);
+  }, [required, isSigned, fieldValidationError, isPreview, isTapped]);
 
   // Update signature when value changes externally
   useEffect(() => {
@@ -522,7 +527,7 @@ const SignatureField = ({
           style={[
             commonStyles.labelText,
             disabled && styles.labelTextDisabled,
-            validationError && styles.labelTextError,
+            // fieldValidationError && styles.labelTextError,
           ]}
         >
           {label}
@@ -598,7 +603,7 @@ const SignatureField = ({
               <View
                 style={[
                   styles.signatureCanvasWrapper,
-                  validationError && commonStyles.canvasError,
+                  fieldValidationError && commonStyles.canvasError,
                   disabled && commonStyles.canvasDisabled,
                   {
                     width: canvasSize.width,
@@ -836,9 +841,9 @@ const SignatureField = ({
       </View>
 
       {/* Error message */}
-      {validationError ? (
+      {fieldValidationError ? (
         <View style={styles.errorContainer}>
-          <Text style={commonStyles.errorText}>{validationError}</Text>
+          <Text style={commonStyles.errorText}>{fieldValidationError}</Text>
         </View>
       ) : null}
     </View>

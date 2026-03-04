@@ -20,8 +20,6 @@ import commonStyles from './FormComponents.styles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-
-
 const DropdownField = ({
   fcId,
   label,
@@ -42,7 +40,9 @@ const DropdownField = ({
   const [searchText, setSearchText] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [isModelOpened, setIsModelOpened] = useState(false);
-  const [fieldValidationError, setFieldValidationError] = useState(errorText || ''); // Local state for validation errors
+  const [fieldValidationError, setFieldValidationError] = useState(
+    errorText || '',
+  ); // Local state for validation errors
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
@@ -122,11 +122,17 @@ const DropdownField = ({
 
   // Validation effect for required fields
   useEffect(() => {
-    if (required && isModelOpened && !value) {
-      handleFieldValidation('This field is required', `${label} is required.`);
-      return;
+    if (isModelOpened) {
+      // user action occurred, then validate
+      if (required && !value) {
+        handleFieldValidation(
+          'This field is required',
+          `${label} is required.`,
+        );
+        return;
+      }
+      handleFieldValidation('');
     }
-    handleFieldValidation('');
   }, [value, required, isModelOpened]);
 
   const handleFieldValidation = (errorMessage, externalErrorMessage) => {
@@ -575,7 +581,7 @@ DropdownField.propTypes = {
   label: PropTypes.string.isRequired,
   placeholder: PropTypes.string,
   options: PropTypes.string,
-  value: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),  
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),
   onChange: PropTypes.func,
   multiple: PropTypes.bool,
   required: PropTypes.bool,
@@ -601,7 +607,6 @@ DropdownField.defaultProps = {
   errorText: '',
   onError: null,
 };
-
 
 const styles = StyleSheet.create({
   modalOverlayTouchable: {

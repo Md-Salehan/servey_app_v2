@@ -155,7 +155,9 @@ const LocationField = ({
   const [manualAddress, setManualAddress] = useState('');
   const [locationType, setLocationType] = useState(null);
   const [isPressed, setIsPressed] = useState(false);
-  const [fieldValidationError, setFieldValidationError] = useState(errorText || '');
+  const [fieldValidationError, setFieldValidationError] = useState(
+    errorText || '',
+  );
 
   const handleFieldValidation = (errorMessage, externalErrorMessage) => {
     setFieldValidationError(errorMessage || '');
@@ -164,11 +166,14 @@ const LocationField = ({
 
   // Validation effect for required fields
   useEffect(() => {
-    if (isPressed && required && !capturedLocation) {
-      handleFieldValidation('This field is required', `${label} is required`);
-      return;
+    if (isPressed) {
+      // user action occurred, then validate
+      if (required && !capturedLocation) {
+        handleFieldValidation('This field is required', `${label} is required`);
+        return;
+      }
+      handleFieldValidation('');
     }
-    handleFieldValidation('');
   }, [capturedLocation, required, isPressed]);
 
   // Initialize with existing value
@@ -224,81 +229,81 @@ const LocationField = ({
     [onChange, showAddress, onCaptureComplete],
   );
 
-const captureLocation = async () => {
-  if (disabled || isPreview) return;
+  const captureLocation = async () => {
+    if (disabled || isPreview) return;
 
-  setLocationType('gps');
-  setIsCapturing(true);
-  handleFieldValidation('');
-  onCaptureStart?.();
+    setLocationType('gps');
+    setIsCapturing(true);
+    handleFieldValidation('');
+    onCaptureStart?.();
 
-  try {
-    const hasPermission = await requestLocationPermission();
-    if (!hasPermission) {
-      throw new Error(
-        'Location permission denied. Please enable location access in settings.',
-      );
-    }
-
-    const options = {
-      enableHighAccuracy,
-      timeout,
-      maximumAge,
-    };
-
-    // ✅ PROMISIFIED CALL
-    const position = await getCurrentPositionAsync(options);
-    const { coords } = position;
-
-    let isAccurate = true;
-
-    if (coords.accuracy > minAccuracy) {
-      const accuracyStatus = getAccuracyStatus(coords.accuracy);
-      handleFieldValidation(
-        `Location accuracy (${coords.accuracy.toFixed(
-          0,
-        )}m) is below the required threshold (${minAccuracy}m).`,
-        `${label} accuracy is too low: ${coords.accuracy.toFixed(0)}m`,
-      );
-      isAccurate = false;
-    }
-
-    await handleLocationCapture(position, isAccurate);
-  } catch (error) {
-    let errorMessage = 'Failed to capture location. ';
-
-    if (error?.code !== undefined) {
-      switch (error.code) {
-        case error.PERMISSION_DENIED:
-          errorMessage =
-            'Location permission denied. Please enable location access in settings.';
-          break;
-        case error.POSITION_UNAVAILABLE:
-          errorMessage = 'Location information is unavailable.';
-          break;
-        case error.TIMEOUT:
-          errorMessage = `Location request timed out after ${
-            timeout / 1000
-          } seconds.`;
-          break;
-        default:
-          errorMessage += error.message;
+    try {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        throw new Error(
+          'Location permission denied. Please enable location access in settings.',
+        );
       }
-    } else {
-      errorMessage = error.message || errorMessage;
+
+      const options = {
+        enableHighAccuracy,
+        timeout,
+        maximumAge,
+      };
+
+      // ✅ PROMISIFIED CALL
+      const position = await getCurrentPositionAsync(options);
+      const { coords } = position;
+
+      let isAccurate = true;
+
+      if (coords.accuracy > minAccuracy) {
+        const accuracyStatus = getAccuracyStatus(coords.accuracy);
+        handleFieldValidation(
+          `Location accuracy (${coords.accuracy.toFixed(
+            0,
+          )}m) is below the required threshold (${minAccuracy}m).`,
+          `${label} accuracy is too low: ${coords.accuracy.toFixed(0)}m`,
+        );
+        isAccurate = false;
+      }
+
+      await handleLocationCapture(position, isAccurate);
+    } catch (error) {
+      let errorMessage = 'Failed to capture location. ';
+
+      if (error?.code !== undefined) {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage =
+              'Location permission denied. Please enable location access in settings.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Location information is unavailable.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = `Location request timed out after ${
+              timeout / 1000
+            } seconds.`;
+            break;
+          default:
+            errorMessage += error.message;
+        }
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+
+      handleFieldValidation(
+        errorMessage,
+        `${label} capture failed: ${errorMessage}`,
+      );
+
+      onCaptureError?.(error);
+    } finally {
+      setIsCapturing(false);
+      setIsPressed(true);
     }
-
-    handleFieldValidation(
-      errorMessage,
-      `${label} capture failed: ${errorMessage}`,
-    );
-
-    onCaptureError?.(error);
-  } finally {
-    setIsCapturing(false);
-    setIsPressed(true);
-  }
-};
+  };
 
   const clearLocation = () => {
     if (disabled || isPreview) return;
@@ -599,7 +604,9 @@ const captureLocation = async () => {
           <View style={styles.actionButtonsContainer}>
             <TouchableOpacity
               style={styles.secondaryActionButton}
-              onPress={()=> locationType === 'gps' ? captureLocation() : handleManualEntry()}
+              onPress={() =>
+                locationType === 'gps' ? captureLocation() : handleManualEntry()
+              }
               disabled={disabled || isCapturing}
             >
               <Icon name="refresh" size={18} color={COLORS.text.primary} />
@@ -628,7 +635,12 @@ const captureLocation = async () => {
             }}
           >
             <Icon name="error-outline" size={18} color={COLORS.error} />
-            <Text style={[commonStyles.errorText, { marginLeft: 8, flex: 1, marginTop: 0 }]}>
+            <Text
+              style={[
+                commonStyles.errorText,
+                { marginLeft: 8, flex: 1, marginTop: 0 },
+              ]}
+            >
               {fieldValidationError}
             </Text>
           </View>
@@ -648,7 +660,6 @@ const captureLocation = async () => {
           )}
         </View>
       )}
-      
 
       {renderManualEntryModal()}
 

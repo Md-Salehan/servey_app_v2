@@ -47,17 +47,20 @@ const ImageUploadField = ({
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
-    if (images.length === 0 && required) {
-      handleFieldValidation('This field is required', styles.validationText);
-    } 
-    else if (images.length > maxImages) {
-      handleFieldValidation(`Maximum ${maxImages} images allowed`, styles.limitText);
-    } else {
-      handleFieldValidation('');
+    if (isPress) {
+      if (images.length === 0 && required) {
+        handleFieldValidation('This field is required', styles.validationText);
+      } else if (images.length > maxImages) {
+        handleFieldValidation(
+          `Maximum ${maxImages} images allowed`,
+          styles.limitText,
+        );
+      } else {
+        handleFieldValidation('');
+      }
     }
   }, [images, required, maxImages]);
-  console.log(onError, "onError");
-  
+
   const handleFieldValidation = (errorMessage, errorStyle = null) => {
     setFieldValidationError({
       message: errorMessage || '',
@@ -634,7 +637,9 @@ const ImageUploadField = ({
       </View>
 
       {fieldValidationError && fieldValidationError.message && isPress && (
-        <Text style={fieldValidationError.style}>{fieldValidationError.message}</Text>
+        <Text style={fieldValidationError.style}>
+          {fieldValidationError.message}
+        </Text>
       )}
 
       {/* Allowed Types */}
@@ -700,7 +705,6 @@ ImageUploadField.defaultProps = {
   errorText: '',
   onError: null,
 };
-
 
 const styles = StyleSheet.create({
   fieldContainer: {

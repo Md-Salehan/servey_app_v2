@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react';
+import React, {
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+  useState,
+} from 'react';
 import {
   View,
   Text,
@@ -27,7 +33,7 @@ const CheckboxField = ({
   customStyle = {},
   isPreview = false, // New prop for preview mode
   errorText = '', // New prop for external error messages
-  onError = null // New prop for error handling callback
+  onError = null, // New prop for error handling callback
 }) => {
   // Parse boolean value - handle string "true"/"false" as well
   const isChecked = useMemo(() => {
@@ -36,14 +42,15 @@ const CheckboxField = ({
     }
     return Boolean(value);
   }, [value]);
-  
-  const [isPressed, setIsPressed] = useState(false);
-  const [fieldValidationError, setFieldValidationError] = useState( errorText || ''); // Local state for validation errors
 
+  const [isPressed, setIsPressed] = useState(false);
+  const [fieldValidationError, setFieldValidationError] = useState(
+    errorText || '',
+  ); // Local state for validation errors
 
   // Animation value for scale effect
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  
+
   // Animation value for checkmark
   const checkmarkAnim = useRef(new Animated.Value(isChecked ? 1 : 0)).current;
 
@@ -92,11 +99,14 @@ const CheckboxField = ({
 
   // Validation effect for required fields
   useEffect(() => {
-    if (isPressed && required && !isChecked) {
-      handleFieldValidation('This field is required', `${label} is required`);
-      return;
+    if (isPressed) {
+      // user action occurred, then validate
+      if (isPressed && required && !isChecked) {
+        handleFieldValidation('This field is required', `${label} is required`);
+        return;
+      }
+      handleFieldValidation('');
     }
-    handleFieldValidation('');
   }, [isChecked, required, isPressed]);
 
   const handleFieldValidation = (errorMessage, externalErrorMessage) => {
@@ -104,54 +114,57 @@ const CheckboxField = ({
     onError && onError(externalErrorMessage || errorMessage || '');
   };
 
-    
-
   // Determine styles based on state
   const checkboxStyle = useMemo(() => {
     const baseStyles = [styles.checkbox];
-    
+
     // Size variant
     if (size === 'small') baseStyles.push(styles.checkboxSmall);
     if (size === 'large') baseStyles.push(styles.checkboxLarge);
-    
+
     // State styles
     if (isChecked) {
-      baseStyles.push(disabled || isPreview ? styles.checkboxDisabledChecked : styles.checkboxChecked);
+      baseStyles.push(
+        disabled || isPreview
+          ? styles.checkboxDisabledChecked
+          : styles.checkboxChecked,
+      );
     } else {
       baseStyles.push(styles.checkboxUnchecked);
     }
-    
+
     if (disabled || isPreview) baseStyles.push(styles.checkboxDisabled);
     if (error && !isChecked && required) baseStyles.push(styles.checkboxError);
-    
+
     return baseStyles;
   }, [isChecked, disabled, error, required, size, isPreview]);
 
   const labelStyle = useMemo(() => {
     const baseStyles = [styles.labelText];
-    
+
     // Size variant
     if (size === 'small') baseStyles.push(styles.labelTextSmall);
     if (size === 'large') baseStyles.push(styles.labelTextLarge);
-    
+
     // State styles
-    if (isChecked && !disabled && !isPreview) baseStyles.push(styles.labelTextChecked);
-    if (disabled ) baseStyles.push(styles.labelTextDisabled);
+    if (isChecked && !disabled && !isPreview)
+      baseStyles.push(styles.labelTextChecked);
+    if (disabled) baseStyles.push(styles.labelTextDisabled);
     if (error && !isChecked && required) baseStyles.push(styles.labelTextError);
-    
+
     return baseStyles;
   }, [isChecked, disabled, error, required, size, isPreview]);
 
   const checkmarkStyle = useMemo(() => {
     const baseStyles = [styles.checkmark];
-    
+
     // Size variant
     if (size === 'small') baseStyles.push(styles.checkmarkSmall);
     if (size === 'large') baseStyles.push(styles.checkmarkLarge);
-    
+
     // State styles
     if (disabled || isPreview) baseStyles.push(styles.checkmarkDisabled);
-    
+
     return baseStyles;
   }, [size, disabled, isPreview]);
 
@@ -192,13 +205,22 @@ const CheckboxField = ({
   // Preview mode render
   if (isPreview) {
     return (
-      <View style={[commonStyles.fieldContainer, styles.container, customStyle.container]}>
+      <View
+        style={[
+          commonStyles.fieldContainer,
+          styles.container,
+          customStyle.container,
+        ]}
+      >
         <View style={styles.checkboxWrapper}>
           <View style={styles.previewContainer}>
             {/* Checkbox box */}
             <View style={checkboxStyle}>
               {isChecked && (
-                <Icon name="check" style={[checkmarkStyle, styles.previewCheckmark]} />
+                <Icon
+                  name="check"
+                  style={[checkmarkStyle, styles.previewCheckmark]}
+                />
               )}
             </View>
 
@@ -206,9 +228,7 @@ const CheckboxField = ({
             <View style={styles.labelContainer}>
               <Text style={labelStyle}>
                 {label}
-                {required && (
-                  <Text style={commonStyles.requiredStar}> *</Text>
-                )}
+                {required && <Text style={commonStyles.requiredStar}> *</Text>}
               </Text>
             </View>
           </View>
@@ -217,18 +237,14 @@ const CheckboxField = ({
         {/* Description */}
         {description ? (
           <View style={styles.descriptionContainer}>
-            <Text style={commonStyles.descriptionText}>
-              {description}
-            </Text>
+            <Text style={commonStyles.descriptionText}>{description}</Text>
           </View>
         ) : null}
 
         {/* Error message for required fields */}
         {required && !isChecked && (
           <View style={styles.errorContainer}>
-            <Text style={commonStyles.errorText}>
-              This field is required
-            </Text>
+            <Text style={commonStyles.errorText}>This field is required</Text>
           </View>
         )}
       </View>
@@ -237,7 +253,13 @@ const CheckboxField = ({
 
   // Regular edit mode render
   return (
-    <View style={[commonStyles.fieldContainer, styles.container, customStyle.container]}>
+    <View
+      style={[
+        commonStyles.fieldContainer,
+        styles.container,
+        customStyle.container,
+      ]}
+    >
       <View style={styles.checkboxWrapper}>
         <Pressable
           style={styles.pressableArea}
@@ -254,10 +276,7 @@ const CheckboxField = ({
         >
           {/* Animated checkbox box */}
           <Animated.View
-            style={[
-              checkboxStyle,
-              { transform: [{ scale: scaleAnim }] },
-            ]}
+            style={[checkboxStyle, { transform: [{ scale: scaleAnim }] }]}
           >
             {isChecked && renderCheckmark()}
           </Animated.View>
@@ -266,9 +285,7 @@ const CheckboxField = ({
           <View style={styles.labelContainer}>
             <Text style={labelStyle}>
               {label}
-              {required && (
-                <Text style={commonStyles.requiredStar}> *</Text>
-              )}
+              {required && <Text style={commonStyles.requiredStar}> *</Text>}
             </Text>
           </View>
         </Pressable>
@@ -277,24 +294,18 @@ const CheckboxField = ({
       {/* Description */}
       {description ? (
         <View style={styles.descriptionContainer}>
-          <Text style={commonStyles.descriptionText}>
-            {description}
-          </Text>
+          <Text style={commonStyles.descriptionText}>{description}</Text>
         </View>
       ) : null}
 
       {/* Error message */}
       {error ? (
         <View style={styles.errorContainer}>
-          <Text style={commonStyles.errorText}>
-            {error}
-          </Text>
+          <Text style={commonStyles.errorText}>{error}</Text>
         </View>
       ) : fieldValidationError ? (
         <View style={styles.errorContainer}>
-          <Text style={commonStyles.errorText}>
-            {fieldValidationError}
-          </Text>
+          <Text style={commonStyles.errorText}>{fieldValidationError}</Text>
         </View>
       ) : null}
     </View>
@@ -339,13 +350,13 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
   },
-  
+
   // Checkbox wrapper (label + checkbox)
   checkboxWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  
+
   // Pressable area for better touch target
   pressableArea: {
     flex: 1,
@@ -364,7 +375,7 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     opacity: 0.8,
   },
-  
+
   // Checkbox box styles
   checkbox: {
     width: 20,
@@ -395,7 +406,7 @@ const styles = StyleSheet.create({
   checkboxError: {
     borderColor: COLORS.error,
   },
-  
+
   // Size variants
   checkboxSmall: {
     width: 16,
@@ -405,7 +416,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
   },
-  
+
   // Label styles
   labelContainer: {
     flex: 1,
@@ -425,7 +436,7 @@ const styles = StyleSheet.create({
   labelTextError: {
     color: COLORS.error,
   },
-  
+
   // Size variants for label
   labelTextSmall: {
     fontSize: 14,
@@ -433,7 +444,7 @@ const styles = StyleSheet.create({
   labelTextLarge: {
     fontSize: 18,
   },
-  
+
   // Checkmark icon
   checkmark: {
     color: COLORS.surface,
@@ -452,19 +463,19 @@ const styles = StyleSheet.create({
   previewCheckmark: {
     color: COLORS.gray[500],
   },
-  
+
   // Error message container
   errorContainer: {
     marginTop: 4,
     marginLeft: 32, // Align with checkbox position
   },
-  
+
   // Description container
   descriptionContainer: {
     marginTop: 0,
     marginLeft: 32, // Align with checkbox position
   },
-  
+
   // Ripple effect for Android
   ripple: {
     position: 'absolute',
@@ -474,7 +485,7 @@ const styles = StyleSheet.create({
     bottom: -8,
     borderRadius: 12,
   },
-  
+
   // Focus ring for web/accessibility
   focusRing: {
     position: 'absolute',

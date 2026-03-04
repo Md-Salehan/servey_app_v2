@@ -118,11 +118,11 @@ const RecordEntryScreen = () => {
     // });
     console.log('Submission Error:', submissionError);
 
-    const hasErrors = Object.keys(submissionError).length > 0;
+    const hasErrors = Object.keys(submissionError).filter(key => submissionError[key]).length > 0;
     if (hasErrors) {
       Alert.alert(
         'Validation Error',
-        Object.values(submissionError).join('\n'),
+        Object.values(submissionError).filter(error => error).join('\n'),
       );
       return;
     }
@@ -165,7 +165,8 @@ const RecordEntryScreen = () => {
             multiline={props?.multiline === 'Y'}
             required={props?.required === 'Y'}
             // errorText={submissionError[fcId] || ''}
-            onError={errorText => handleError(fcId, errorText)}
+            errorText={''}
+            onError={error => handleError(fcId, error)}
           />
         );
 
@@ -209,6 +210,7 @@ const RecordEntryScreen = () => {
             required={props?.required === 'Y'}
             editable={props?.editable === 'Y'}
             mode={props?.mode || 'date'}
+            errorText={''}
             onError={error => handleError(fcId, error)}
           />
         );
@@ -233,7 +235,7 @@ const RecordEntryScreen = () => {
             }
             onImagesChange={images => handleFieldChange(fcId, images)}
             needLocation={props?.needLocation === 'Y'}
-            // errorText={submissionError[fcId] || ''}
+            errorText={''}
             onError={error => handleError(fcId, error)}
           />
         );
@@ -255,7 +257,7 @@ const RecordEntryScreen = () => {
             maxSelections={
               props?.maxSelections ? parseInt(props.maxSelections) : undefined
             }
-            // errorText={submissionError[fcId] || ''}
+            errorText={''} // submissionError[fcId] || ''
             onError={error => handleError(fcId, error)}
           />
         );
@@ -272,6 +274,7 @@ const RecordEntryScreen = () => {
             disabled={props?.editable === 'N'}
             description={props?.description || ''}
             size={props?.size || 'small'}
+            errorText={ ''}
             onError={error => handleError(fcId, error)}
           />
         );
@@ -301,7 +304,7 @@ const RecordEntryScreen = () => {
             onCaptureError={error =>
               console.log('Location capture error:', error)
             }
-            errorText={submissionError[fcId] || ''}
+            errorText={ ''}
             onError={error => handleError(fcId, error)}
           />
         );
@@ -326,7 +329,7 @@ const RecordEntryScreen = () => {
             minPoints={props?.MinPoints ? parseInt(props.MinPoints) : 10}
             onSigningStart={() => {}}
             onSigningEnd={() => {}}
-            errorText={submissionError[fcId] || ''}
+            errorText={ ''}
             onError={error => handleError(fcId, error)}
           />
         );
