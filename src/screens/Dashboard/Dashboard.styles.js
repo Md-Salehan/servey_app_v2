@@ -58,4 +58,19 @@ export const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
+
+  offlineIndicator: {
+    backgroundColor: COLORS.warning,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  offlineText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
 });

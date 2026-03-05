@@ -1,4 +1,3 @@
-// screens/Dashboard/DashboardScreen.jsx
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
@@ -12,15 +11,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
-import Icon from 'react-native-vector-icons/MaterialIcons';
 import { withDatabase } from '@nozbe/watermelondb/DatabaseProvider';
-import { Q } from '@nozbe/watermelondb';
+import withObservables from '@nozbe/watermelondb/react/withObservables';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
+import { useGetFormsMutation } from '../../features/form/formsApi';
 import TokenService from '../../services/storage/tokenService';
 import { logout } from '../../features/auth/authSlice';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
-import { API_BASE_URL } from '../../constants/api';
 import useInternetStatus from '../../hook/useInternetStatus';
 
 import { FormCard } from './components/FormCard/FormCard';
@@ -37,143 +36,99 @@ const getFormsbody = {
   },
 };
 
-const DashboardScreen = ({ database }) => {
-  const navigation = useNavigation();
-  const dispatch = useDispatch();
-  
-  // Local state
-  const [forms, setForms] = useState([]);
+// Inner component that receives forms from database
+const DashboardScreenInner = ({ 
+  navigation, 
+  dispatch,
+  forms: dbForms,
+  database 
+}) => {
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [syncError, setSyncError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeSort, setActiveSort] = useState('newest');
-  
-  // Internet status hook
+  const [isLoading, setIsLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [error, setError] = useState(null);
+
+  const [getForms] = useGetFormsMutation();
   const { isOnline, isChecking } = useInternetStatus();
 
-  // Load forms from local database on mount
+  // Load forms from server when online and component mounts
   useEffect(() => {
-    loadFormsFromDB();
-  }, []);
-
-  // Load forms from local database
-  const loadFormsFromDB = async () => {
-    try {
-      setLoading(true);
-      const formsCollection = database.collections.get('forms');
-      const storedForms = await formsCollection.query().fetch();
-      
-      // Transform WatermelonDB records to plain objects for UI
-      const formList = storedForms.map(form => {
-        console.log(form, "ttt");
-        
-        return {
-        ...form.formSchema,
-        id: form.id,
-        formId: form.formId,
-        formName: form.formName,
-        title: form.formName,
-        formSchema: form.formSchema,
-        appId: form.appId,
-        createdAt: form.createdAt,
-        updatedAt: form.updatedAt,
-      }
-      });
-      
-      setForms(formList);
-      setSyncError(null);
-    } catch (error) {
-      console.error('Error loading forms from DB:', error);
-      setSyncError('Failed to load forms from local storage');
-    } finally {
-      setLoading(false);
+    if (isOnline) {
+      fetchFormsFromServer();
     }
-  };
+  }, [isOnline]);
 
-  // Fetch forms from server
-  const fetchFormsFromServer = useCallback(async () => {
-    if (!isOnline) {
-      console.log('📡 No internet connection, using cached data');
-      return false;
-    }
-
+  const fetchFormsFromServer = async () => {
     try {
+      setIsLoading(true);
+      setIsError(false);
+      setError(null);
+      
       console.log('📋 Fetching forms from server...');
-      const token = await TokenService.getAccessToken();
-      
-      const response = await fetch(`${API_BASE_URL}/SUF00191/getAllAppFormInfo`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(getFormsbody),
-      });
-
-      const result = await response.json();
+      const result = await getForms(getFormsbody).unwrap();
       
       if (result?.code === 0 && result?.content?.qryRsltSet) {
-        console.log('✅ Forms fetched successfully from server');
+        console.log('📋 Forms fetched successfully from server');
         
         // Store forms in local database
         await database.write(async () => {
           for (const formData of result.content.qryRsltSet) {
-            const existing = await database.collections
+            const existingForms = await database.collections
               .get('forms')
               .query(Q.where('form_id', formData.formId))
               .fetch();
 
-            if (existing.length > 0) {
-              // Update existing form - DON'T set createdAt as it's readonly
-              await existing[0].update(record => {
+            if (existingForms.length > 0) {
+              // Update existing form
+              await existingForms[0].update(record => {
                 record.formName = formData.formNm;
                 record.formSchema = formData;
-                // updatedAt is automatically set by WatermelonDB
+                record.updatedAt = Date.now();
               });
             } else {
-              // Create new form - DON'T set createdAt/updatedAt manually
+              // Create new form
               await database.collections.get('forms').create(record => {
                 record.formId = formData.formId;
                 record.formName = formData.formNm;
                 record.formSchema = formData;
                 record.appId = 'AP000001';
-                // createdAt and updatedAt are automatically set by WatermelonDB
+                record.createdAt = Date.now();
+                record.updatedAt = Date.now();
               });
             }
           }
         });
-
-        // Reload from DB to get updated data
-        await loadFormsFromDB();
-        return true;
+        
+        console.log('✅ Forms stored in local database');
       } else {
-        // Handle API error
+        // Handle API error response
         const errorMsg = result?.appMsgList?.list?.[0]?.errDesc || 'Failed to load forms';
-        console.error('Server error:', errorMsg);
+        console.error('Failed to load forms:', errorMsg);
+        setIsError(true);
+        setError({ message: errorMsg });
         
         // Check if token expired
         if (result?.code === 401 || result?.code === 403) {
           handleTokenExpired();
         }
-        
-        setSyncError(errorMsg);
-        return false;
       }
     } catch (err) {
-      console.error('Network error fetching forms:', err);
+      console.error('Failed to fetch forms:', err);
+      setIsError(true);
+      setError(err);
       
-      // Handle network errors
+      // Handle network errors or unauthorized
       if (err?.status === 401 || err?.status === 403) {
         handleTokenExpired();
       }
-      
-      setSyncError('Network error. Using cached data.');
-      return false;
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
     }
-  }, [isOnline, database]);
+  };
 
-  // Handle token expiration
   const handleTokenExpired = async () => {
     Alert.alert(
       'Session Expired',
@@ -194,40 +149,40 @@ const DashboardScreen = ({ database }) => {
     );
   };
 
-  // Refresh handler (pull to refresh)
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    setSyncError(null);
     
-    // Always try to fetch from server when online
     if (isOnline) {
       await fetchFormsFromServer();
     } else {
-      // If offline, just reload from DB
-      await loadFormsFromDB();
+      // If offline, just stop refreshing and show message
+      setRefreshing(false);
+      Alert.alert('Offline', 'You are currently offline. Showing cached forms.');
     }
-    
-    setRefreshing(false);
-  }, [isOnline, fetchFormsFromServer]);
+  }, [isOnline]);
 
-  // Initial data load with server fetch if online
-  useEffect(() => {
-    const initializeData = async () => {
-      // First load from DB immediately
-      await loadFormsFromDB();
-      
-      // Then try to fetch fresh data from server if online
-      if (isOnline && !isChecking) {
-        await fetchFormsFromServer();
-      }
-    };
-
-    initializeData();
-  }, [isOnline, isChecking]);
+  // Transform database forms to the format expected by UI
+  const transformedForms = useMemo(() => {
+    return dbForms.map(form => ({
+      id: form.id,
+      formId: form.formId,
+      title: form.formName,
+      formNm: form.formName,
+      // Add default values for UI properties that might be missing
+      status: form.formSchema?.status || 'active',
+      priority: form.formSchema?.priority || 'normal',
+      createdAt: form.formSchema?.createdAt || form.createdAt,
+      description: form.formSchema?.description || "No description available",
+      totalFields: form.formSchema?.totalFields || 0,
+      estimatedTime: form.formSchema?.estimatedTime || 5,
+      completionRate: form.formSchema?.completionRate || 0,
+      deadline: form.formSchema?.deadline || null,
+    }));
+  }, [dbForms]);
 
   // Filter and sort forms
   const filteredForms = useMemo(() => {
-    let result = [...forms];
+    let result = [...transformedForms];
 
     // Apply filter
     if (activeFilter !== 'all') {
@@ -255,24 +210,21 @@ const DashboardScreen = ({ database }) => {
     });
 
     return result;
-  }, [forms, activeFilter, activeSort]);
+  }, [transformedForms, activeFilter, activeSort]);
 
-  // Handle form press
   const handleFormPress = form => {
-    console.log('Form selected:', form.formId);
+    console.log('Form selected:', form.id);
     navigation.navigate(ROUTES.RECORD_ENTRY, {
       appId: 'AP000001',
       formId: form.formId,
-      formTitle: form.formName,
+      formTitle: form.title,
     });
   };
 
-  // Handle profile press
   const handleProfilePress = () => {
     navigation.navigate(ROUTES.PROFILE);
   };
 
-  // Handle logout
   const handleLogout = async () => {
     Alert.alert(
       'Logout',
@@ -295,7 +247,6 @@ const DashboardScreen = ({ database }) => {
     );
   };
 
-  // Render form item
   const renderItem = ({ item, index }) => (
     <FormCard 
       form={item} 
@@ -304,9 +255,9 @@ const DashboardScreen = ({ database }) => {
     />
   );
 
-  // Render content based on state
   const renderContent = () => {
-    if (loading && forms.length === 0) {
+    // Show loading only on initial load when we have no data
+    if (isLoading && !refreshing && dbForms.length === 0) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -315,41 +266,38 @@ const DashboardScreen = ({ database }) => {
       );
     }
 
-    if (syncError && forms.length === 0) {
+    // Show error only if we have no data to display
+    if (isError && dbForms.length === 0) {
       return (
         <ErrorState 
-          error={syncError} 
-          onRetry={() => {
-            if (isOnline) {
-              fetchFormsFromServer();
-            } else {
-              loadFormsFromDB();
-            }
-          }} 
+          error={error} 
+          onRetry={fetchFormsFromServer} 
         />
       );
     }
 
+    // Show empty state if no forms in database
+    if (dbForms.length === 0) {
+      return (
+        <EmptyState
+          title="No Forms Available"
+          message={
+            isOnline 
+              ? "There are no forms assigned to you at the moment."
+              : "You are offline. Pull down to refresh when online."
+          }
+          onAction={isOnline ? fetchFormsFromServer : null}
+        />
+      );
+    }
+
+    // Show filtered forms
     if (filteredForms.length === 0) {
       return (
         <EmptyState
-          title={
-            activeFilter === 'all'
-              ? 'No Forms Available'
-              : `No ${activeFilter} Forms`
-          }
-          message={
-            activeFilter === 'all'
-              ? 'There are no forms assigned to you at the moment.'
-              : `You don't have any ${activeFilter} forms.`
-          }
-          onAction={() => {
-            if (isOnline) {
-              fetchFormsFromServer();
-            } else {
-              loadFormsFromDB();
-            }
-          }}
+          title={`No ${activeFilter} Forms`}
+          message={`You don't have any ${activeFilter} forms.`}
+          onAction={() => setActiveFilter('all')}
         />
       );
     }
@@ -358,7 +306,7 @@ const DashboardScreen = ({ database }) => {
       <FlatList
         data={filteredForms}
         renderItem={renderItem}
-        keyExtractor={item => item.id?.toString() || item.formId}
+        keyExtractor={item => item.id?.toString()}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
@@ -366,35 +314,39 @@ const DashboardScreen = ({ database }) => {
             onRefresh={handleRefresh}
             colors={[COLORS.primary]}
             tintColor={COLORS.primary}
+            title={isOnline ? "Refreshing..." : "Offline"}
+            titleColor={COLORS.text.secondary}
           />
         }
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          syncError && forms.length > 0 ? (
-            <View style={[styles.syncErrorContainer, { backgroundColor: COLORS.warningLight, padding: 12, borderRadius: 8, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-              <Text style={[styles.syncErrorText, { fontSize: 14, color: COLORS.warning, flex: 1 }]}>{syncError}</Text>
-              {isOnline && (
-                <TouchableOpacity onPress={fetchFormsFromServer}>
-                  <Text style={[styles.retryText, { fontSize: 14, color: COLORS.primary, fontWeight: '600', marginLeft: 12 }]}>Retry</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : null
-        }
       />
     );
   };
 
+  // Show offline indicator if needed
+  const renderOfflineIndicator = () => {
+    if (!isOnline && !isChecking) {
+      return (
+        <View style={styles.offlineIndicator}>
+          <Icon name="wifi-off" size={16} color="#fff" />
+          <Text style={styles.offlineText}>Offline - Showing cached forms</Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {renderOfflineIndicator()}
+      
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Dashboard</Text>
           <Text style={styles.subtitle}>
-            {filteredForms.length}{' '}
-            {filteredForms.length === 1 ? 'form' : 'forms'} available
-            {!isOnline && !isChecking && ' (Offline)'}
+            {dbForms.length}{' '}
+            {dbForms.length === 1 ? 'form' : 'forms'} available
+            {!isOnline && ' (offline)'}
           </Text>
         </View>
 
@@ -414,7 +366,6 @@ const DashboardScreen = ({ database }) => {
         </View>
       </View>
 
-      {/* Filter Component */}
       <FormFilter
         activeFilter={activeFilter}
         activeSort={activeSort}
@@ -423,10 +374,29 @@ const DashboardScreen = ({ database }) => {
         filterCount={activeFilter === 'all' ? 0 : filteredForms.length}
       />
 
-      {/* Main Content */}
       {renderContent()}
     </SafeAreaView>
   );
 };
 
-export default withDatabase(DashboardScreen);
+// Wrap with database observer for reactive updates
+const enhance = withObservables([], ({ database }) => ({
+  forms: database.collections
+    .get('forms')
+    .query(Q.sortBy('created_at', 'desc')),
+}));
+
+const DashboardScreen = (props) => {
+  const navigation = useNavigation();
+  const dispatch = useDispatch();
+  
+  return (
+    <DashboardScreenInner 
+      {...props}
+      navigation={navigation}
+      dispatch={dispatch}
+    />
+  );
+};
+
+export default withDatabase(enhance(DashboardScreen));

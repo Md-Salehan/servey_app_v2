@@ -39,7 +39,8 @@ export const FormCard = React.memo(({
   animation = {} 
 }) => {
   const statusConfig = STATUS_CONFIG[form.status] || STATUS_CONFIG.draft;
-
+  console.log(form, "jjj");
+  
   return (
     <View style={styles.card}>
       <TouchableOpacity
