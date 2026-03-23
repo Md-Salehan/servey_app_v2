@@ -1,8 +1,8 @@
 // services/submissionService.js
 import { Q } from '@nozbe/watermelondb';
-import PendingSubmission from '../models/PendingSubmission';
-import PendingFile from '../models/PendingFile';
-import SubmissionAttempt from '../models/SubmissionAttempt';
+import PendingSubmission from '../database/models/PendingSubmission';
+import PendingFile from '../database/models/PendingFile';
+import SubmissionAttempt from '../database/models/SubmissionAttempt';
 import UploadService from './uploadService';
 import { API_BASE_URL } from '../constants/api';
 import TokenService from './storage/tokenService';

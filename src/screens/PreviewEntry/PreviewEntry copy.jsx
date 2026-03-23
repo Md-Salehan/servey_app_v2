@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   View,
@@ -19,13 +19,14 @@ import {
   SignatureField,
   TextInputField,
 } from '../../components';
-// Other components will be added gradually
 import styles from './PreviewScreen.styles';
 import { Header } from './component';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSurveyFormSubmitMutation } from '../../features/form/formsApi';
 import { getLatLng } from './Functions';
 import { useDispatch, useSelector } from 'react-redux';
+import uploadService from '../../services/uploadService';
+
 const PreviewScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -37,15 +38,16 @@ const PreviewScreen = () => {
     fieldValues,
     formComponents,
     surFormGenFlg,
+    isViewOnly = false,
   } = route.params || {};
-  console.log(surFormGenFlg, 'surFormGenFlg');
+
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
-  console.log(user, 'user from preview');
   const [surveyFormSubmit, { isLoading: isFormSubmitLoading }] =
     useSurveyFormSubmitMutation();
+  const [isConfirming, setIsConfirming] = useState(false);
 
-  // Preview mode render function - similar to RecordEntryScreen but with preview props
+  // Preview mode render function
   const renderPreviewFieldComponent = component => {
     const { fcId, compTyp, compTypTxt, props } = component;
 
@@ -58,30 +60,21 @@ const PreviewScreen = () => {
             label={props?.label || ''}
             placeholder={props?.placeholder || ''}
             value={fieldValues[fcId]}
-            // No onChange handler - read-only
             maxLength={props?.maxLength ? parseInt(props.maxLength) : undefined}
             keyboardType={getKeyboardType(props?.keyboardType)}
-            editable={false} // Always false for preview mode
+            editable={false}
             multiline={true}
             required={props?.required === 'Y'}
-            isPreview={true} // New prop for preview styling
+            isPreview={true}
           />
         );
 
       case '02': // Date Picker - Preview mode
-        // Parse time string to a valid Date object with a reference date
         const parseTimeToDate = timeStr => {
           if (!timeStr) return undefined;
-
-          // Split the time string (format: "HH:MM")
           const [hours, minutes] = timeStr.split(':').map(Number);
-
-          // Create a date object with a reference date (today)
-          // This ensures the Date object is valid
           const date = new Date();
           date.setHours(hours, minutes, 0, 0);
-
-          // Return the ISO string to maintain consistency
           return date.toISOString();
         };
 
@@ -114,7 +107,8 @@ const PreviewScreen = () => {
             mode={props?.mode || 'date'}
           />
         );
-      case '03': // Dropdown - Add this case
+
+      case '03': // Dropdown
         return (
           <DropdownField
             key={fcId}
@@ -125,7 +119,6 @@ const PreviewScreen = () => {
             multiple={props?.multiple === 'Y'}
             required={props?.required === 'Y'}
             value={fieldValues[fcId]}
-            // onChange={value => handleFieldChange(fcId, value)}
             disabled={true}
             searchable={false}
             maxSelections={
@@ -134,14 +127,13 @@ const PreviewScreen = () => {
           />
         );
 
-      case '05': // Checkbox - Add this case
+      case '05': // Checkbox
         return (
           <CheckboxField
             key={fcId}
             fcId={fcId}
             label={props?.label || ''}
             value={fieldValues[fcId]}
-            // onChange={checked => handleFieldChange(fcId, checked)}
             required={props?.required === 'Y'}
             disabled={props?.disabled === 'Y'}
             description={props?.description || ''}
@@ -151,21 +143,24 @@ const PreviewScreen = () => {
           />
         );
 
-      case '07': // Image Upload - Add this case
+      case '07': // Image Upload
         return (
           <ImageUploadField
             key={fcId}
             fcId={fcId}
+            formId={formId}
             label={props?.label || 'Upload Image'}
-            required={props?.Required === 'Y'}
+            required={props?.Required === 'Y' || props?.required === 'Y'}
             multiple={true}
             maxImages={props?.maxImages ? parseInt(props.maxImages) : 5}
             initialImages={fieldValues[fcId] || []}
             isPreview={true}
+            onImagesChange={() => {}}
+            onError={() => {}}
           />
         );
 
-      case '08': // Location Field - Add this case
+      case '08': // Location Field
         return (
           <LocationField
             key={fcId}
@@ -179,7 +174,7 @@ const PreviewScreen = () => {
           />
         );
 
-      case '09': // Signature Field - Add this case
+      case '09': // Signature Field
         return (
           <SignatureField
             key={fcId}
@@ -192,7 +187,6 @@ const PreviewScreen = () => {
           />
         );
 
-      // Other component types will be added gradually in future steps
       default:
         return (
           <View key={fcId} style={styles.unsupportedContainer}>
@@ -218,23 +212,90 @@ const PreviewScreen = () => {
     }
   };
 
+  // Function to confirm all uploaded images
+  const confirmAllUploads = async data => {
+    // Collect all flUpldLogNo from image fields
+    const confirmations = [];
+
+    formComponents.forEach(component => {
+      if (component.compTyp === '07') {
+        const images = fieldValues[component.fcId] || [];
+        images.forEach(img => {
+          if (img.uploaded && img.flUpldLogNo && !img.confirmed) {
+            confirmations.push({
+              flUpldLogNo: img.flUpldLogNo,
+              formId,
+              fcId: component.fcId,
+              fileId: img.fileId,
+              keyStr: 'fcId',
+              keyStrVal: component.fcId,
+              tabNm: uploadService.constructor.TABLE_NAMES.SURVEY_FORM_DTL,
+              colNm: 'FILE_ID',
+            });
+          }
+        });
+      }
+    });
+
+    if (confirmations.length === 0) {
+      return { success: true, message: 'No uploads to confirm' };
+    }
+
+    setIsConfirming(true);
+    try {
+      const confirmResult = await uploadService.confirmUploads(confirmations);
+
+      if (confirmResult.success) {
+        // Update the local fieldValues to mark images as confirmed
+        const updatedFieldValues = { ...fieldValues };
+
+        formComponents.forEach(component => {
+          if (component.compTyp === '07') {
+            const images = updatedFieldValues[component.fcId] || [];
+            updatedFieldValues[component.fcId] = images.map(img => {
+              const confirmed = confirmResult.results?.find(
+                r => r.flUpldLogNo === img.flUpldLogNo,
+              );
+              if (confirmed) {
+                return { ...img, confirmed: true };
+              }
+              return img;
+            });
+          }
+        });
+
+        // You might want to update the state or context here
+        // For now, we'll just return success
+      }
+
+      return confirmResult;
+    } catch (error) {
+      console.error('Confirmation error:', error);
+      return { success: false, error: error.message };
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
   const handleFormSubmit = async () => {
     const now = new Date();
     const { lat, lng } = getLatLng(fieldValues, formComponents);
 
-    // Process form components to extract image URLs
+    // Process form components to extract flUpldLogNo for images
     const dtl02 =
       formComponents
         ?.map(component => {
           let value = fieldValues[component.fcId];
+          console.log(value, 'pld value');
 
           // Handle image upload field (compTyp '07')
           if (component.compTyp === '07' && value) {
-            // If value is an array of image objects, extract URLs
             if (Array.isArray(value)) {
               // Extract serverUrl from each image object and filter out any invalid URLs
-              value = value.map(image => image.serverUrl).filter(url => url); // Keep only valid URLs
-              value = JSON.stringify(value); // Convert array of URLs to JSON string for submission
+              value = value
+                .map(image => image.flUpldLogNo)
+                .filter(flUpldLogNo => flUpldLogNo); // Keep only valid flUpldLogNo values
+              value = JSON.stringify(value); // Convert array of flUpldLogNo to JSON string for submission
             }
           }
 
@@ -291,8 +352,10 @@ const PreviewScreen = () => {
     console.log(payload, 'pld');
 
     try {
+      // Step 1: Submit the form
       const response = await surveyFormSubmit(payload).unwrap();
       console.log('Form submission response:', response);
+
       if (response?.appMsgList?.errorStatus === true) {
         Alert.alert(
           'Error',
@@ -301,6 +364,19 @@ const PreviewScreen = () => {
         );
         return;
       }
+      const need_to_confirm_data = response?.content?.mst || {};
+      // Step 2: After successful form submission, confirm all uploads
+      const confirmResult = await uploadService.confirmUploads(
+        need_to_confirm_data,
+      );
+
+      if (!confirmResult.success) {
+        // Log but don't show error to user since form already submitted
+        console.error('Upload confirmation failed:', confirmResult.error);
+        return;
+      }
+
+      // Step 3: Show success message and navigate
       Alert.alert('Success', 'Form submitted successfully!', [
         {
           text: 'OK',
@@ -370,16 +446,18 @@ const PreviewScreen = () => {
           style={styles.editButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.editButtonText}>Edit</Text>
+          <Text style={styles.editButtonText}>
+            {isViewOnly ? 'Back' : 'Edit'}
+          </Text>
         </TouchableOpacity>
 
         {surFormGenFlg === 'Y' ? (
           <TouchableOpacity
             style={styles.submitButton}
             onPress={handleFormSubmit}
-            disabled={surFormGenFlg === 'Y' && isFormSubmitLoading}
+            disabled={isFormSubmitLoading || isConfirming}
           >
-            {isFormSubmitLoading ? (
+            {isFormSubmitLoading || isConfirming ? (
               <ActivityIndicator color="white" />
             ) : (
               <Text style={styles.submitButtonText}>Submit</Text>

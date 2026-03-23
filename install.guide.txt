@@ -36,7 +36,9 @@ at android/app/src/main/AndroidManifest.xml
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
 -- uuid 
-npm install uuid --legacy-peer-deps
+npm install react-native-uuid
+# For iOS, also run:
+cd ios && pod install
 
 -- moment
 npm i moment --legacy-peer-deps

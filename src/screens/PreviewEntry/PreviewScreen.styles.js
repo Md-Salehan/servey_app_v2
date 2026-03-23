@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
   },
 
-   formContainer: {
+  formContainer: {
     padding: 20,
   },
   emptyContainer: {
@@ -139,6 +139,10 @@ const styles = StyleSheet.create({
     color: COLORS.warning,
     fontFamily: 'System',
     fontWeight: '500',
+  },
+  offlineBadge: {
+    marginLeft: 8,
+    fontSize: 14,
   },
 });
 

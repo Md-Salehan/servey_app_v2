@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// screens/RecordEntry/RecordEntryScreen.jsx
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ScrollView,
   View,
@@ -7,11 +8,12 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { useGetFormComponentsMutation } from '../../features/form/formsApi';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import { withDatabase } from '@nozbe/watermelondb/DatabaseProvider';
+import { Q } from '@nozbe/watermelondb';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
-// import VoiceTest from '../../../screen/VoiceTest';
+import useInternetStatus from '../../hook/useInternetStatus';
 import styles from './RecordEntry.styles';
 import { Header } from './component';
 import {
@@ -24,33 +26,86 @@ import {
   TextInputField,
 } from '../../components';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useGetFormComponentsMutation } from '../../features/form/formsApi';
 
-const RecordEntryScreen = () => {
+const RecordEntryScreen = ({ database }) => {
   const route = useRoute();
   const navigation = useNavigation();
-  const [getFormComponents, { isLoading, error }] =
-    useGetFormComponentsMutation();
 
-  const { appId, formId, formTitle } = route.params || {}; //{ appId:'appId', formId:'formId', formTitle:'formTitle' };
+  const { appId, formId, formTitle, surFormGenFlg, shouldReset, resetTimestamp } = route.params || {};
 
+  const [isInitialized, setIsInitialized] = useState(false);
   const [formComponents, setFormComponents] = useState([]);
   const [fieldValues, setFieldValues] = useState({});
   const [submissionError, setSubmissionError] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+
+  const { isOnline, isChecking } = useInternetStatus();
+  const [getFormComponents, { isLoading: isApiLoading }] =
+    useGetFormComponentsMutation();
 
   useEffect(() => {
     if (appId && formId) {
-      fetchFormComponents();
+      initializeData();
     } else {
       Alert.alert(
         'Error',
         'Missing required parameters. Please select a form from dashboard.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack(),
+          },
+        ],
       );
-      navigation.goBack();
     }
   }, [appId, formId]);
 
-  const fetchFormComponents = async () => {
+  // To handle reset flag from navigation
+  useFocusEffect(
+    useCallback(() => {
+      // Check if we should reset when screen comes into focus
+      if (shouldReset) {
+        resetForm();
+        // Clear the flag from navigation params to prevent multiple resets
+        navigation.setParams({ shouldReset: undefined, resetTimestamp: undefined });
+      }
+    }, [shouldReset, resetTimestamp, resetForm, navigation])
+  );
+
+  const initializeData = async () => {
+    setLoading(true);
+    setError(null);
+    console.log("IN isOnline: ", isOnline);
+    
     try {
+      // Try to fetch from server if online
+      if (isOnline) {
+        const success = await fetchFormComponentsFromServer();
+        if (success) {
+          setLoading(false);
+          return;
+        }
+      }
+
+      // If offline or server fetch failed, try to load from local database
+      await loadFormComponentsFromDB();
+    } catch (err) {
+      console.error('Error loading form components:', err);
+      setError('Failed to load form components');
+    } finally {
+      setLoading(false);
+    }
+  };
+      console.log("OUT isOnline: ", isOnline);
+
+
+  const fetchFormComponentsFromServer = async () => {
+    try {
+      console.log('📡 Fetching form components from server...');
+
       const payload = {
         apiId: 'SUA00934',
         mst: {
@@ -59,45 +114,130 @@ const RecordEntryScreen = () => {
         },
       };
 
-      const response = await getFormComponents(payload).unwrap(); // allFormComp
+      const result = await getFormComponents(payload).unwrap();
 
-      if (response?.appMsgList?.errorStatus === false) {
-        const components = response?.content?.mst?.dtl01 || [];
-        // Sort by compSlNo to maintain order
+      if (result?.appMsgList?.errorStatus === false) {
+        console.log('✅ Form components fetched from server');
+
+        const components = result?.content?.mst?.dtl01 || [];
         const sortedComponents = [...components].sort(
           (a, b) => a.compSlNo - b.compSlNo,
         );
-        setFormComponents(sortedComponents);
 
-        // Initialize field values
-        const initialValues = {};
-        const fieldErrors = {};
-        sortedComponents.forEach(component => {
-          initialValues[component.fcId] = component.props?.value || '';
-          if (component.props?.required === 'Y' && !component.props?.value) {
-            fieldErrors[component.fcId] = `${
-              component.props?.label || 'Field'
-            } is required`;
+        // Store in local database
+        await database.write(async () => {
+          const existing = await database.collections
+            .get('form_components')
+            .query(Q.where('form_id', formId))
+            .fetch();
+
+          if (existing.length > 0) {
+            // Update existing
+            await existing[0].update(record => {
+              record.components = sortedComponents;
+              // updatedAt is automatically set by WatermelonDB
+            });
+          } else {
+            // Create new
+            await database.collections.get('form_components').create(record => {
+              record.formId = formId;
+              record.components = sortedComponents;
+              record.version = '1.0';
+              // createdAt and updatedAt are automatically set
+            });
           }
         });
-        setFieldValues(initialValues);
-        setSubmissionError(fieldErrors);
+
+        await loadFormComponentsFromDB();
+        return true;
       } else {
-        // Alert.alert('Error', 'Failed to load form components');
+        console.log('Server returned error, falling back to cache');
+        const errorMsg =
+          result?.appMsgList?.list?.[0]?.errDesc ||
+          'Failed to load from server';
+        console.log('Error:', errorMsg);
+        return false;
       }
     } catch (err) {
-      console.error('Error fetching form components:', err);
-      // Alert.alert('Error', 'Failed to load form. Please try again.');
+      console.error('Error fetching from server:', err);
+      return false;
     }
   };
 
+  const loadFormComponentsFromDB = async () => {
+    try {
+      console.log('💾 Loading form components from database...');
+
+      const components = await database.collections
+        .get('form_components')
+        .query(Q.where('form_id', formId))
+        .fetch();
+
+      if (components.length > 0) {
+        const storedComponents = components[0].components || [];
+        const sortedComponents = [...storedComponents].sort(
+          (a, b) => a.compSlNo - b.compSlNo,
+        );
+
+        setFormComponents(sortedComponents);
+        initializeFieldValues(sortedComponents);
+        console.log('✅ Form components loaded from database');
+        return true;
+      } else {
+        // No data available locally
+        setError(
+          'Form not available offline. Please connect to the internet to download it.',
+        );
+        return false;
+      }
+    } catch (err) {
+      console.error('Error loading from database:', err);
+      setError('Failed to load form from local storage');
+      return false;
+    }
+  };
+
+  const initializeFieldValues = components => {
+    const initialValues = {};
+    const fieldErrors = {};
+
+    components.forEach(component => {
+      initialValues[component.fcId] = component.props?.value || '';
+      if (component.props?.required === 'Y' && !component.props?.value) {
+        fieldErrors[component.fcId] = `${
+          component.props?.label || 'Field'
+        } is required`;
+      }
+    });
+
+    setFieldValues(initialValues);
+    setSubmissionError(fieldErrors);
+  };
+
+  //resetForm function
+  const resetForm = useCallback(() => {
+    console.log('Resetting form fields...');
+    setFieldValues({});
+    setSubmissionError({});
+    if (formComponents.length > 0) {
+      initializeFieldValues(formComponents);
+    }
+  }, [formComponents]);
+
   const handleFieldChange = (fcId, value) => {
     console.log('Field changed:', fcId, value);
-
     setFieldValues(prev => ({
       ...prev,
       [fcId]: value,
     }));
+
+    // Clear error for this field if it exists
+    if (submissionError[fcId]) {
+      setSubmissionError(prev => ({
+        ...prev,
+        [fcId]: null,
+      }));
+    }
   };
 
   const handleError = (fcId, errorText) => {
@@ -108,16 +248,24 @@ const RecordEntryScreen = () => {
     }));
   };
 
-  const handleNext = () => {
-    // // Validate required fields
-    // const errors = [];
-    // formComponents.forEach(component => {
-    //   if (component.props?.Required === 'Y' && !fieldValues[component.fcId]) {
-    //     errors.push(`${component.props.label} is required`);
-    //   }
-    // });
-    console.log('Submission Error:', submissionError);
+  const validateForm = () => {
+    const errors = {};
+    let hasErrors = false;
 
+    formComponents.forEach(component => {
+      if (component.props?.required === 'Y' && !fieldValues[component.fcId]) {
+        errors[component.fcId] = `${
+          component.props?.label || 'Field'
+        } is required`;
+        hasErrors = true;
+      }
+    });
+
+    setSubmissionError(prev => ({ ...prev, ...errors }));
+    return !hasErrors;
+  };
+
+  const handleNext = () => {
     const hasErrors = Object.keys(submissionError).filter(key => submissionError[key]).length > 0;
     if (hasErrors) {
       Alert.alert(
@@ -126,7 +274,6 @@ const RecordEntryScreen = () => {
       );
       return;
     }
-
     // Navigate to preview screen with all form data
     navigation.navigate(ROUTES.PREVIEW_ENTRY, {
       formData: {
@@ -143,6 +290,7 @@ const RecordEntryScreen = () => {
       formId,
       fieldValues,
       formComponents,
+      surFormGenFlg,
     });
   };
 
@@ -220,6 +368,7 @@ const RecordEntryScreen = () => {
           <ImageUploadField
             key={fcId}
             fcId={fcId}
+            formId={formId}
             label={props?.label || 'Upload Image'}
             required={props?.required === 'Y'}
             multiple={parseInt(props.maxImages) > 1}
@@ -274,7 +423,7 @@ const RecordEntryScreen = () => {
             disabled={props?.editable === 'N'}
             description={props?.description || ''}
             size={props?.size || 'small'}
-            errorText={ ''}
+            errorText={''}
             onError={error => handleError(fcId, error)}
           />
         );
@@ -304,7 +453,7 @@ const RecordEntryScreen = () => {
             onCaptureError={error =>
               console.log('Location capture error:', error)
             }
-            errorText={ ''}
+            errorText={''}
             onError={error => handleError(fcId, error)}
           />
         );
@@ -329,7 +478,7 @@ const RecordEntryScreen = () => {
             minPoints={props?.MinPoints ? parseInt(props.MinPoints) : 10}
             onSigningStart={() => {}}
             onSigningEnd={() => {}}
-            errorText={ ''}
+            errorText={''}
             onError={error => handleError(fcId, error)}
           />
         );
@@ -359,10 +508,9 @@ const RecordEntryScreen = () => {
     }
   };
 
-  if (isLoading) {
+  if (loading || isApiLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        {/* Header */}
         <Header
           navigation={navigation}
           formTitle={formTitle}
@@ -373,7 +521,9 @@ const RecordEntryScreen = () => {
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading form...</Text>
+          <Text style={styles.loadingText}>
+            {isOnline ? 'Loading form...' : 'Loading from offline storage...'}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -382,7 +532,6 @@ const RecordEntryScreen = () => {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        {/* Header */}
         <Header
           navigation={navigation}
           formTitle={formTitle}
@@ -391,14 +540,11 @@ const RecordEntryScreen = () => {
           fieldValues={fieldValues}
           totalNumFormComp={formComponents.length}
         />
-
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>
-            Failed to load form. Please try again.
-          </Text>
+          <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={fetchFormComponents}
+            onPress={initializeData}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
@@ -409,7 +555,6 @@ const RecordEntryScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <Header
         navigation={navigation}
         formTitle={formTitle}
@@ -418,14 +563,15 @@ const RecordEntryScreen = () => {
         fieldValues={fieldValues}
         totalNumFormComp={formComponents.length}
       />
+
+     
+
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        // scrollEnabled={scrollEnabled}
         nestedScrollEnabled={true}
       >
-        {/* Form Fields */}
         <View style={styles.formContainer}>
           {formComponents.length > 0 ? (
             formComponents.map(renderFieldComponent)
@@ -435,16 +581,8 @@ const RecordEntryScreen = () => {
             </View>
           )}
         </View>
-
-        {/* Submission Error */}
-        {/* {submissionError && (
-          <View style={styles.submissionErrorContainer}>
-            <Text style={styles.submissionErrorText}>{Object.values(submissionError).join('\n')}</Text>
-          </View>
-        )} */}
       </ScrollView>
 
-      {/* Action Buttons */}
       <View style={styles.actionsContainer}>
         <TouchableOpacity
           style={styles.cancelButton}
@@ -454,23 +592,18 @@ const RecordEntryScreen = () => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.submitButton}
+          style={[
+            styles.submitButton,
+            formComponents.length === 0 && styles.submitButtonDisabled,
+          ]}
           onPress={handleNext}
           disabled={formComponents.length === 0}
         >
           <Text style={styles.submitButtonText}>Preview Form</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Progress Indicator */}
-      {/* <View style={styles.progressContainer}>
-        <Text style={styles.progressText}>
-          Fields completed: {Object.values(fieldValues).filter(v => v).length} /{' '}
-          {formComponents.length}
-        </Text>
-      </View> */}
     </SafeAreaView>
   );
 };
 
-export default RecordEntryScreen;
+export default withDatabase(RecordEntryScreen);

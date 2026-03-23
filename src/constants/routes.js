@@ -8,6 +8,7 @@ export const ROUTES = {
   RECORD_ENTRY: 'RecordEntry',
   PREVIEW_ENTRY: 'PreviewEntry',
   DATA_INSPECTOR: 'DATA_INSPECTOR',
+  PENDING_SUBMISSIONS: 'PendingSubmissions',
 };
 
 export const STORAGE_KEYS = {

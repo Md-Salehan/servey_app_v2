@@ -81,7 +81,6 @@ const DashboardScreen = ({ database }) => {
     }
   };
 
-
   // Load forms from local database
   const loadFormsFromDB = async () => {
     console.log('Dashboardscreen: 📦 Loading forms from local database...');
@@ -307,14 +306,11 @@ const DashboardScreen = ({ database }) => {
         result = result.filter(
           form => form.priority === 'high' || form.priority === 'geom',
         );
-      } 
-      else if (activeFilter === 'inActive') {
+      } else if (activeFilter === 'inActive') {
         result = result.filter(form => form.status === 'inActive');
-      }
-      else if (activeFilter === 'active') {
+      } else if (activeFilter === 'active') {
         result = result.filter(form => form.status === 'active');
-      }
-      else {
+      } else {
         result = []; // No filter, show all
       }
     }
@@ -480,6 +476,16 @@ const DashboardScreen = ({ database }) => {
         </View>
 
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate(ROUTES.PENDING_SUBMISSIONS)}
+          >
+            <Icon
+              name="pending-actions"
+              size={24}
+              color={COLORS.text.primary}
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconButton}
             onPress={handleProfilePress}

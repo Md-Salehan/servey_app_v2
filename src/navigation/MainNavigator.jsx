@@ -5,6 +5,7 @@ import DashboardScreen from '../screens/Dashboard/DashboardScreen';
 import RecordEntryScreen from '../screens/RecordEntry/RecordEntryScreen';
 import PreviewEntryScreen from '../screens/PreviewEntry/PreviewEntry';
 import DataInspectorScreen from '../screens/DataInspector/DataInspectorScreen';
+import PendingSubmissionsScreen from '../screens/PendingSubmissions/PendingSubmissionsScreen';
 import { ROUTES } from '../constants/routes';
 
 const Stack = createStackNavigator();
@@ -67,6 +68,12 @@ const MainNavigator = () => {
         component={DataInspectorScreen}
         options={{ title: 'Data Inspector' }}
       />
+      <Stack.Screen
+        name={ROUTES.PENDING_SUBMISSIONS} // Add this route
+        component={PendingSubmissionsScreen}
+        options={{ title: 'Pending Submissions' }}
+      />
+
     </Stack.Navigator>
   );
 };
