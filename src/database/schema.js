@@ -1,8 +1,8 @@
-// schema.js - Updated with new tables
+// schema.js - Updated with offline submission tables
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 1, // Increment version
+  version: 1, // Increment version for new tables
   tables: [
     tableSchema({
       name: 'forms',
@@ -35,7 +35,7 @@ export default appSchema({
       ],
     }),
 
-    // NEW: Pending Submissions table
+    // Table for pending submissions
     tableSchema({
       name: 'pending_submissions',
       columns: [
@@ -43,10 +43,10 @@ export default appSchema({
         { name: 'form_id', type: 'string', isIndexed: true },
         { name: 'form_name', type: 'string' },
         { name: 'app_id', type: 'string' },
-        { name: 'payload', type: 'string' }, // Full form submission payload
-        { name: 'field_values', type: 'string' }, // Field values for preview
-        { name: 'form_components', type: 'string' }, // Form components for preview
-        { name: 'status', type: 'string' }, // pending, uploading, submitting, confirming, completed, failed
+        { name: 'payload', type: 'string' }, // Complete form submission payload
+        { name: 'field_values', type: 'string' }, // User entered values
+        { name: 'form_components', type: 'string' }, // Form structure
+        { name: 'status', type: 'string' }, // pending, processing, completed, failed
         { name: 'retry_count', type: 'number' },
         { name: 'max_retries', type: 'number' },
         { name: 'last_attempt_at', type: 'number' },
@@ -59,7 +59,7 @@ export default appSchema({
       ],
     }),
 
-    // NEW: Pending Files table
+    // Table for pending files
     tableSchema({
       name: 'pending_files',
       columns: [
@@ -71,7 +71,7 @@ export default appSchema({
         { name: 'file_name', type: 'string' },
         { name: 'file_type', type: 'string' },
         { name: 'file_size', type: 'number' },
-        { name: 'status', type: 'string' }, // pending, uploading, uploaded, confirmed, failed
+        { name: 'status', type: 'string' }, // pending, uploading, uploaded, failed
         { name: 'retry_count', type: 'number' },
         { name: 'max_retries', type: 'number' },
         { name: 'last_attempt_at', type: 'number' },
@@ -83,11 +83,10 @@ export default appSchema({
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'uploaded_at', type: 'number' },
-        { name: 'confirmed_at', type: 'number' },
       ],
     }),
 
-    // NEW: Submission Attempts table for detailed tracking
+    // Table for submission attempts tracking
     tableSchema({
       name: 'submission_attempts',
       columns: [

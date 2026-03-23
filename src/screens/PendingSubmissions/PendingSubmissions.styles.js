@@ -1,0 +1,342 @@
+// screens/PendingSubmissions/PendingSubmissions.styles.js
+import { StyleSheet, Platform } from 'react-native';
+import { COLORS } from '../../constants/colors';
+
+export default StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  listContainer: {
+    padding: 16,
+  },
+  submissionCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    marginBottom: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  statuspending: {
+    color: COLORS.warning,
+  },
+  statusprocessing: {
+    color: COLORS.primary,
+  },
+  statuscompleted: {
+    color: COLORS.success,
+  },
+  statusfailed: {
+    color: COLORS.error,
+  },
+  retryCount: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+  },
+  cardContent: {
+    marginBottom: 16,
+  },
+  formName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    marginBottom: 4,
+  },
+  submissionDate: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    marginBottom: 12,
+  },
+  fileProgressContainer: {
+    marginTop: 8,
+  },
+  fileProgressBar: {
+    height: 4,
+    backgroundColor: COLORS.gray[200],
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  fileProgressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 2,
+  },
+  fileProgressText: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  errorText: {
+    fontSize: 12,
+    color: COLORS.error,
+  },
+  errorMessage: {
+    fontSize: 12,
+    color: COLORS.error,
+    marginTop: 4,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 12,
+  },
+  viewButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.gray[100],
+    borderRadius: 8,
+  },
+  viewButtonText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '500',
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.error,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    color: COLORS.text.inverse,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: COLORS.text.secondary,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  detailSection: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    marginBottom: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: COLORS.text.primary,
+    fontWeight: '500',
+  },
+  fileItem: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 12,
+    marginTop: 12,
+  },
+  fileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  fileName: {
+    fontSize: 14,
+    color: COLORS.text.primary,
+    flex: 1,
+  },
+  fileStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fileStatusText: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    textTransform: 'capitalize',
+  },
+  fileError: {
+    fontSize: 12,
+    color: COLORS.error,
+    marginTop: 4,
+  },
+  attemptItem: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 12,
+    marginTop: 12,
+  },
+  attemptHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  attemptStep: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    textTransform: 'capitalize',
+  },
+  attemptStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  attemptStatusText: {
+    fontSize: 12,
+    textTransform: 'capitalize',
+  },
+  attemptTime: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    marginBottom: 4,
+  },
+  attemptError: {
+    fontSize: 12,
+    color: COLORS.error,
+    marginTop: 4,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  viewDataButton: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  viewDataButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text.inverse,
+  },
+  retryNowButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: COLORS.error,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryNowButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text.inverse,
+  },
+});

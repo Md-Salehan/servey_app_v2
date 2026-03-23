@@ -9,8 +9,7 @@ export default class PendingFile extends Model {
   static STATUS = {
     PENDING: 'pending',      // Waiting to be uploaded
     UPLOADING: 'uploading',  // Currently uploading
-    UPLOADED: 'uploaded',    // Uploaded but not confirmed
-    CONFIRMED: 'confirmed',  // Confirmed with server
+    UPLOADED: 'uploaded',    // Uploaded successfully
     FAILED: 'failed',        // Failed after max retries
   };
 
@@ -34,9 +33,16 @@ export default class PendingFile extends Model {
   @readonly @date('created_at') createdAt;
   @readonly @date('updated_at') updatedAt;
   @field('uploaded_at') uploadedAt;
-  @field('confirmed_at') confirmedAt;
 
-  static async createPendingFile(database, { submissionId, fcId, formId, localUri, fileName, fileType, fileSize }) {
+  static async createPendingFile(database, { 
+    submissionId, 
+    fcId, 
+    formId, 
+    localUri, 
+    fileName, 
+    fileType, 
+    fileSize 
+  }) {
     const fileId = uuidv4();
     const now = Date.now();
 
@@ -75,14 +81,6 @@ export default class PendingFile extends Model {
     });
   }
 
-  async markAsConfirmed() {
-    await this.update(record => {
-      record.status = PendingFile.STATUS.CONFIRMED;
-      record.confirmedAt = Date.now();
-      record.updatedAt = Date.now();
-    });
-  }
-
   async markAsFailed(error) {
     await this.update(record => {
       record.status = PendingFile.STATUS.FAILED;
@@ -95,8 +93,8 @@ export default class PendingFile extends Model {
     await this.update(record => {
       record.retryCount = (record.retryCount || 0) + 1;
       record.lastAttemptAt = Date.now();
-      // Exponential backoff: 2^retryCount * 1000 ms, max 5 minutes
-      const delay = Math.min(Math.pow(2, record.retryCount) * 1000, 300000);
+      // Exponential backoff: 2^retryCount * 1000 ms, max 2 minutes
+      const delay = Math.min(Math.pow(2, record.retryCount) * 1000, 120000);
       record.nextRetryAt = Date.now() + delay;
       record.updatedAt = Date.now();
     });
@@ -119,8 +117,7 @@ export default class PendingFile extends Model {
       type: this.fileType,
       fileNm: this.fileName,
       fileSize: this.fileSize,
-      uploaded: this.status === PendingFile.STATUS.UPLOADED || this.status === PendingFile.STATUS.CONFIRMED,
-      confirmed: this.status === PendingFile.STATUS.CONFIRMED,
+      uploaded: this.status === PendingFile.STATUS.UPLOADED,
       uploading: this.status === PendingFile.STATUS.UPLOADING,
       flUpldLogNo: this.flUpldLogNo,
       fileId: this.fileIdServer,

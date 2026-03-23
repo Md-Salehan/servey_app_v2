@@ -7,12 +7,16 @@ export default class PendingSubmission extends Model {
   static table = 'pending_submissions';
 
   static STATUS = {
-    PENDING: 'pending',      // Initial state
-    UPLOADING: 'uploading',  // Currently uploading files
-    SUBMITTING: 'submitting', // Currently submitting form data
-    CONFIRMING: 'confirming', // Currently confirming uploads
-    COMPLETED: 'completed',   // All steps successful
+    PENDING: 'pending',      // Initial state, waiting to be processed
+    PROCESSING: 'processing', // Currently being processed
+    COMPLETED: 'completed',   // Successfully submitted
     FAILED: 'failed',         // Failed after max retries
+  };
+
+  static STEP = {
+    UPLOAD: 'upload',
+    SUBMIT: 'submit',
+    CONFIRM: 'confirm',
   };
 
   static associations = {
@@ -41,7 +45,14 @@ export default class PendingSubmission extends Model {
   @children('pending_files') files;
   @children('submission_attempts') attempts;
 
-  static async createPendingSubmission(database, { formId, formName, appId, fieldValues, formComponents, payload }) {
+  static async createPendingSubmission(database, { 
+    formId, 
+    formName, 
+    appId, 
+    fieldValues, 
+    formComponents, 
+    payload 
+  }) {
     const submissionId = uuidv4();
     const now = Date.now();
 
@@ -55,29 +66,15 @@ export default class PendingSubmission extends Model {
       record.payload = payload;
       record.status = PendingSubmission.STATUS.PENDING;
       record.retryCount = 0;
-      record.maxRetries = 5;
+      record.maxRetries = 3;
       record.createdAt = now;
       record.updatedAt = now;
     });
   }
 
-  async markAsUploading() {
+  async markAsProcessing() {
     await this.update(record => {
-      record.status = PendingSubmission.STATUS.UPLOADING;
-      record.updatedAt = Date.now();
-    });
-  }
-
-  async markAsSubmitting() {
-    await this.update(record => {
-      record.status = PendingSubmission.STATUS.SUBMITTING;
-      record.updatedAt = Date.now();
-    });
-  }
-
-  async markAsConfirming() {
-    await this.update(record => {
-      record.status = PendingSubmission.STATUS.CONFIRMING;
+      record.status = PendingSubmission.STATUS.PROCESSING;
       record.updatedAt = Date.now();
     });
   }
@@ -103,8 +100,8 @@ export default class PendingSubmission extends Model {
     await this.update(record => {
       record.retryCount = (record.retryCount || 0) + 1;
       record.lastAttemptAt = Date.now();
-      // Exponential backoff: 2^retryCount * 1000 ms, max 1 hour
-      const delay = Math.min(Math.pow(2, record.retryCount) * 1000, 3600000);
+      // Exponential backoff: 2^retryCount * 1000 ms, max 5 minutes
+      const delay = Math.min(Math.pow(2, record.retryCount) * 1000, 300000);
       record.nextRetryAt = Date.now() + delay;
       record.updatedAt = Date.now();
     });
@@ -125,7 +122,7 @@ export default class PendingSubmission extends Model {
   }
 
   getUploadedFiles() {
-    return this.files.filter(file => file.status === 'uploaded' || file.status === 'confirmed');
+    return this.files.filter(file => file.status === 'uploaded');
   }
 
   getFailedFiles() {
