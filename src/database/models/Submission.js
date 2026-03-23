@@ -1,6 +1,7 @@
+// models/Submission.js
 import { Model } from '@nozbe/watermelondb';
-import { field, json, readonly, date } from '@nozbe/watermelondb/decorators';
-import { v4 as uuidv4 } from 'uuid';
+import { field, json, readonly, date, relation } from '@nozbe/watermelondb/decorators';
+import uuid from 'react-native-uuid';
 
 export default class Submission extends Model {
   static table = 'submissions';
@@ -9,6 +10,10 @@ export default class Submission extends Model {
     PENDING: 'pending',
     UPLOADED: 'uploaded',
     FAILED: 'failed',
+  };
+
+  static associations = {
+    forms: { type: 'belongs_to', key: 'form_id' },
   };
 
   @field('submission_id') submissionId;
@@ -25,62 +30,70 @@ export default class Submission extends Model {
   @readonly @date('created_at') createdAt;
   @readonly @date('updated_at') updatedAt;
 
-  // Create a new submission
-  static async createSubmission(database, { formId, formName, appId, data }) {
-    const submissionId = uuidv4();
-    const now = Date.now();
+  @relation('forms', 'form_id') form;
 
-    return await database.collections.get('submissions').create(record => {
-      record.submissionId = submissionId;
-      record.formId = formId;
-      record.formName = formName;
-      record.appId = appId;
-      record.payload = payload;
-      record.status = Submission.STATUS.PENDING;
-      record.retryCount = 0;
-      record.submittedAt = now;
-      record.createdAt = now;
-      record.updatedAt = now;
+  static async createSubmission(database, { formId, formName, appId, payload }) {
+    let createdSubmission = null;
+    
+    await database.write(async () => {
+      const submissionId = uuid.v4();
+      const now = Date.now();
+
+      const submissionsCollection = database.collections.get('submissions');
+      
+      createdSubmission = await submissionsCollection.create(record => {
+        record.submissionId = submissionId;
+        record.formId = formId;
+        record.formName = formName;
+        record.appId = appId;
+        record.payload = payload;
+        record.status = Submission.STATUS.PENDING;
+        record.retryCount = 0;
+        record.submittedAt = now;
+      });
     });
+    
+    return createdSubmission;
   }
 
-  // Mark as uploaded
   async markAsUploaded() {
-    await this.update(record => {
-      record.status = Submission.STATUS.UPLOADED;
-      record.uploadedAt = Date.now();
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.status = Submission.STATUS.UPLOADED;
+        record.uploadedAt = Date.now();
+      });
     });
   }
 
-  // Mark as failed
   async markAsFailed(error) {
-    await this.update(record => {
-      record.status = Submission.STATUS.FAILED;
-      record.retryCount = (record.retryCount || 0) + 1;
-      record.lastAttemptAt = Date.now();
-      record.errorMessage = error.message || String(error);
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.status = Submission.STATUS.FAILED;
+        record.retryCount = (record.retryCount || 0) + 1;
+        record.lastAttemptAt = Date.now();
+        record.errorMessage = error.message || String(error);
+      });
     });
   }
 
-  // Increment retry and set back to pending
   async retry() {
-    await this.update(record => {
-      record.status = Submission.STATUS.PENDING;
-      record.retryCount = (record.retryCount || 0) + 1;
-      record.lastAttemptAt = Date.now();
-      record.errorMessage = null;
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.status = Submission.STATUS.PENDING;
+        record.retryCount = (record.retryCount || 0) + 1;
+        record.lastAttemptAt = Date.now();
+        record.errorMessage = null;
+      });
     });
   }
 
-  // Check if can retry (less than max retries)
   canRetry(maxRetries = 5) {
     return this.retryCount < maxRetries;
   }
 
-  // Get formatted date for display
   getFormattedSubmittedDate() {
     return new Date(this.submittedAt).toLocaleString();
   }

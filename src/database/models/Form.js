@@ -1,5 +1,12 @@
+// models/Form.js
 import { Model } from '@nozbe/watermelondb';
-import { field, json, readonly, date, children } from '@nozbe/watermelondb/decorators';
+import {
+  field,
+  json,
+  readonly,
+  date,
+  children,
+} from '@nozbe/watermelondb/decorators';
 import { Q } from '@nozbe/watermelondb';
 
 export default class Form extends Model {
@@ -7,6 +14,9 @@ export default class Form extends Model {
 
   static associations = {
     form_components: { type: 'has_many', foreignKey: 'form_id' },
+    pending_submissions: { type: 'has_many', foreignKey: 'form_id' },
+    pending_files: { type: 'has_many', foreignKey: 'form_id' },
+    submissions: { type: 'has_many', foreignKey: 'form_id' },
   };
 
   @field('form_id') formId;
@@ -20,11 +30,14 @@ export default class Form extends Model {
   @field('estimatedTime') estimatedTime;
   @field('completionRate') completionRate;
   @field('deadline') deadline; // timestamp
-  @field('surFormGenFlg') surFormGenFlg; 
+  @field('surFormGenFlg') surFormGenFlg;
   @readonly @date('created_at') createdAt;
   @readonly @date('updated_at') updatedAt;
 
   @children('form_components') components;
+  @children('pending_submissions') pendingSubmissions;
+  @children('pending_files') pendingFiles;
+  @children('submissions') submissions;
 
   async getComponents() {
     const components = await this.components.fetch();
@@ -38,5 +51,13 @@ export default class Form extends Model {
       .query(Q.where('form_id', this.formId))
       .fetchCount();
     return count > 0;
+  }
+
+  async getPendingSubmissions() {
+    return await this.pendingSubmissions.fetch();
+  }
+
+  async getCompletedSubmissions() {
+    return await this.submissions.fetch();
   }
 }

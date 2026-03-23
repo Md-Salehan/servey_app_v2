@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
@@ -7,10 +7,21 @@ import PreviewEntryScreen from '../screens/PreviewEntry/PreviewEntry';
 import DataInspectorScreen from '../screens/DataInspector/DataInspectorScreen';
 import PendingSubmissionsScreen from '../screens/PendingSubmissions/PendingSubmissionsScreen';
 import { ROUTES } from '../constants/routes';
+import SubmissionService from '../services/submissionService';
+import { database } from '../database';
 
 const Stack = createStackNavigator();
 
 const MainNavigator = () => {
+  const submissionService = new SubmissionService(database);
+  submissionService.startQueueProcessor();
+  // Clean up on app close
+  useEffect(() => {
+    return () => {
+      submissionService.stopQueueProcessor();
+    };
+  }, []);
+
   return (
     <Stack.Navigator
       // screenOptions={{
@@ -73,7 +84,6 @@ const MainNavigator = () => {
         component={PendingSubmissionsScreen}
         options={{ title: 'Pending Submissions' }}
       />
-
     </Stack.Navigator>
   );
 };

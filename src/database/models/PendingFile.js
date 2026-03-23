@@ -1,16 +1,21 @@
 // models/PendingFile.js
 import { Model } from '@nozbe/watermelondb';
-import { field, readonly, date } from '@nozbe/watermelondb/decorators';
-import { v4 as uuidv4 } from 'uuid';
+import { field, readonly, date, relation } from '@nozbe/watermelondb/decorators';
+import uuid from 'react-native-uuid';
 
 export default class PendingFile extends Model {
   static table = 'pending_files';
 
   static STATUS = {
-    PENDING: 'pending',      // Waiting to be uploaded
-    UPLOADING: 'uploading',  // Currently uploading
-    UPLOADED: 'uploaded',    // Uploaded successfully
-    FAILED: 'failed',        // Failed after max retries
+    PENDING: 'pending',
+    UPLOADING: 'uploading',
+    UPLOADED: 'uploaded',
+    FAILED: 'failed',
+  };
+
+  static associations = {
+    pending_submissions: { type: 'belongs_to', key: 'submission_id' },
+    forms: { type: 'belongs_to', key: 'form_id' },
   };
 
   @field('file_id') fileId;
@@ -34,6 +39,9 @@ export default class PendingFile extends Model {
   @readonly @date('updated_at') updatedAt;
   @field('uploaded_at') uploadedAt;
 
+  @relation('pending_submissions', 'submission_id') submission;
+  @relation('forms', 'form_id') form;
+
   static async createPendingFile(database, { 
     submissionId, 
     fcId, 
@@ -43,60 +51,72 @@ export default class PendingFile extends Model {
     fileType, 
     fileSize 
   }) {
-    const fileId = uuidv4();
-    const now = Date.now();
+    let createdFile = null;
+    
+    await database.write(async () => {
+      const fileId = uuid.v4();
 
-    return await database.collections.get('pending_files').create(record => {
-      record.fileId = fileId;
-      record.submissionId = submissionId;
-      record.fcId = fcId;
-      record.formId = formId;
-      record.localUri = localUri;
-      record.fileName = fileName;
-      record.fileType = fileType;
-      record.fileSize = fileSize;
-      record.status = PendingFile.STATUS.PENDING;
-      record.retryCount = 0;
-      record.maxRetries = 3;
-      record.createdAt = now;
-      record.updatedAt = now;
+      const pendingFilesCollection = database.collections.get('pending_files');
+      
+      createdFile = await pendingFilesCollection.create(record => {
+        record.fileId = fileId;
+        record.submissionId = submissionId;
+        record.fcId = fcId;
+        record.formId = formId;
+        record.localUri = localUri;
+        record.fileName = fileName;
+        record.fileType = fileType;
+        record.fileSize = fileSize;
+        record.status = PendingFile.STATUS.PENDING;
+        record.retryCount = 0;
+        record.maxRetries = 3;
+      });
     });
+    
+    return createdFile;
   }
 
   async markAsUploading() {
-    await this.update(record => {
-      record.status = PendingFile.STATUS.UPLOADING;
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.status = PendingFile.STATUS.UPLOADING;
+      });
     });
   }
 
   async markAsUploaded(flUpldLogNo, fileIdServer, fileUriServer) {
-    await this.update(record => {
-      record.status = PendingFile.STATUS.UPLOADED;
-      record.flUpldLogNo = flUpldLogNo;
-      record.fileIdServer = fileIdServer;
-      record.fileUriServer = fileUriServer;
-      record.uploadedAt = Date.now();
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.status = PendingFile.STATUS.UPLOADED;
+        record.flUpldLogNo = flUpldLogNo;
+        record.fileIdServer = fileIdServer;
+        record.fileUriServer = fileUriServer;
+        record.uploadedAt = Date.now();
+      });
     });
   }
 
   async markAsFailed(error) {
-    await this.update(record => {
-      record.status = PendingFile.STATUS.FAILED;
-      record.errorMessage = error.message || String(error);
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.status = PendingFile.STATUS.FAILED;
+        record.errorMessage = error.message || String(error);
+      });
     });
   }
 
   async incrementRetry() {
-    await this.update(record => {
-      record.retryCount = (record.retryCount || 0) + 1;
-      record.lastAttemptAt = Date.now();
-      // Exponential backoff: 2^retryCount * 1000 ms, max 2 minutes
-      const delay = Math.min(Math.pow(2, record.retryCount) * 1000, 120000);
-      record.nextRetryAt = Date.now() + delay;
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.retryCount = (record.retryCount || 0) + 1;
+        record.lastAttemptAt = Date.now();
+        const delay = Math.min(Math.pow(2, record.retryCount) * 1000, 120000);
+        record.nextRetryAt = Date.now() + delay;
+      });
     });
   }
 
@@ -105,8 +125,8 @@ export default class PendingFile extends Model {
   }
 
   shouldRetryNow() {
-    return this.status === PendingFile.STATUS.FAILED && 
-           this.canRetry() && 
+    return this.status === PendingFile.STATUS.FAILED &&
+           this.canRetry() &&
            (!this.nextRetryAt || this.nextRetryAt <= Date.now());
   }
 

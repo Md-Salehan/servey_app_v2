@@ -6,7 +6,6 @@ import SubmissionAttempt from '../database/models/SubmissionAttempt';
 import UploadService from './uploadService';
 import { API_BASE_URL } from '../constants/api';
 import TokenService from './storage/tokenService';
-import NetInfo from '@react-native-community/netinfo';
 
 class SubmissionService {
   constructor(database) {
@@ -24,7 +23,7 @@ class SubmissionService {
     // Check every 30 seconds for pending submissions that need processing
     this.processingInterval = setInterval(async () => {
       await this.processQueue();
-    }, 3000);
+    }, 30000);
 
     // Also process immediately
     this.processQueue();
@@ -82,17 +81,14 @@ class SubmissionService {
         throw new Error(`File upload failed: ${uploadResult.error}`);
       }
 
-      // Step 2: Submit the form data with uploaded file references
+      // Step 2: Submit the form data
       const submitResult = await this.submitFormData(submission);
       if (!submitResult.success) {
         throw new Error(`Form submission failed: ${submitResult.error}`);
       }
 
-      // Step 3: Confirm uploaded files using server response
-      const confirmResult = await this.confirmUploads(
-        submission,
-        submitResult.confirmationData,
-      );
+      // Step 3: Confirm uploaded files
+      const confirmResult = await this.confirmUploads(submission);
       if (!confirmResult.success) {
         throw new Error(`Upload confirmation failed: ${confirmResult.error}`);
       }
@@ -148,18 +144,13 @@ class SubmissionService {
         );
 
         if (result.success) {
-          // Mark as uploaded with server response
+          // Mark as uploaded
           await file.markAsUploaded(
             result.flUpldLogNo,
             result.fileId,
             result.fileUri,
           );
-          uploadResults.push({
-            success: true,
-            fileId: file.fileId,
-            flUpldLogNo: result.flUpldLogNo,
-            fcId: file.fcId,
-          });
+          uploadResults.push({ success: true, fileId: file.fileId });
         } else {
           throw new Error(result.error);
         }
@@ -182,13 +173,10 @@ class SubmissionService {
       return { success: false, error: 'Some file uploads failed' };
     }
 
-    return {
-      success: true,
-      uploadedFiles: uploadResults,
-    };
+    return { success: true };
   }
 
-  // Submit form data to server with file references
+  // Submit form data to server
   async submitFormData(submission) {
     const attempt = await SubmissionAttempt.createAttempt(this.database, {
       submissionId: submission.submissionId,
@@ -197,52 +185,24 @@ class SubmissionService {
     });
 
     try {
-      // Get all uploaded files for this submission
-      const uploadedFiles = await this.database.collections
-        .get('pending_files')
-        .query(
-          Q.where('submission_id', submission.submissionId),
-          Q.where('status', 'uploaded'),
-        )
-        .fetch();
-
-      // Prepare the submission payload similar to handleFormSubmit in PreviewEntry
-      const payload = this.prepareSubmissionPayload(submission, uploadedFiles);
-
-      console.log('Submitting form data:', payload);
-
       const token = await TokenService.getAccessToken();
-      const response = await fetch(
-        `${API_BASE_URL}/SUF00191/surveyFormSubmit`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${API_BASE_URL}/SUF00134/formSubmit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify(submission.payload),
+      });
 
       const result = await response.json();
-      console.log('Form submission response:', result);
 
-      if (result?.appMsgList?.errorStatus === false) {
+      if (result?.code === 0 && result?.appMsgList?.errorStatus === false) {
         await attempt.markAsSuccess();
-
-        // Extract confirmation data from response (similar to handleFormSubmit)
-        const confirmationData = result?.content?.mst || {};
-
-        return {
-          success: true,
-          data: result.content,
-          confirmationData: confirmationData,
-        };
+        return { success: true, data: result.content };
       } else {
         const errorMsg =
-          result?.appMsgList?.list?.[0]?.errDesc ||
-          result?.appMsgList?.errorMsg ||
-          'Form submission failed';
+          result?.appMsgList?.list?.[0]?.errDesc || 'Form submission failed';
         throw new Error(errorMsg);
       }
     } catch (error) {
@@ -251,128 +211,8 @@ class SubmissionService {
     }
   }
 
-  // Prepare submission payload with file references
-  prepareSubmissionPayload(submission, uploadedFiles) {
-    const now = new Date();
-
-    // Process form components to include flUpldLogNo for images
-    const dtl02 =
-      submission.formComponents
-        ?.map(component => {
-          let value = submission.fieldValues[component.fcId];
-
-          // Handle image upload field (compTyp '07')
-          if (component.compTyp === '07' && value) {
-            if (Array.isArray(value)) {
-              // Extract flUpldLogNo from uploaded files for this component
-              const componentFiles = uploadedFiles.filter(
-                file => file.fcId === component.fcId,
-              );
-
-              // Get flUpldLogNo values from uploaded files
-              const flUpldLogNos = componentFiles
-                .map(file => file.flUpldLogNo)
-                .filter(logNo => logNo);
-
-              // Also include any existing flUpldLogNo from field values that might already be uploaded
-              const existingFlUpldLogNos = value
-                .filter(img => img.uploaded && img.flUpldLogNo)
-                .map(img => img.flUpldLogNo);
-
-              // Combine and deduplicate
-              const allFlUpldLogNos = [
-                ...new Set([...flUpldLogNos, ...existingFlUpldLogNos]),
-              ];
-
-              value = JSON.stringify(allFlUpldLogNos);
-            }
-          }
-
-          // Only include fields with values
-          if (value !== undefined && value !== null && value !== '') {
-            return {
-              compTyp: component.compTyp,
-              fcId: component.fcId,
-              value: value,
-            };
-          }
-          return null;
-        })
-        .filter(item => item !== null) || [];
-
-    // Get location from field values if exists
-    const { lat, lng } = this.getLatLng(
-      submission.fieldValues,
-      submission.formComponents,
-    );
-
-    return {
-      apiId: 'SUA01031',
-      mst: {
-        appId: submission.appId,
-        formId: submission.formId,
-        dtl01: [
-          {
-            dtl02: dtl02,
-            blkCd: '',
-            blkNm: '',
-            csLocTyp: '',
-            distCd: '',
-            distNm: '',
-            geoJson: '',
-            jlNo: '',
-            latitude: lat,
-            longitude: lng,
-            lvlRefCd: '',
-            panCd: '',
-            panNm: '',
-            plcn: '',
-            stateCd: '',
-            stateNm: '',
-            subdCd: '',
-            subdNm: '',
-            surDate: now.toISOString().split('T')[0],
-            surMobNo: '', // Will be filled by server or from user data
-            surRefTyp: '',
-            surTime: now.toTimeString().split(' ')[0],
-            surUserId: '', // Will be filled by server or from user data
-            townNm: '',
-            villNm: '',
-            wardNo: '',
-          },
-        ],
-      },
-    };
-  }
-
-  // Helper to extract location from field values
-  getLatLng(fieldValues, formComponents) {
-    let lat = '';
-    let lng = '';
-
-    formComponents?.forEach(component => {
-      if (component.compTyp === '08') {
-        const locationValue = fieldValues[component.fcId];
-        if (locationValue) {
-          try {
-            const location =
-              typeof locationValue === 'string'
-                ? JSON.parse(locationValue)
-                : locationValue;
-            lat = location.latitude || '';
-            lng = location.longitude || '';
-          } catch (e) {
-            console.error('Error parsing location:', e);
-          }
-        }
-      }
-    });
-
-    return { lat, lng };
-  }
-
   // Confirm uploaded files with server
-  async confirmUploads(submission, confirmationData) {
+  async confirmUploads(submission) {
     const attempt = await SubmissionAttempt.createAttempt(this.database, {
       submissionId: submission.submissionId,
       step: SubmissionAttempt.STEP.CONFIRM,
@@ -380,54 +220,61 @@ class SubmissionService {
     });
 
     try {
-      // If no confirmation data, nothing to confirm
-      if (!confirmationData || Object.keys(confirmationData).length === 0) {
+      // Get all uploaded files that need confirmation
+      const uploadedFiles = await this.database.collections
+        .get('pending_files')
+        .query(
+          Q.where('submission_id', submission.submissionId),
+          Q.where('status', 'uploaded'),
+        )
+        .fetch();
+
+      if (uploadedFiles.length === 0) {
         await attempt.markAsSuccess();
         return { success: true };
       }
 
-      // Prepare confirmation payload based on server response structure
-      // The confirmationData should contain the structure needed for confirmUploads
-      // Similar to how handleFormSubmit uses need_to_confirm_data
-      const confirmResult = await UploadService.confirmUploads(
-        confirmationData,
-      );
+      // Prepare confirmation payload
+      const confirmations = uploadedFiles.map(file => ({
+        flUpldLogNo: file.flUpldLogNo,
+        formId: submission.formId,
+        fcId: file.fcId,
+        fileId: file.fileIdServer,
+        keyStr: 'fcId',
+        keyStrVal: file.fcId,
+        tabNm: 'FAT_M_SURVEY_FORM_DTL',
+        colNm: 'FILE_ID',
+      }));
 
-      if (confirmResult.success) {
-        // Update files as confirmed in local database
-        await this.markFilesAsConfirmed(submission);
+      const payload = {
+        apiId: 'SUA00487',
+        mst: confirmations,
+      };
+
+      const token = await TokenService.getAccessToken();
+      const response = await fetch(`${API_BASE_URL}/SUF00134/fileUploadConf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (result?.code === 0 && result?.appMsgList?.errorStatus === false) {
         await attempt.markAsSuccess();
         return { success: true };
       } else {
-        throw new Error(confirmResult.error || 'Upload confirmation failed');
+        const errorMsg =
+          result?.appMsgList?.list?.[0]?.errDesc ||
+          'Upload confirmation failed';
+        throw new Error(errorMsg);
       }
     } catch (error) {
       await attempt.markAsFailed(error);
       return { success: false, error: error.message };
-    }
-  }
-
-  // Mark files as confirmed in local database
-  async markFilesAsConfirmed(submission) {
-    const uploadedFiles = await this.database.collections
-      .get('pending_files')
-      .query(
-        Q.where('submission_id', submission.submissionId),
-        Q.where('status', 'uploaded'),
-      )
-      .fetch();
-
-    // Wrap all updates in a single write transaction for better performance
-    if (uploadedFiles.length > 0) {
-      await this.database.write(async () => {
-        for (const file of uploadedFiles) {
-          await file.update(record => {
-            // You can add a 'confirmed' field here if needed
-            // For now, we'll just let the update happen
-            // The updatedAt timestamp will be auto-updated by WatermelonDB
-          });
-        }
-      });
     }
   }
 
@@ -476,8 +323,8 @@ class SubmissionService {
           fcId: file.fcId,
           formId: formData.formId,
           localUri: file.uri,
-          fileName: file.fileNm || file.fileName || `file_${Date.now()}.jpg`,
-          fileType: file.type || 'image/jpeg',
+          fileName: file.fileNm ,
+          fileType: file.type ,
           fileSize: file.fileSize || 0,
         });
       }
@@ -560,17 +407,15 @@ class SubmissionService {
       throw new Error('Submission not found');
     }
 
-    // Reset submission status within a write transaction
-    await this.database.write(async () => {
-      await submission.update(record => {
-        record.status = 'pending';
-        record.retryCount = 0;
-        record.nextRetryAt = null;
-        record.errorMessage = null;
-      });
+    // Reset status and retry
+    await submission.update(record => {
+      record.status = 'pending';
+      record.retryCount = 0;
+      record.nextRetryAt = null;
+      record.errorMessage = null;
     });
 
-    // Reset failed files - wrap each update in a write transaction
+    // Reset failed files
     const failedFiles = await this.database.collections
       .get('pending_files')
       .query(
@@ -579,16 +424,12 @@ class SubmissionService {
       )
       .fetch();
 
-    if (failedFiles.length > 0) {
-      await this.database.write(async () => {
-        for (const file of failedFiles) {
-          await file.update(record => {
-            record.status = 'pending';
-            record.retryCount = 0;
-            record.nextRetryAt = null;
-            record.errorMessage = null;
-          });
-        }
+    for (const file of failedFiles) {
+      await file.update(record => {
+        record.status = 'pending';
+        record.retryCount = 0;
+        record.nextRetryAt = null;
+        record.errorMessage = null;
       });
     }
 

@@ -17,7 +17,7 @@ const App = () => {
 
    useEffect(() => {
     // 🔥 run once in development
-    resetDatabaseIfNeeded();
+    // resetDatabaseIfNeeded();
   }, []);
 
   useEffect(() => {

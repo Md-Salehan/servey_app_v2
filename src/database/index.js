@@ -8,6 +8,9 @@ import migrations from './migrations';
 import Form from './models/Form';
 import FormComponents from './models/FormComponents';
 import Submission from './models/Submission';
+import PendingSubmission from './models/PendingSubmission';
+import PendingFile from './models/PendingFile';
+import SubmissionAttempt from './models/SubmissionAttempt';
 
 // Create adapter
 const adapter = new SQLiteAdapter({
@@ -27,6 +30,9 @@ export const database = new Database({
     Form,
     FormComponents,
     Submission,
+    PendingSubmission,
+    PendingFile,
+    SubmissionAttempt,
   ],
   actionsEnabled: true, // Enable actions for better performance
 });

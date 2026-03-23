@@ -218,65 +218,6 @@ const PreviewScreen = ({ database }) => {
     }
   };
 
-  // Function to confirm all uploaded images
-  const confirmAllUploads = async data => {
-    const confirmations = [];
-
-    formComponents.forEach(component => {
-      if (component.compTyp === '07') {
-        const images = fieldValues[component.fcId] || [];
-        images.forEach(img => {
-          if (img.uploaded && img.flUpldLogNo && !img.confirmed) {
-            confirmations.push({
-              flUpldLogNo: img.flUpldLogNo,
-              formId,
-              fcId: component.fcId,
-              fileId: img.fileId,
-              keyStr: 'fcId',
-              keyStrVal: component.fcId,
-              tabNm: uploadService.constructor.TABLE_NAMES.SURVEY_FORM_DTL,
-              colNm: 'FILE_ID',
-            });
-          }
-        });
-      }
-    });
-
-    if (confirmations.length === 0) {
-      return { success: true, message: 'No uploads to confirm' };
-    }
-
-    setIsConfirming(true);
-    try {
-      const confirmResult = await uploadService.confirmUploads(confirmations);
-
-      if (confirmResult.success) {
-        const updatedFieldValues = { ...fieldValues };
-
-        formComponents.forEach(component => {
-          if (component.compTyp === '07') {
-            const images = updatedFieldValues[component.fcId] || [];
-            updatedFieldValues[component.fcId] = images.map(img => {
-              const confirmed = confirmResult.results?.find(
-                r => r.flUpldLogNo === img.flUpldLogNo,
-              );
-              if (confirmed) {
-                return { ...img, confirmed: true };
-              }
-              return img;
-            });
-          }
-        });
-      }
-
-      return confirmResult;
-    } catch (error) {
-      console.error('Confirmation error:', error);
-      return { success: false, error: error.message };
-    } finally {
-      setIsConfirming(false);
-    }
-  };
 
   // Save submission to local database (offline mode)
   const saveToLocalDatabase = async () => {

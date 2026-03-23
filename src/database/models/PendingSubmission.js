@@ -1,16 +1,16 @@
 // models/PendingSubmission.js
 import { Model } from '@nozbe/watermelondb';
-import { field, json, readonly, date, children } from '@nozbe/watermelondb/decorators';
-import { v4 as uuidv4 } from 'uuid';
+import { field, json, readonly, date, children, relation } from '@nozbe/watermelondb/decorators';
+import uuid from 'react-native-uuid';
 
 export default class PendingSubmission extends Model {
   static table = 'pending_submissions';
 
   static STATUS = {
-    PENDING: 'pending',      // Initial state, waiting to be processed
-    PROCESSING: 'processing', // Currently being processed
-    COMPLETED: 'completed',   // Successfully submitted
-    FAILED: 'failed',         // Failed after max retries
+    PENDING: 'pending',
+    PROCESSING: 'processing',
+    COMPLETED: 'completed',
+    FAILED: 'failed',
   };
 
   static STEP = {
@@ -22,6 +22,7 @@ export default class PendingSubmission extends Model {
   static associations = {
     pending_files: { type: 'has_many', foreignKey: 'submission_id' },
     submission_attempts: { type: 'has_many', foreignKey: 'submission_id' },
+    forms: { type: 'belongs_to', key: 'form_id' },
   };
 
   @field('submission_id') submissionId;
@@ -44,6 +45,7 @@ export default class PendingSubmission extends Model {
 
   @children('pending_files') files;
   @children('submission_attempts') attempts;
+  @relation('forms', 'form_id') form;
 
   static async createPendingSubmission(database, { 
     formId, 
@@ -53,57 +55,69 @@ export default class PendingSubmission extends Model {
     formComponents, 
     payload 
   }) {
-    const submissionId = uuidv4();
-    const now = Date.now();
+    let createdSubmission = null;
+    
+    await database.write(async () => {
+      const submissionId = uuid.v4();
 
-    return await database.collections.get('pending_submissions').create(record => {
-      record.submissionId = submissionId;
-      record.formId = formId;
-      record.formName = formName;
-      record.appId = appId;
-      record.fieldValues = fieldValues;
-      record.formComponents = formComponents;
-      record.payload = payload;
-      record.status = PendingSubmission.STATUS.PENDING;
-      record.retryCount = 0;
-      record.maxRetries = 3;
-      record.createdAt = now;
-      record.updatedAt = now;
+      const pendingSubmissionsCollection = database.collections.get('pending_submissions');
+      
+      createdSubmission = await pendingSubmissionsCollection.create(record => {
+        record.submissionId = submissionId;
+        record.formId = formId;
+        record.formName = formName;
+        record.appId = appId;
+        record.fieldValues = fieldValues;
+        record.formComponents = formComponents;
+        record.payload = payload;
+        record.status = PendingSubmission.STATUS.PENDING;
+        record.retryCount = 0;
+        record.maxRetries = 3;
+      });
     });
+    
+    return createdSubmission;
   }
 
   async markAsProcessing() {
-    await this.update(record => {
-      record.status = PendingSubmission.STATUS.PROCESSING;
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.status = PendingSubmission.STATUS.PROCESSING;
+      });
     });
   }
 
   async markAsCompleted() {
-    await this.update(record => {
-      record.status = PendingSubmission.STATUS.COMPLETED;
-      record.completedAt = Date.now();
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.status = PendingSubmission.STATUS.COMPLETED;
+        record.completedAt = Date.now();
+      });
     });
   }
 
   async markAsFailed(error) {
-    await this.update(record => {
-      record.status = PendingSubmission.STATUS.FAILED;
-      record.errorMessage = error.message || String(error);
-      record.errorStack = error.stack;
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.status = PendingSubmission.STATUS.FAILED;
+        record.errorMessage = error.message || String(error);
+        record.errorStack = error.stack;
+      });
     });
   }
 
   async incrementRetry() {
-    await this.update(record => {
-      record.retryCount = (record.retryCount || 0) + 1;
-      record.lastAttemptAt = Date.now();
-      // Exponential backoff: 2^retryCount * 1000 ms, max 5 minutes
-      const delay = Math.min(Math.pow(2, record.retryCount) * 1000, 300000);
-      record.nextRetryAt = Date.now() + delay;
-      record.updatedAt = Date.now();
+    const database = this.collections.database;
+    await database.write(async () => {
+      await this.update(record => {
+        record.retryCount = (record.retryCount || 0) + 1;
+        record.lastAttemptAt = Date.now();
+        const delay = Math.min(Math.pow(2, record.retryCount) * 1000, 300000);
+        record.nextRetryAt = Date.now() + delay;
+      });
     });
   }
 

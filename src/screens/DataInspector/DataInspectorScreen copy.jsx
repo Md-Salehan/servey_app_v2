@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
   Share,
+  Modal,
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,8 +39,8 @@ const truncate = (str, length = 50) => {
   return str.length > length ? str.substring(0, length) + '...' : str;
 };
 
-// Dynamic Table Component for displaying records from any collection
-const DynamicDataTable = ({ title, data, collectionName, onRefresh, icon, color = COLORS.primary }) => {
+// Table Component for displaying records
+const DataTable = ({ title, data, columns, onRefresh, icon, color = COLORS.primary }) => {
   const [expandedRows, setExpandedRows] = useState({});
   const [showAllColumns, setShowAllColumns] = useState(false);
 
@@ -57,9 +58,9 @@ const DynamicDataTable = ({ title, data, collectionName, onRefresh, icon, color 
     );
   }
 
-  // Dynamically determine columns from the first record
-  const allColumns = Object.keys(data[0]).filter(key => 
-    !key.startsWith('_') && key !== 'table'
+  // Determine which columns to show
+  const allColumns = columns || Object.keys(data[0]).filter(key => 
+    !key.startsWith('_') && key !== 'id' && key !== 'table'
   );
   const displayColumns = showAllColumns ? allColumns : allColumns.slice(0, 5);
 
@@ -272,136 +273,68 @@ const AsyncStorageTable = ({ data, onRefresh }) => {
 const DataInspectorScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [allTables, setAllTables] = useState([]);
+  const [dbData, setDbData] = useState({
+    forms: [],
+    formComponents: [],
+    submissions: [],
+  });
   const [asyncData, setAsyncData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredTables, setFilteredTables] = useState([]);
+  const [filteredDbData, setFilteredDbData] = useState(dbData);
   const [showSearch, setShowSearch] = useState(false);
-  const [tableColors, setTableColors] = useState({});
-
-  // Generate consistent colors for tables based on name
-  const getTableColor = (tableName) => {
-    const colors = [
-      COLORS.primary,
-      COLORS.success,
-      COLORS.info,
-      COLORS.warning,
-      COLORS.error,
-      '#9C27B0', // Purple
-      '#FF9800', // Orange
-      '#00BCD4', // Cyan
-      '#795548', // Brown
-      '#607D8B', // Blue Grey
-    ];
-    
-    let hash = 0;
-    for (let i = 0; i < tableName.length; i++) {
-      hash = ((hash << 5) - hash) + tableName.charCodeAt(i);
-      hash |= 0;
-    }
-    return colors[Math.abs(hash) % colors.length];
-  };
-
-  // Get all collections from WatermelonDB
-  const getAllCollections = useCallback(() => {
-    try {
-      // Access all collections from the database
-      // WatermelonDB stores collections in the `collections` object
-      const collections = database.collections;
-      const collectionNames = Object.keys(collections);
-      
-      return collectionNames.map(name => ({
-        name,
-        collection: collections[name],
-      }));
-    } catch (error) {
-      console.error('Error getting collections:', error);
-      return [];
-    }
-  }, []);
-
-  // Fetch data from a specific collection
-  const fetchCollectionData = async (collection) => {
-    try {
-      const records = await collection.query().fetch();
-      
-      // Convert records to plain objects with all properties
-      return records.map(record => {
-        const plainRecord = {};
-        
-        // Get all raw properties from the record
-        // This includes both database fields and any other properties
-        Object.keys(record).forEach(key => {
-          if (key !== '_raw' && key !== 'collection' && key !== '_changes') {
-            const value = record[key];
-            
-            // Handle special types
-            if (value && typeof value === 'object' && value.toISOString) {
-              plainRecord[key] = value.toISOString();
-            } else if (value && typeof value === 'object' && value.toString) {
-              plainRecord[key] = value.toString();
-            } else {
-              plainRecord[key] = value;
-            }
-          }
-        });
-        
-        // Also include any observed fields
-        if (record._raw && record._raw) {
-          Object.assign(plainRecord, record._raw);
-        }
-        
-        return plainRecord;
-      });
-    } catch (error) {
-      console.error(`Error fetching data from collection:`, error);
-      return [];
-    }
-  };
 
   // Fetch all data from WatermelonDB
   const fetchDbData = async () => {
     try {
-      const collections = getAllCollections();
-      const tablesData = [];
-      
-      for (const { name, collection } of collections) {
-        const data = await fetchCollectionData(collection);
-        tablesData.push({
-          name,
-          data,
-          icon: getIconForTable(name),
-          color: getTableColor(name),
-        });
-      }
-      
-      setAllTables(tablesData);
-      
-      // Store colors for consistency
-      const colors = {};
-      tablesData.forEach(table => {
-        colors[table.name] = table.color;
+      const forms = await database.collections.get('forms').query().fetch();
+      const formComponents = await database.collections.get('form_components').query().fetch();
+      const submissions = await database.collections.get('submissions').query().fetch();
+
+      setDbData({
+        forms: forms.map(form => ({
+          id: form.id,
+          formId: form.formId,
+          formName: form.formName,
+          appId: form.appId,
+          description: form.description,
+          status: form.status,
+          priority: form.priority,
+          totalFields: form.totalFields,
+          estimatedTime: form.estimatedTime,
+          completionRate: form.completionRate,
+          deadline: form.deadline ? new Date(form.deadline).toLocaleString() : null,
+          createdAt: new Date(form.createdAt).toLocaleString(),
+          updatedAt: new Date(form.updatedAt).toLocaleString(),
+        })),
+        formComponents: formComponents.map(comp => ({
+          id: comp.id,
+          formId: comp.formId,
+          components: comp.components,
+          version: comp.version,
+          createdAt: new Date(comp.createdAt).toLocaleString(),
+          updatedAt: new Date(comp.updatedAt).toLocaleString(),
+        })),
+        submissions: submissions.map(sub => ({
+          id: sub.id,
+          submissionId: sub.submissionId,
+          formId: sub.formId,
+          formName: sub.formName,
+          appId: sub.appId,
+          data: sub.data,
+          status: sub.status,
+          retryCount: sub.retryCount,
+          lastAttemptAt: sub.lastAttemptAt ? new Date(sub.lastAttemptAt).toLocaleString() : null,
+          errorMessage: sub.errorMessage,
+          submittedAt: new Date(sub.submittedAt).toLocaleString(),
+          uploadedAt: sub.uploadedAt ? new Date(sub.uploadedAt).toLocaleString() : null,
+          createdAt: new Date(sub.createdAt).toLocaleString(),
+          updatedAt: new Date(sub.updatedAt).toLocaleString(),
+        })),
       });
-      setTableColors(colors);
-      
     } catch (error) {
       console.error('Error fetching database data:', error);
       Alert.alert('Error', 'Failed to fetch database data');
     }
-  };
-
-  // Get appropriate icon for table name
-  const getIconForTable = (tableName) => {
-    const iconMap = {
-      'forms': 'description',
-      'form_components': 'widgets',
-      'submissions': 'assignment',
-      'users': 'people',
-      'settings': 'settings',
-      'logs': 'list-alt',
-    };
-    
-    return iconMap[tableName] || 'table-chart';
   };
 
   // Fetch all data from AsyncStorage
@@ -486,10 +419,7 @@ const DataInspectorScreen = ({ navigation }) => {
     try {
       const exportData = {
         timestamp: new Date().toISOString(),
-        tables: allTables.reduce((acc, table) => {
-          acc[table.name] = table.data;
-          return acc;
-        }, {}),
+        database: dbData,
         asyncStorage: asyncData,
       };
 
@@ -508,27 +438,24 @@ const DataInspectorScreen = ({ navigation }) => {
   // Apply search filter
   useEffect(() => {
     if (!searchTerm.trim()) {
-      setFilteredTables(allTables);
+      setFilteredDbData(dbData);
       return;
     }
 
     const term = searchTerm.toLowerCase();
-    const filtered = allTables
-      .map(table => ({
-        ...table,
-        data: table.data.filter(item => 
-          JSON.stringify(item).toLowerCase().includes(term)
-        ),
-      }))
-      .filter(table => table.data.length > 0);
-    
-    setFilteredTables(filtered);
-  }, [searchTerm, allTables]);
-
-  // Calculate total records across all tables
-  const getTotalRecords = () => {
-    return allTables.reduce((total, table) => total + table.data.length, 0);
-  };
+    const filtered = {
+      forms: dbData.forms.filter(item => 
+        JSON.stringify(item).toLowerCase().includes(term)
+      ),
+      formComponents: dbData.formComponents.filter(item => 
+        JSON.stringify(item).toLowerCase().includes(term)
+      ),
+      submissions: dbData.submissions.filter(item => 
+        JSON.stringify(item).toLowerCase().includes(term)
+      ),
+    };
+    setFilteredDbData(filtered);
+  }, [searchTerm, dbData]);
 
   // Initial load
   useEffect(() => {
@@ -617,14 +544,19 @@ const DataInspectorScreen = ({ navigation }) => {
         {/* Summary Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Icon name="storage" size={24} color={COLORS.primary} />
-            <Text style={styles.statNumber}>{allTables.length}</Text>
-            <Text style={styles.statLabel}>Tables</Text>
+            <Icon name="description" size={24} color={COLORS.primary} />
+            <Text style={styles.statNumber}>{dbData.forms.length}</Text>
+            <Text style={styles.statLabel}>Forms</Text>
           </View>
           <View style={styles.statCard}>
-            <Icon name="list-alt" size={24} color={COLORS.success} />
-            <Text style={styles.statNumber}>{getTotalRecords()}</Text>
-            <Text style={styles.statLabel}>Total Records</Text>
+            <Icon name="widgets" size={24} color={COLORS.info} />
+            <Text style={styles.statNumber}>{dbData.formComponents.length}</Text>
+            <Text style={styles.statLabel}>Components</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Icon name="assignment" size={24} color={COLORS.success} />
+            <Text style={styles.statNumber}>{dbData.submissions.length}</Text>
+            <Text style={styles.statLabel}>Submissions</Text>
           </View>
           <View style={styles.statCard}>
             <Icon name="storage" size={24} color={COLORS.warning} />
@@ -633,18 +565,30 @@ const DataInspectorScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Dynamic Database Tables */}
-        {filteredTables.map((table) => (
-          <DynamicDataTable
-            key={table.name}
-            title={table.name.charAt(0).toUpperCase() + table.name.slice(1).replace(/_/g, ' ')}
-            data={table.data}
-            collectionName={table.name}
-            icon={table.icon}
-            color={table.color}
-            onRefresh={handleRefresh}
-          />
-        ))}
+        {/* Database Tables */}
+        <DataTable
+          title="Forms"
+          data={filteredDbData.forms}
+          icon="description"
+          color={COLORS.primary}
+          onRefresh={handleRefresh}
+        />
+
+        <DataTable
+          title="Form Components"
+          data={filteredDbData.formComponents}
+          icon="widgets"
+          color={COLORS.info}
+          onRefresh={handleRefresh}
+        />
+
+        <DataTable
+          title="Submissions"
+          data={filteredDbData.submissions}
+          icon="assignment"
+          color={COLORS.success}
+          onRefresh={handleRefresh}
+        />
 
         {/* AsyncStorage Table */}
         <AsyncStorageTable
