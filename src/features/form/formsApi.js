@@ -1,9 +1,10 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL } from '../../constants/api';
 import TokenService from '../../services/storage/tokenService';
+import moment from 'moment';
 
 // Add mock data for testing
-
+// const testToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkZW1vMX4yMDI2MDMxOTAwMDAwMDAwMDAwMn5OIiwiaXNzIjoiU2ltYXBob3JlIiwiaWF0IjoxNzczOTEzMjE4LCJleHAiOjE3NzM5MzEyMTh9.wZ2JJ3oGaUFASG9C0kUNYbHC0xJcCqg9GB2bi1vKhhk'
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   prepareHeaders: async headers => {
@@ -26,11 +27,11 @@ export const formsApi = createApi({
       query: formData => {
         console.log(
           '🔵 API Request - URL:',
-          `${API_BASE_URL}/SUF00191/getAllAppFormInfo`,
+          `${API_BASE_URL}/SUF00191/getAllAppUserFormInfo`,
         );
         console.log('🔵 API Request - Payload:', formData);
         return {
-          url: '/SUF00191/getAllAppFormInfo',
+          url: '/SUF00191/getAllAppUserFormInfo',
           method: 'POST',
           body: formData,
         };
@@ -46,12 +47,13 @@ export const formsApi = createApi({
             formNm: item.formNm,
             description:
               "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s",
-            status: 'active',
-            priority: 'high',
+            status: item.surFormGenFlg === 'Y' ? 'active' : 'inActive',
+            priority: '', // item.priority || 'medium' || 'low' || 'high', 
             totalFields: 18,
             estimatedTime: 15,
             completionRate: 85,
-            deadline: '2024-01-25',
+            deadline: Date.now(),
+            surFormGenFlg: item.surFormGenFlg,
             createdAt: '2024-01-12T11:45:00Z',
           }));
         }
@@ -85,9 +87,9 @@ export const formsApi = createApi({
         return response;
       },
     }),
-    submitFormData: builder.mutation({
+    surveyFormSubmit: builder.mutation({
       query: formData => ({
-        url: '/SUF00191/submitFormData',
+        url: '/SUF00191/surveyFormSubmit',
         method: 'POST',
         body: formData,
       }),
@@ -98,5 +100,5 @@ export const formsApi = createApi({
 export const { 
   useGetFormsMutation,
   useGetFormComponentsMutation,
-  useSubmitFormDataMutation,
+  useSurveyFormSubmitMutation,
  } = formsApi;

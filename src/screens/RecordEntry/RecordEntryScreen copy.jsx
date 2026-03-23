@@ -25,119 +25,6 @@ import {
 } from '../../components';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// const allFormComp = {
-//     "msg": "Successful operation",
-//     "code": 0,
-//     "appMsgList": {
-//         "errorStatus": false,
-//         "list": [
-//             {
-//                 "errCd": "CMAI000008",
-//                 "errDesc": "Record/Records Found",
-//                 "errType": "AI"
-//             }
-//         ]
-//     },
-//     "content": {
-//         "mst": {
-//             "appId": "AP000001",
-//             "appDesc": "E-Physical Progress",
-//             "formId": "F0000004",
-//             "formNm": "XYZ",
-//             "dtl01": [
-//                 {
-//                     "fcId": "C0028",
-//                     "compSlNo": 1,
-//                     "compTyp": "01",
-//                     "compTypTxt": "Text input",
-//                     "props": {
-//                         "Placeholder": "Enter your name",
-//                         "Maximum Length": "",
-//                         "label": "Name",
-//                         "Value": "",
-//                         "Key Board Type": "default",
-//                         "Editable": "",
-//                         "Multiple Line  ": ""
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0022",
-//                     "compSlNo": 2,
-//                     "compTyp": "07",
-//                     "compTypTxt": "Image",
-//                     "props": {
-//                         "label": "Image Upload"
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0029",
-//                     "compSlNo": 2,
-//                     "compTyp": "03",
-//                     "compTypTxt": "Dropdown",
-//                     "props": {
-//                         "Placeholder": "Enter your country name",
-//                         "Options": "IND~India; BN~Bangladesh; S~Saudi",
-//                         "label": "Country",
-//                         "multiple": true,
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0030",
-//                     "compSlNo": 3,
-//                     "compTyp": "08",
-//                     "compTypTxt": "Location",
-//                     "props": {
-//                         "label": "Current Location"
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0031",
-//                     "compSlNo": 4,
-//                     "compTyp": "02",
-//                     "compTypTxt": "Date Picker",
-//                     "props": {
-//                         "Placeholder": "Select Date",
-//                         "Maximum Date?": "N~No",
-//                         "label": "Date",
-//                         "Enter Maximum Date": "",
-//                         "Date": ""
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0032",
-//                     "compSlNo": 5,
-//                     "compTyp": "06",
-//                     "compTypTxt": "Voice input",
-//                     "props": {
-//                         "Placeholder": "Speak Something",
-//                         "label": "Description"
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0033",
-//                     "compSlNo": 6,
-//                     "compTyp": "05",
-//                     "compTypTxt": "Check Box",
-//                     "props": {
-//                         "Placeholder": "",
-//                         "label": "Terms & Condition",
-//                         "Data": "N~No"
-//                     }
-//                 },
-//                 {
-//                     "fcId": "C0034",
-//                     "compSlNo": 7,
-//                     "compTyp": "09",
-//                     "compTypTxt": "Signature",
-//                     "props": {
-//                         "label": "eSignature"
-//                     }
-//                 }
-//             ],
-//             "dtl02": []
-//         }
-//     }
-// };
 const RecordEntryScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
@@ -146,11 +33,9 @@ const RecordEntryScreen = () => {
 
   const { appId, formId, formTitle } = route.params || {}; //{ appId:'appId', formId:'formId', formTitle:'formTitle' };
 
-
-
   const [formComponents, setFormComponents] = useState([]);
   const [fieldValues, setFieldValues] = useState({});
-  const [submissionError, setSubmissionError] = useState(null);
+  const [submissionError, setSubmissionError] = useState({});
 
   useEffect(() => {
     if (appId && formId) {
@@ -186,10 +71,17 @@ const RecordEntryScreen = () => {
 
         // Initialize field values
         const initialValues = {};
+        const fieldErrors = {};
         sortedComponents.forEach(component => {
-          initialValues[component.fcId] = component.props?.Value || '';
+          initialValues[component.fcId] = component.props?.value || '';
+          if (component.props?.required === 'Y' && !component.props?.value) {
+            fieldErrors[component.fcId] = `${
+              component.props?.label || 'Field'
+            } is required`;
+          }
         });
         setFieldValues(initialValues);
+        setSubmissionError(fieldErrors);
       } else {
         // Alert.alert('Error', 'Failed to load form components');
       }
@@ -200,23 +92,38 @@ const RecordEntryScreen = () => {
   };
 
   const handleFieldChange = (fcId, value) => {
+    console.log('Field changed:', fcId, value);
+
     setFieldValues(prev => ({
       ...prev,
       [fcId]: value,
     }));
   };
 
-  const handleNext = () => {
-    // Validate required fields
-    const errors = [];
-    formComponents.forEach(component => {
-      if (component.props?.Required === 'Y' && !fieldValues[component.fcId]) {
-        errors.push(`${component.props.label} is required`);
-      }
-    });
+  const handleError = (fcId, errorText) => {
+    console.log('Field error:', fcId, errorText);
+    setSubmissionError(prev => ({
+      ...prev,
+      [fcId]: errorText,
+    }));
+  };
 
-    if (errors.length > 0) {
-      Alert.alert('Validation Error', errors.join('\n'));
+  const handleNext = () => {
+    // // Validate required fields
+    // const errors = [];
+    // formComponents.forEach(component => {
+    //   if (component.props?.Required === 'Y' && !fieldValues[component.fcId]) {
+    //     errors.push(`${component.props.label} is required`);
+    //   }
+    // });
+    console.log('Submission Error:', submissionError);
+
+    const hasErrors = Object.keys(submissionError).filter(key => submissionError[key]).length > 0;
+    if (hasErrors) {
+      Alert.alert(
+        'Validation Error',
+        Object.values(submissionError).filter(error => error).join('\n'),
+      );
       return;
     }
 
@@ -257,24 +164,54 @@ const RecordEntryScreen = () => {
             editable={props?.editable === 'Y'}
             multiline={props?.multiline === 'Y'}
             required={props?.required === 'Y'}
+            // errorText={submissionError[fcId] || ''}
+            errorText={''}
+            onError={error => handleError(fcId, error)}
           />
         );
 
       case '02': // Date Picker
+        // Parse time string to a valid Date object with a reference date
+        const parseTimeToDate = timeStr => {
+          if (!timeStr) return undefined;
+
+          // Split the time string (format: "HH:MM")
+          const [hours, minutes] = timeStr.split(':').map(Number);
+
+          // Create a date object with a reference date (today)
+          // This ensures the Date object is valid
+          const date = new Date();
+          date.setHours(hours, minutes, 0, 0);
+
+          // Return the ISO string to maintain consistency
+          return date.toISOString();
+        };
+
         return (
           <DatePickerField
             key={fcId}
             fcId={fcId}
             label={props?.label || ''}
-            placeholder={props?.Placeholder || 'Select Date'}
+            placeholder={props?.placeholder}
             value={fieldValues[fcId]}
             onChange={date => handleFieldChange(fcId, date)}
-            maximumDate={
-              props?.['Maximum Date?'] === 'Y'
-                ? new Date(props['Enter Maximum Date'])
+            maximumDate={props?.maximumDate ? props.maximumDate : undefined}
+            minimumDate={props?.minimumDate ? props.minimumDate : undefined}
+            maximumTime={
+              props?.maximumTime
+                ? parseTimeToDate(props.maximumTime)
                 : undefined
             }
-            required={props?.Required === 'Y'}
+            minimumTime={
+              props?.minimumTime
+                ? parseTimeToDate(props.minimumTime)
+                : undefined
+            }
+            required={props?.required === 'Y'}
+            editable={props?.editable === 'Y'}
+            mode={props?.mode || 'date'}
+            errorText={''}
+            onError={error => handleError(fcId, error)}
           />
         );
 
@@ -284,7 +221,7 @@ const RecordEntryScreen = () => {
             key={fcId}
             fcId={fcId}
             label={props?.label || 'Upload Image'}
-            required={props?.Required === 'Y'}
+            required={props?.required === 'Y'}
             multiple={parseInt(props.maxImages) > 1}
             maxImages={props?.maxImages ? parseInt(props.maxImages) : 5}
             imageQuality={
@@ -296,8 +233,10 @@ const RecordEntryScreen = () => {
                 ? props.allowedTypes.split(',').map(type => type.trim())
                 : ['image/jpeg', 'image/png', 'image/jpg']
             }
-            onImagesChange={(fcId, images) => handleFieldChange(fcId, images)}
+            onImagesChange={images => handleFieldChange(fcId, images)}
             needLocation={props?.needLocation === 'Y'}
+            errorText={''}
+            onError={error => handleError(fcId, error)}
           />
         );
 
@@ -316,10 +255,10 @@ const RecordEntryScreen = () => {
             disabled={props?.editable === 'N'}
             searchable={true}
             maxSelections={
-              props?.maxSelections
-                ? parseInt(props.maxSelections)
-                : undefined
+              props?.maxSelections ? parseInt(props.maxSelections) : undefined
             }
+            errorText={''} // submissionError[fcId] || ''
+            onError={error => handleError(fcId, error)}
           />
         );
 
@@ -329,19 +268,14 @@ const RecordEntryScreen = () => {
             key={fcId}
             fcId={fcId}
             label={props?.label || ''}
-            value={
-              fieldValues[fcId] ||
-              props?.value === 'true' ||
-              props?.value === true
-            }
+            value={fieldValues[fcId]}
             onChange={checked => handleFieldChange(fcId, checked)}
-            required={props?.Required === 'Y'}
-            disabled={props?.Editable === 'N'}
-            description={
-              props?.description || ""
-            }
-            size={props?.size || "small"}
-            // error={validationErrors[fcId] || ''}
+            required={props?.required === 'Y'}
+            disabled={props?.editable === 'N'}
+            description={props?.description || ''}
+            size={props?.size || 'small'}
+            errorText={ ''}
+            onError={error => handleError(fcId, error)}
           />
         );
 
@@ -353,15 +287,16 @@ const RecordEntryScreen = () => {
             label={props?.label || 'Location'}
             value={fieldValues[fcId]}
             onChange={locationData => handleFieldChange(fcId, locationData)}
-            required={props?.Required === 'Y'}
-            disabled={props?.Editable === 'N'}
-            description={props?.Description}
-            enableHighAccuracy={props?.EnableHighAccuracy === 'true'}
-            timeout={props?.Timeout ? parseInt(props.Timeout) : 15000}
-            maximumAge={props?.MaxAge ? parseInt(props.MaxAge) : 60000}
+            required={props?.required === 'Y'}
+            disabled={props?.disabled === 'Y'}
+            description={props?.description || ''}
+            isMannualEntryAllowed={props?.isMannualEntryAllowed === 'Y'}
+            enableHighAccuracy={props?.enableHighAccuracy === 'true'}
+            timeout={props?.timeout ? parseInt(props.timeout) : 15000}
+            maximumAge={props?.maximumAge ? parseInt(props.maximumAge) : 60000}
             minAccuracy={100}
             showAddress={true}
-            showMapPreview={props?.ShowMapPreview === 'true'}
+            showMapPreview={props?.showMapPreview === 'true'}
             onCaptureStart={() => console.log('Location capture started')}
             onCaptureComplete={(location, isAccurate) =>
               console.log('Location captured:', location)
@@ -369,7 +304,8 @@ const RecordEntryScreen = () => {
             onCaptureError={error =>
               console.log('Location capture error:', error)
             }
-            isMannualEntryAllowed={true}
+            errorText={ ''}
+            onError={error => handleError(fcId, error)}
           />
         );
 
@@ -381,9 +317,9 @@ const RecordEntryScreen = () => {
             label={props?.label || 'Signature'}
             value={fieldValues[fcId]}
             onChange={signatureData => handleFieldChange(fcId, signatureData)}
-            required={props?.Required === 'Y'}
-            disabled={props?.Editable === 'N'}
-            description={props?.Description}
+            required={props?.required === 'Y'}
+            disabled={props?.disabled === 'Y'}
+            description={props?.description || ''}
             canvasWidth={props?.CanvasWidth ? parseInt(props.CanvasWidth) : 300}
             canvasHeight={
               props?.CanvasHeight ? parseInt(props.CanvasHeight) : 150
@@ -393,6 +329,8 @@ const RecordEntryScreen = () => {
             minPoints={props?.MinPoints ? parseInt(props.MinPoints) : 10}
             onSigningStart={() => {}}
             onSigningEnd={() => {}}
+            errorText={ ''}
+            onError={error => handleError(fcId, error)}
           />
         );
 
@@ -499,11 +437,11 @@ const RecordEntryScreen = () => {
         </View>
 
         {/* Submission Error */}
-        {submissionError && (
+        {/* {submissionError && (
           <View style={styles.submissionErrorContainer}>
-            <Text style={styles.submissionErrorText}>{submissionError}</Text>
+            <Text style={styles.submissionErrorText}>{Object.values(submissionError).join('\n')}</Text>
           </View>
-        )}
+        )} */}
       </ScrollView>
 
       {/* Action Buttons */}

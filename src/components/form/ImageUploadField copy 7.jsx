@@ -222,7 +222,7 @@ const ImageUploadField = ({
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           uri: asset.uri,
           type: asset.type || 'image/jpeg',
-          fileNm: asset.fileName || `image_${Date.now()}.jpg`,
+          fileName: asset.fileName || `image_${Date.now()}.jpg`,
           fileSize: asset.fileSize,
           width: asset.width,
           height: asset.height,
@@ -238,7 +238,7 @@ const ImageUploadField = ({
         newImages.push(imageObj);
       } catch (error) {
         console.error('Image processing error:', error);
-        errors.push(`Failed to process ${asset.fileNm || 'image'}`);
+        errors.push(`Failed to process ${asset.fileName || 'image'}`);
       }
     }
 
@@ -296,7 +296,7 @@ const ImageUploadField = ({
             fileUri: result.fileUri || result.uri,
             flUpldLogNo: result.flUpldLogNo,
             fileId: result.fileId,
-            // fileNm: result.fileNm,
+            fileNm: result.fileNm,
             confirmed: result.confirmed || false,
             error: result.error || null,
           };
@@ -362,7 +362,7 @@ const ImageUploadField = ({
             fileUri: result.fileUri,
             flUpldLogNo: result.flUpldLogNo,
             fileId: result.fileId,
-            // fileNm: result.fileNm,
+            fileNm: result.fileNm,
             confirmed: result.confirmed || false,
             error: result.error || null,
           };
@@ -499,8 +499,8 @@ const ImageUploadField = ({
         </View>
 
         <View style={styles.imageInfo}>
-          <Text style={styles.fileNm} numberOfLines={1}>
-            {image.fileNm}
+          <Text style={styles.fileName} numberOfLines={1}>
+            {image.fileName}
           </Text>
           <Text style={styles.fileSize}>
             {(image.fileSize / (1024 * 1024)).toFixed(2)} MB
@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
   imageInfo: {
     marginTop: 8,
   },
-  fileNm: {
+  fileName: {
     fontSize: 12,
     color: COLORS.text.primary,
     fontFamily: 'System',

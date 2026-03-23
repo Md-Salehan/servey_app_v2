@@ -7,10 +7,19 @@ import { formFilterStyles as styles } from './FormFilter.styles';
 const FILTER_OPTIONS = [
   { id: 'all', label: 'All Forms', icon: 'list' },
   { id: 'active', label: 'Active', icon: 'check-circle' },
-  { id: 'pending', label: 'Pending', icon: 'pending' },
-  { id: 'completed', label: 'Completed', icon: 'done-all' },
-  { id: 'draft', label: 'Drafts', icon: 'drafts' },
-  { id: 'priority', label: 'High Priority', icon: 'priority-high' },
+  // { id: 'pending', label: 'Pending', icon: 'pending' },
+  // { id: 'completed', label: 'Completed', icon: 'done-all' },
+  // { id: 'draft', label: 'Drafts', icon: 'drafts' },
+  { id: 'inActive', label: 'In-Active', icon: 'block' },
+  // { id: 'inProgress', label: 'In-Progress', icon: 'loop' },
+  // { id: 'overdue', label: 'Overdue', icon: 'event-busy' },
+  // { id: 'upcoming', label: 'Upcoming', icon: 'event-available' },
+  // { id: 'mine', label: 'My Forms', icon: 'person' },
+  // { id: 'shared', label: 'Shared with Me', icon: 'share' },
+  // { id: 'favorite', label: 'Favorites', icon: 'star' },
+  // { id: 'archived', label: 'Archived', icon: 'archive' },
+  // { id: 'priority', label: 'High Priority', icon: 'priority-high' },
+  // { id: 'underDevelopment', label: 'Under Development', icon: 'build' }
 ];
 
 const SORT_OPTIONS = [

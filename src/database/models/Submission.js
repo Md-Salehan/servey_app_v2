@@ -15,7 +15,7 @@ export default class Submission extends Model {
   @field('form_id') formId;
   @field('form_name') formName;
   @field('app_id') appId;
-  @json('data', data => data) data;
+  @json('payload', payload => payload) payload;
   @field('status') status;
   @field('retry_count') retryCount;
   @field('last_attempt_at') lastAttemptAt;
@@ -35,7 +35,7 @@ export default class Submission extends Model {
       record.formId = formId;
       record.formName = formName;
       record.appId = appId;
-      record.data = data;
+      record.payload = payload;
       record.status = Submission.STATUS.PENDING;
       record.retryCount = 0;
       record.submittedAt = now;

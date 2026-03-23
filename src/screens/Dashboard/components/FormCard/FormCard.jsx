@@ -39,7 +39,6 @@ export const FormCard = React.memo(({
   animation = {} 
 }) => {
   const statusConfig = STATUS_CONFIG[form.status] || STATUS_CONFIG.draft;
-  console.log(form, "jjj");
   
   return (
     <View style={styles.card}>
@@ -63,7 +62,7 @@ export const FormCard = React.memo(({
         </View>
 
         <Text style={styles.formTitle} numberOfLines={1}>
-          {form.title}
+          {form.formName}
         </Text>
         
         <Text style={styles.formDescription} numberOfLines={2}>
@@ -89,7 +88,7 @@ export const FormCard = React.memo(({
             <View style={styles.metaItem}>
               <Icon name="event" size={16} color={COLORS.gray[500]} />
               <Text style={styles.metaText}>
-                Due {form.deadline}
+                Due 15 Apr 2026
               </Text>
             </View>
           )}

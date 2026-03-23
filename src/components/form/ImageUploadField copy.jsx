@@ -34,7 +34,7 @@ const ImageUploadField = ({
   isPreview = false,
   errorText = '',
   onError = null,
-  formId, // Add formId prop
+  formId,
 }) => {
   const [images, setImages] = useState(initialImages || []);
   const [uploading, setUploading] = useState(false);
@@ -222,7 +222,7 @@ const ImageUploadField = ({
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           uri: asset.uri,
           type: asset.type || 'image/jpeg',
-          fileNm: asset.fileName || `image_${Date.now()}.jpg`,
+          fileName: asset.fileName || `image_${Date.now()}.jpg`,
           fileSize: asset.fileSize,
           width: asset.width,
           height: asset.height,
@@ -238,7 +238,7 @@ const ImageUploadField = ({
         newImages.push(imageObj);
       } catch (error) {
         console.error('Image processing error:', error);
-        errors.push(`Failed to process ${asset.fileNm || 'image'}`);
+        errors.push(`Failed to process ${asset.fileName || 'image'}`);
       }
     }
 
@@ -255,7 +255,7 @@ const ImageUploadField = ({
     }
   };
 
-  // Upload all images to server
+  // Upload all images to server (upload only, no confirmation)
   const uploadAllImages = async () => {
     if (images.length === 0 || isPreview || !formId) return;
 
@@ -269,23 +269,35 @@ const ImageUploadField = ({
     }
 
     try {
-      // Use uploadMultipleFiles from uploadService
-      const results = await uploadService.uploadMultipleFiles(
-        imagesToUpload,
-        formId,
-        fcId,
-        (current, total, fileData) => {
-          // Update progress for the specific file
-          if (fileData && fileData.id) {
-            setUploadProgress(prev => ({
-              ...prev,
-              [fileData.id]: Math.round((current / total) * 100),
-            }));
-          }
+      // Use uploadFile for each image (no confirmation)
+      const results = [];
+      
+      for (let i = 0; i < imagesToUpload.length; i++) {
+        const file = imagesToUpload[i];
+        
+        // Report progress
+        if (uploadProgress[file.id]) {
+          setUploadProgress(prev => ({
+            ...prev,
+            [file.id]: Math.round(((i) / imagesToUpload.length) * 100),
+          }));
         }
-      );
+        
+        const result = await uploadService.uploadFile(file, formId, fcId);
+        
+        results.push({
+          id: file.id,
+          ...result,
+        });
+        
+        // Update progress for this file
+        setUploadProgress(prev => ({
+          ...prev,
+          [file.id]: 100,
+        }));
+      }
 
-      // Update images with upload results
+      // Update images with upload results (no confirmation)
       const updatedImages = images.map(img => {
         const result = results.find(r => r.id === img.id);
         if (result) {
@@ -293,11 +305,10 @@ const ImageUploadField = ({
             ...img,
             uploaded: result.success,
             uploading: false,
-            fileUri: result.fileUri || result.uri,
+            fileUri: result.fileUri,
             flUpldLogNo: result.flUpldLogNo,
             fileId: result.fileId,
-            // fileNm: result.fileNm,
-            confirmed: result.confirmed || false,
+            fileNm: result.fileNm,
             error: result.error || null,
           };
         }
@@ -314,7 +325,6 @@ const ImageUploadField = ({
       // Show summary
       const successful = results.filter(r => r.success).length;
       const failed = results.filter(r => !r.success).length;
-      console.log(results, "results");
       
       if (failed === 0) {
         Alert.alert('Success', `${successful} image(s) uploaded successfully`);
@@ -334,7 +344,7 @@ const ImageUploadField = ({
     }
   };
 
-  // Upload single image (for retry)
+  // Upload single image (for retry) - upload only, no confirmation
   const uploadSingleImage = async (image) => {
     if (!formId) return;
 
@@ -346,12 +356,8 @@ const ImageUploadField = ({
         )
       );
 
-      // Use uploadAndConfirmFile from uploadService
-      const result = await uploadService.uploadAndConfirmFile(
-        image, 
-        formId, 
-        fcId
-      );
+      // Use uploadFile only (no confirmation)
+      const result = await uploadService.uploadFile(image, formId, fcId);
 
       const updatedImages = images.map(img => {
         if (img.id === image.id) {
@@ -362,8 +368,7 @@ const ImageUploadField = ({
             fileUri: result.fileUri,
             flUpldLogNo: result.flUpldLogNo,
             fileId: result.fileId,
-            // fileNm: result.fileNm,
-            confirmed: result.confirmed || false,
+            fileNm: result.fileNm,
             error: result.error || null,
           };
         }
@@ -449,7 +454,12 @@ const ImageUploadField = ({
   const getValueForApi = () => {
     return images
       .filter(img => img.uploaded && img.flUpldLogNo)
-      .map(img => img.flUpldLogNo);
+      .map(img => ({
+        flUpldLogNo: img.flUpldLogNo,
+        fileId: img.fileId,
+        fileUri: img.fileUri,
+        fileName: img.fileName,
+      }));
   };
 
   // Render image item
@@ -499,8 +509,8 @@ const ImageUploadField = ({
         </View>
 
         <View style={styles.imageInfo}>
-          <Text style={styles.fileNm} numberOfLines={1}>
-            {image.fileNm}
+          <Text style={styles.fileName} numberOfLines={1}>
+            {image.fileName}
           </Text>
           <Text style={styles.fileSize}>
             {(image.fileSize / (1024 * 1024)).toFixed(2)} MB
@@ -508,7 +518,7 @@ const ImageUploadField = ({
           
           {isUploaded && image.fileUri && (
             <Text style={styles.uploadedUri} numberOfLines={1}>
-              ✓ Uploaded
+              ✓ Uploaded (Ready for submission)
             </Text>
           )}
           
@@ -866,7 +876,7 @@ const styles = StyleSheet.create({
   imageInfo: {
     marginTop: 8,
   },
-  fileNm: {
+  fileName: {
     fontSize: 12,
     color: COLORS.text.primary,
     fontFamily: 'System',
@@ -995,7 +1005,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
   },
-   retryAllButton: {
+  retryAllButton: {
     backgroundColor: COLORS.errorLight,
     borderColor: COLORS.error,
   },
@@ -1011,6 +1021,19 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     marginTop: 2,
     fontWeight: '500',
+  },
+  previewValueContainer: {
+    minHeight: 100,
+  },
+  previewEmptyValue: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewPlaceholderText: {
+    fontSize: 14,
+    color: COLORS.text.disabled,
+    marginTop: 8,
+    fontFamily: 'System',
   },
 });
 

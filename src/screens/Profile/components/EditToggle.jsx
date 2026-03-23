@@ -1,11 +1,18 @@
 // src/screens/Profile/components/EditToggle.jsx
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { COLORS } from '../../../constants/colors';
+import { COLORS} from '../../../constants/colors';
 import styles from '../Profile.styles';
+import { useNavigation } from '@react-navigation/native';
+import { ROUTES } from '../../../constants/routes';
 
 const EditToggle = ({ isEditing, onEdit, onSave, onCancel }) => {
+  const navigation = useNavigation();
+
+   const handleDataPress = () => {
+    navigation.navigate(ROUTES.DATA_INSPECTOR); // Navigate to Data Inspector screen
+   };
   if (isEditing) {
     return (
       <View style={styles.editToggle}>
@@ -29,7 +36,8 @@ const EditToggle = ({ isEditing, onEdit, onSave, onCancel }) => {
   }
 
   return (
-    <TouchableOpacity
+    <View style={localStyles.editToggle}>
+      <TouchableOpacity
       style={styles.editButton}
       onPress={onEdit}
       activeOpacity={0.8}
@@ -37,7 +45,24 @@ const EditToggle = ({ isEditing, onEdit, onSave, onCancel }) => {
       <Icon name="edit" size={16} color={COLORS.text.inverse} />
       <Text style={styles.editButtonText}>Edit</Text>
     </TouchableOpacity>
+    <TouchableOpacity
+      style={[styles.editButton, { backgroundColor: COLORS.secondary }]}
+      onPress={handleDataPress}
+      activeOpacity={0.8}
+    >
+      <Icon name="edit" size={16} color={COLORS.text.inverse} />
+      <Text style={styles.editButtonText}>Data</Text>
+    </TouchableOpacity>
+    </View>
   );
 };
+
+const localStyles = StyleSheet.create({
+  editToggle: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },  
+});
 
 export default EditToggle;

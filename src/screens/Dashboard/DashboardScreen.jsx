@@ -1,5 +1,5 @@
 // screens/Dashboard/DashboardScreen.jsx
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, use } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { withDatabase } from '@nozbe/watermelondb/DatabaseProvider';
 import { Q } from '@nozbe/watermelondb';
@@ -27,119 +27,208 @@ import { FormCard } from './components/FormCard/FormCard';
 import { FormFilter } from './components/FormFilter/FormFilter';
 import { EmptyState } from './components/EmptyState/EmptyState';
 import { ErrorState } from './components/ErrorState/ErrorState';
+import InfoBar from '../../components/UI/InfoBar';
+
+import { useGetFormsMutation } from '../../features/form/formsApi';
 
 import { styles } from './Dashboard.styles';
-
-const getFormsbody = {
-  apiId: 'SUA00931',
-  criteria: {
-    appId: 'AP000001',
-  },
-};
 
 const DashboardScreen = ({ database }) => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  
+  const { user } = useSelector(state => state.auth);
   // Local state
   const [forms, setForms] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isFromCache, setIsFromCache] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeSort, setActiveSort] = useState('newest');
-  
+
   // Internet status hook
   const { isOnline, isChecking } = useInternetStatus();
 
-  // Load forms from local database on mount
+  const [fetchForms] = useGetFormsMutation();
+
   useEffect(() => {
-    loadFormsFromDB();
+    if (!isInitialized) {
+      initializeData();
+      setIsInitialized(true);
+    }
   }, []);
 
-  // Load forms from local database
-  const loadFormsFromDB = async () => {
+  const initializeData = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const formsCollection = database.collections.get('forms');
-      const storedForms = await formsCollection.query().fetch();
-      
-      // Transform WatermelonDB records to plain objects for UI
-      const formList = storedForms.map(form => {
-        console.log(form, "ttt");
-        
-        return {
-        ...form.formSchema,
-        id: form.id,
-        formId: form.formId,
-        formName: form.formName,
-        title: form.formName,
-        formSchema: form.formSchema,
-        appId: form.appId,
-        createdAt: form.createdAt,
-        updatedAt: form.updatedAt,
+      if (isOnline) {
+        const success = await fetchFormsFromServer();
+        if (success) {
+          setLoading(false);
+          return;
+        }
       }
-      });
-      
-      setForms(formList);
-      setSyncError(null);
+      // If offline or server fetch failed, try to load from local database
+      await loadFormsFromDB();
     } catch (error) {
-      console.error('Error loading forms from DB:', error);
-      setSyncError('Failed to load forms from local storage');
+      console.error('Error loading forms:', error);
+      setError('Failed to loads forms. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch forms from server
-  const fetchFormsFromServer = useCallback(async () => {
-    if (!isOnline) {
-      console.log('📡 No internet connection, using cached data');
-      return false;
-    }
 
+  // Load forms from local database
+  const loadFormsFromDB = async () => {
+    console.log('Dashboardscreen: 📦 Loading forms from local database...');
     try {
-      console.log('📋 Fetching forms from server...');
-      const token = await TokenService.getAccessToken();
-      
-      const response = await fetch(`${API_BASE_URL}/SUF00191/getAllAppFormInfo`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(getFormsbody),
+      const formsCollection = database.collections.get('forms');
+      const storedForms = await formsCollection.query().fetch();
+
+      if (storedForms.length === 0) {
+        setForms([]);
+        return false; // Return false to indicate no data
+      }
+
+      // Transform WatermelonDB records to plain objects for UI
+      const formList = storedForms.map(form => {
+        return {
+          ...form.formSchema,
+          id: form.id,
+          formId: form.formId,
+          formName: form.formName,
+          // title: form.formName,
+          formSchema: form.formSchema,
+          appId: form.appId,
+          description: form.description,
+          status: form.status,
+          priority: form.priority,
+          totalFields: form.totalFields,
+          estimatedTime: form.estimatedTime,
+          completionRate: form.completionRate,
+          deadline: form.deadline,
+          surFormGenFlg: form.surFormGenFlg,
+          createdAt: form.createdAt,
+          updatedAt: form.updatedAt,
+        };
       });
 
-      const result = await response.json();
-      
-      if (result?.code === 0 && result?.content?.qryRsltSet) {
-        console.log('✅ Forms fetched successfully from server');
-        
-        // Store forms in local database
-        await database.write(async () => {
-          for (const formData of result.content.qryRsltSet) {
-            const existing = await database.collections
-              .get('forms')
-              .query(Q.where('form_id', formData.formId))
-              .fetch();
+      setForms(formList);
+      setError(null);
+      return true;
+    } catch (error) {
+      console.error('Error loading forms from DB:', error);
+      setError('Failed to load forms from local storage');
+      return false;
+    }
+  };
 
-            if (existing.length > 0) {
-              // Update existing form - DON'T set createdAt as it's readonly
-              await existing[0].update(record => {
-                record.formName = formData.formNm;
-                record.formSchema = formData;
-                // updatedAt is automatically set by WatermelonDB
-              });
-            } else {
-              // Create new form - DON'T set createdAt/updatedAt manually
-              await database.collections.get('forms').create(record => {
-                record.formId = formData.formId;
-                record.formName = formData.formNm;
-                record.formSchema = formData;
+  // Fetch forms from server
+  const fetchFormsFromServer = useCallback(async () => {
+    try {
+      console.log('📋 @Fetching forms from server...');
+      const payload = {
+        apiId: 'SUA01048',
+        criteria: {
+          appId: 'AP000001',
+          userId: user?.userId || '',
+        },
+      };
+
+      const result = await fetchForms(payload).unwrap();
+
+      if (result?.code === 0 && result?.content?.qryRsltSet) {
+        console.log('✅ @Forms fetched successfully from server');
+
+        // Get all current form IDs from local database
+        const formsCollection = database.collections.get('forms');
+        const allLocalForms = await formsCollection.query().fetch();
+
+        // Create a Set for IDs and a Map for object lookup
+        const localFormsMap = new Map(
+          allLocalForms.map(form => [form.formId, form]),
+        );
+
+        const allServerForms = result.content.qryRsltSet;
+        const allServerFormsIds = new Set(
+          allServerForms.map(form => form.formId),
+        );
+
+        // Find forms that exist locally but not on server (to be deleted)
+        const formsToDelete = allLocalForms.filter(
+          form => !allServerFormsIds.has(form.formId),
+        );
+
+        if (result.content.qryRsltSet.length === 0) {
+          // Server has no forms - clear everything
+          console.log('⚠️ @Server has no forms, clearing local database');
+          await database.write(async () => {
+            for (const form of allLocalForms) {
+              await form.destroyPermanently();
+            }
+          });
+          await loadFormsFromDB();
+          return true;
+        }
+
+        // Perform database operations in a single write batch
+        await database.write(async () => {
+          // 1. Delete forms that no longer exist on server
+          if (formsToDelete.length > 0) {
+            console.log(
+              '🗑️ @Deleting local forms that no longer exist on server:',
+              formsToDelete.map(f => f.formId),
+            );
+
+            for (const form of formsToDelete) {
+              await form.destroyPermanently();
+            }
+          }
+
+          // 2. Update or create forms from server data
+          for (const serverForm of allServerForms) {
+            // Use the Map for lookup instead of Set
+            const existingForm = localFormsMap.get(serverForm.formId);
+
+            if (existingForm) {
+              // Update existing form
+              await existingForm.update(record => {
+                record.formName = serverForm.formNm;
+                record.formSchema = serverForm;
                 record.appId = 'AP000001';
-                // createdAt and updatedAt are automatically set by WatermelonDB
+                record.description =
+                  serverForm.formDesc || 'No description available';
+                record.status = serverForm.status || 'active';
+                record.priority = serverForm.priority || 'medium';
+                record.totalFields = serverForm.totalFields || 0;
+                record.estimatedTime = serverForm.estimatedTime || 5;
+                record.completionRate = serverForm.completionRate || 0;
+                record.deadline = serverForm.deadline || null;
+                record.surFormGenFlg = serverForm.surFormGenFlg || null;
               });
+              console.log(`🔄 @Updated form: ${serverForm.formId}`);
+            } else {
+              // Create new form
+              await formsCollection.create(record => {
+                record.formId = serverForm.formId;
+                record.formName = serverForm.formNm;
+                record.formSchema = serverForm;
+                record.appId = 'AP000001';
+                record.description =
+                  serverForm.formDesc || 'No description available';
+                record.status = serverForm.status || 'active';
+                record.priority = serverForm.priority || 'medium';
+                record.totalFields = serverForm.totalFields || 0;
+                record.estimatedTime = serverForm.estimatedTime || 5;
+                record.completionRate = serverForm.completionRate || 0;
+                record.deadline = serverForm.deadline || null;
+                record.surFormGenFlg = serverForm.surFormGenFlg || null;
+              });
+              console.log(`✅ @Created new form: ${serverForm.formId}`);
             }
           }
         });
@@ -148,30 +237,28 @@ const DashboardScreen = ({ database }) => {
         await loadFormsFromDB();
         return true;
       } else {
-        // Handle API error
-        const errorMsg = result?.appMsgList?.list?.[0]?.errDesc || 'Failed to load forms';
+        // Handle API error (existing error handling code)
+        const errorMsg =
+          result?.appMsgList?.list?.[0]?.errDesc || 'Failed to load forms';
         console.error('Server error:', errorMsg);
-        
-        // Check if token expired
+
         if (result?.code === 401 || result?.code === 403) {
           handleTokenExpired();
         }
-        
-        setSyncError(errorMsg);
+        setError(errorMsg);
         return false;
       }
     } catch (err) {
       console.error('Network error fetching forms:', err);
-      
-      // Handle network errors
+
       if (err?.status === 401 || err?.status === 403) {
         handleTokenExpired();
       }
-      
-      setSyncError('Network error. Using cached data.');
+
+      setError('Network error. Using cached data.');
       return false;
     }
-  }, [isOnline, database]);
+  }, [database, fetchForms]);
 
   // Handle token expiration
   const handleTokenExpired = async () => {
@@ -190,15 +277,15 @@ const DashboardScreen = ({ database }) => {
             });
           },
         },
-      ]
+      ],
     );
   };
 
   // Refresh handler (pull to refresh)
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    setSyncError(null);
-    
+    setError(null);
+
     // Always try to fetch from server when online
     if (isOnline) {
       await fetchFormsFromServer();
@@ -206,24 +293,9 @@ const DashboardScreen = ({ database }) => {
       // If offline, just reload from DB
       await loadFormsFromDB();
     }
-    
+
     setRefreshing(false);
   }, [isOnline, fetchFormsFromServer]);
-
-  // Initial data load with server fetch if online
-  useEffect(() => {
-    const initializeData = async () => {
-      // First load from DB immediately
-      await loadFormsFromDB();
-      
-      // Then try to fetch fresh data from server if online
-      if (isOnline && !isChecking) {
-        await fetchFormsFromServer();
-      }
-    };
-
-    initializeData();
-  }, [isOnline, isChecking]);
 
   // Filter and sort forms
   const filteredForms = useMemo(() => {
@@ -232,9 +304,18 @@ const DashboardScreen = ({ database }) => {
     // Apply filter
     if (activeFilter !== 'all') {
       if (activeFilter === 'priority') {
-        result = result.filter(form => form.priority === 'high' || form.priority === 'geom');
-      } else {
-        result = result.filter(form => form.status === activeFilter);
+        result = result.filter(
+          form => form.priority === 'high' || form.priority === 'geom',
+        );
+      } 
+      else if (activeFilter === 'inActive') {
+        result = result.filter(form => form.status === 'inActive');
+      }
+      else if (activeFilter === 'active') {
+        result = result.filter(form => form.status === 'active');
+      }
+      else {
+        result = []; // No filter, show all
       }
     }
 
@@ -259,11 +340,11 @@ const DashboardScreen = ({ database }) => {
 
   // Handle form press
   const handleFormPress = form => {
-    console.log('Form selected:', form.formId);
     navigation.navigate(ROUTES.RECORD_ENTRY, {
       appId: 'AP000001',
       formId: form.formId,
       formTitle: form.formName,
+      surFormGenFlg: form.surFormGenFlg,
     });
   };
 
@@ -274,34 +355,26 @@ const DashboardScreen = ({ database }) => {
 
   // Handle logout
   const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await TokenService.clearTokens();
-            dispatch(logout());
-            navigation.reset({
-              index: 0,
-              routes: [{ name: ROUTES.LOGIN }],
-            });
-          },
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          await TokenService.clearTokens();
+          dispatch(logout());
+          navigation.reset({
+            index: 0,
+            routes: [{ name: ROUTES.LOGIN }],
+          });
         },
-      ]
-    );
+      },
+    ]);
   };
 
   // Render form item
   const renderItem = ({ item, index }) => (
-    <FormCard 
-      form={item} 
-      index={index} 
-      onPress={() => handleFormPress(item)} 
-    />
+    <FormCard form={item} index={index} onPress={() => handleFormPress(item)} />
   );
 
   // Render content based on state
@@ -315,34 +388,41 @@ const DashboardScreen = ({ database }) => {
       );
     }
 
-    if (syncError && forms.length === 0) {
+    if (error && forms.length === 0) {
       return (
-        <ErrorState 
-          error={syncError} 
+        <ErrorState
+          error={error}
           onRetry={() => {
             if (isOnline) {
               fetchFormsFromServer();
             } else {
               loadFormsFromDB();
             }
-          }} 
+          }}
         />
       );
     }
 
     if (filteredForms.length === 0) {
+      // Custom message for offline empty state
+      const emptyTitle =
+        !isOnline && !isChecking
+          ? 'Offline - No Cached Forms'
+          : activeFilter === 'all'
+          ? 'No Forms Available'
+          : `No ${activeFilter} Forms`;
+
+      const emptyMessage =
+        !isOnline && !isChecking
+          ? 'You are offline and no cached forms are available. Please connect to internet and try again.'
+          : activeFilter === 'all'
+          ? 'There are no forms assigned to you at the moment.'
+          : `You don't have any ${activeFilter} forms.`;
+
       return (
         <EmptyState
-          title={
-            activeFilter === 'all'
-              ? 'No Forms Available'
-              : `No ${activeFilter} Forms`
-          }
-          message={
-            activeFilter === 'all'
-              ? 'There are no forms assigned to you at the moment.'
-              : `You don't have any ${activeFilter} forms.`
-          }
+          title={emptyTitle}
+          message={emptyMessage}
           onAction={() => {
             if (isOnline) {
               fetchFormsFromServer();
@@ -370,15 +450,16 @@ const DashboardScreen = ({ database }) => {
         }
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          syncError && forms.length > 0 ? (
-            <View style={[styles.syncErrorContainer, { backgroundColor: COLORS.warningLight, padding: 12, borderRadius: 8, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-              <Text style={[styles.syncErrorText, { fontSize: 14, color: COLORS.warning, flex: 1 }]}>{syncError}</Text>
-              {isOnline && (
-                <TouchableOpacity onPress={fetchFormsFromServer}>
-                  <Text style={[styles.retryText, { fontSize: 14, color: COLORS.primary, fontWeight: '600', marginLeft: 12 }]}>Retry</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+          error && forms.length > 0 ? (
+            <InfoBar
+              type={'warning'}
+              title={
+                error || 'Failed to sync with server. Showing cached data.'
+              }
+              showAction={isOnline}
+              actionTitle="Retry"
+              onAction={fetchFormsFromServer}
+            />
           ) : null
         }
       />
@@ -405,10 +486,7 @@ const DashboardScreen = ({ database }) => {
           >
             <Icon name="person" size={24} color={COLORS.text.primary} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.iconButton} 
-            onPress={handleLogout}
-          >
+          <TouchableOpacity style={styles.iconButton} onPress={handleLogout}>
             <Icon name="logout" size={24} color={COLORS.error} />
           </TouchableOpacity>
         </View>

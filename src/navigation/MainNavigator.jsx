@@ -4,6 +4,7 @@ import ProfileScreen from '../screens/Profile/ProfileScreen';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
 import RecordEntryScreen from '../screens/RecordEntry/RecordEntryScreen';
 import PreviewEntryScreen from '../screens/PreviewEntry/PreviewEntry';
+import DataInspectorScreen from '../screens/DataInspector/DataInspectorScreen';
 import { ROUTES } from '../constants/routes';
 
 const Stack = createStackNavigator();
@@ -60,6 +61,11 @@ const MainNavigator = () => {
         name={ROUTES.PREVIEW_ENTRY} // Add this screen
         component={PreviewEntryScreen}
         options={{ title: 'Preview' }}
+      />
+      <Stack.Screen
+        name={ROUTES.DATA_INSPECTOR} // Add this route
+        component={DataInspectorScreen}
+        options={{ title: 'Data Inspector' }}
       />
     </Stack.Navigator>
   );

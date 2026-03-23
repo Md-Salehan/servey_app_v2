@@ -212,7 +212,7 @@ const PreviewScreen = () => {
   };
 
   // Function to confirm all uploaded images
-  const confirmAllUploads = async (data) => {
+  const confirmAllUploads = async () => {
     // Collect all flUpldLogNo from image fields
     const confirmations = [];
     
@@ -285,19 +285,21 @@ const PreviewScreen = () => {
       formComponents
         ?.map(component => {
           let value = fieldValues[component.fcId];
-          console.log(value, "pld value");
-          
+
           // Handle image upload field (compTyp '07')
           if (component.compTyp === '07' && value) {
             if (Array.isArray(value)) {
-              // Extract serverUrl from each image object and filter out any invalid URLs
-              value = value.map(image => image.flUpldLogNo ).filter(flUpldLogNo => flUpldLogNo); // Keep only valid flUpldLogNo values
-              value = JSON.stringify(value); // Convert array of flUpldLogNo to JSON string for submission
+              // Extract flUpldLogNo from uploaded images
+              const uploadedLogNos = value
+                .filter(img => img.uploaded && img.flUpldLogNo)
+                .map(img => img.flUpldLogNo);
+
+              value = uploadedLogNos.length > 0 ? uploadedLogNos : null;
             }
           }
 
           // Only include fields with values
-            if (value !== undefined && value !== null && value !== '') {
+          if (value && (Array.isArray(value) ? value.length > 0 : true)) {
             return {
               compTyp: component.compTyp,
               fcId: component.fcId,
@@ -361,14 +363,13 @@ const PreviewScreen = () => {
         );
         return;
       }
-      const need_to_confirm_data = response?.content?.mst || {};
+
       // Step 2: After successful form submission, confirm all uploads
-      const confirmResult = await uploadService.confirmUploads(need_to_confirm_data);
+      const confirmResult = await confirmAllUploads();
       
       if (!confirmResult.success) {
         // Log but don't show error to user since form already submitted
         console.error('Upload confirmation failed:', confirmResult.error);
-        return;
       }
 
       // Step 3: Show success message and navigate

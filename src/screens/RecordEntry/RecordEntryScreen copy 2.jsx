@@ -1,5 +1,5 @@
 // screens/RecordEntry/RecordEntryScreen.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   View,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { withDatabase } from '@nozbe/watermelondb/DatabaseProvider';
 import { Q } from '@nozbe/watermelondb';
 import { COLORS } from '../../constants/colors';
@@ -32,7 +32,7 @@ const RecordEntryScreen = ({ database }) => {
   const route = useRoute();
   const navigation = useNavigation();
 
-  const { appId, formId, formTitle, surFormGenFlg, shouldReset, resetTimestamp } = route.params || {};
+  const { appId, formId, formTitle } = route.params || {};
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [formComponents, setFormComponents] = useState([]);
@@ -63,23 +63,10 @@ const RecordEntryScreen = ({ database }) => {
     }
   }, [appId, formId]);
 
-  // To handle reset flag from navigation
-  useFocusEffect(
-    useCallback(() => {
-      // Check if we should reset when screen comes into focus
-      if (shouldReset) {
-        resetForm();
-        // Clear the flag from navigation params to prevent multiple resets
-        navigation.setParams({ shouldReset: undefined, resetTimestamp: undefined });
-      }
-    }, [shouldReset, resetTimestamp, resetForm, navigation])
-  );
-
   const initializeData = async () => {
     setLoading(true);
     setError(null);
-    console.log("IN isOnline: ", isOnline);
-    
+
     try {
       // Try to fetch from server if online
       if (isOnline) {
@@ -99,8 +86,6 @@ const RecordEntryScreen = ({ database }) => {
       setLoading(false);
     }
   };
-      console.log("OUT isOnline: ", isOnline);
-
 
   const fetchFormComponentsFromServer = async () => {
     try {
@@ -148,7 +133,8 @@ const RecordEntryScreen = ({ database }) => {
           }
         });
 
-        await loadFormComponentsFromDB();
+        setFormComponents(sortedComponents);
+        initializeFieldValues(sortedComponents);
         return true;
       } else {
         console.log('Server returned error, falling back to cache');
@@ -182,18 +168,15 @@ const RecordEntryScreen = ({ database }) => {
         setFormComponents(sortedComponents);
         initializeFieldValues(sortedComponents);
         console.log('✅ Form components loaded from database');
-        return true;
       } else {
         // No data available locally
         setError(
           'Form not available offline. Please connect to the internet to download it.',
         );
-        return false;
       }
     } catch (err) {
       console.error('Error loading from database:', err);
       setError('Failed to load form from local storage');
-      return false;
     }
   };
 
@@ -213,16 +196,6 @@ const RecordEntryScreen = ({ database }) => {
     setFieldValues(initialValues);
     setSubmissionError(fieldErrors);
   };
-
-  //resetForm function
-  const resetForm = useCallback(() => {
-    console.log('Resetting form fields...');
-    setFieldValues({});
-    setSubmissionError({});
-    if (formComponents.length > 0) {
-      initializeFieldValues(formComponents);
-    }
-  }, [formComponents]);
 
   const handleFieldChange = (fcId, value) => {
     console.log('Field changed:', fcId, value);
@@ -290,7 +263,6 @@ const RecordEntryScreen = ({ database }) => {
       formId,
       fieldValues,
       formComponents,
-      surFormGenFlg,
     });
   };
 
@@ -368,7 +340,6 @@ const RecordEntryScreen = ({ database }) => {
           <ImageUploadField
             key={fcId}
             fcId={fcId}
-            formId={formId}
             label={props?.label || 'Upload Image'}
             required={props?.required === 'Y'}
             multiple={parseInt(props.maxImages) > 1}
@@ -544,7 +515,7 @@ const RecordEntryScreen = ({ database }) => {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={initializeData}
+            onPress={loadFormComponents}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>

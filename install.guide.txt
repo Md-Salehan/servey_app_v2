@@ -35,6 +35,18 @@ at android/app/src/main/AndroidManifest.xml
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+-- uuid 
+npm install uuid --legacy-peer-deps
+
+-- moment
+npm i moment --legacy-peer-deps
+
+-- netinfo
+npm install @react-native-community/netinfo --legacy-peer-deps
+
+-- permissions
+npm i react-native-permissions
+
 -- WatermelonDB
 npm install @nozbe/watermelondb
 npm install @nozbe/with-observables rxjs --legacy-peer-deps
@@ -83,10 +95,10 @@ ___________________________________________________
 ___________________________________________________
 UPDATES
 
-FOR to accept HTTP REq in Release build -:
+FOR to accept HTTP Req in Release build -:
 Change your android/app/src/main/AndroidManifest.xml:
 from - android:usesCleartextTraffic="${usesCleartextTraffic}"
-to - android:usesCleartextTraffic="${usesCleartextTraffic}"
+to - android:usesCleartextTraffic="true"
 
 
 FOR app icon android

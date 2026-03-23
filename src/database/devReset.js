@@ -9,8 +9,8 @@ export const resetDatabaseIfNeeded = async () => {
 
   try {
     console.log('🧪 DEV: Resetting WatermelonDB...');
+    await database.write(() => database.unsafeResetDatabase());
 
-    await database.unsafeResetDatabase();
 
     console.log('✅ DEV: Database reset complete');
   } catch (error) {

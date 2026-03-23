@@ -12,3 +12,6 @@ export { default as CheckboxField } from './form/CheckboxField';
 export { default as SignatureField } from './form/SignatureField';
 
 export { default as ErrorState } from './ErrorState/ErrorState';
+
+
+export {default as InfoBar} from './UI/InfoBar'

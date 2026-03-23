@@ -9,7 +9,8 @@ export default function useInternetStatus() {
     const unsubscribe = NetInfo.addEventListener(state => {
       const online =
         state.isConnected && state.isInternetReachable !== false;
-
+      console.log('NetInfo state:', state, online);
+      
       setIsOnline(online);
       setIsChecking(false);
     });

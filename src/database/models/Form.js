@@ -13,6 +13,14 @@ export default class Form extends Model {
   @field('form_name') formName;
   @json('form_schema', schema => schema) formSchema;
   @field('app_id') appId;
+  @field('description') description;
+  @field('status') status; // active, inactive
+  @field('priority') priority; // high, medium, low, geom
+  @field('totalFields') totalFields;
+  @field('estimatedTime') estimatedTime;
+  @field('completionRate') completionRate;
+  @field('deadline') deadline; // timestamp
+  @field('surFormGenFlg') surFormGenFlg; 
   @readonly @date('created_at') createdAt;
   @readonly @date('updated_at') updatedAt;
 
