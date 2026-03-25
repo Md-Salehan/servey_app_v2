@@ -39,7 +39,7 @@ const truncate = (str, length = 50) => {
 };
 
 // Dynamic Table Component for displaying records from any collection
-const DynamicDataTable = ({ title, data, collectionName, onRefresh, icon, color = COLORS.primary }) => {
+const DynamicDataTable = ({ title, data, onRefresh, icon, color = COLORS.primary }) => {
   const [expandedRows, setExpandedRows] = useState({});
   const [showAllColumns, setShowAllColumns] = useState(false);
 
@@ -59,7 +59,7 @@ const DynamicDataTable = ({ title, data, collectionName, onRefresh, icon, color 
 
   // Dynamically determine columns from the first record
   const allColumns = Object.keys(data[0]).filter(key => 
-    !key.startsWith('_') && key !== 'table'
+    !key.startsWith('_') && key !== 'table' && key !== 'collection' && key !== 'asModel'
   );
   const displayColumns = showAllColumns ? allColumns : allColumns.slice(0, 5);
 
@@ -277,7 +277,6 @@ const DataInspectorScreen = ({ navigation }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredTables, setFilteredTables] = useState([]);
   const [showSearch, setShowSearch] = useState(false);
-  const [tableColors, setTableColors] = useState({});
 
   // Generate consistent colors for tables based on name
   const getTableColor = (tableName) => {
@@ -302,88 +301,97 @@ const DataInspectorScreen = ({ navigation }) => {
     return colors[Math.abs(hash) % colors.length];
   };
 
-  // Get all collections from WatermelonDB
-  const getAllCollections = useCallback(() => {
+  // Fetch data from a specific collection using the database.get() method
+  const fetchCollectionData = async (collectionName) => {
     try {
-      // Access all collections from the database
-      // WatermelonDB stores collections in the `collections` object
-      const collections = database.collections;
-      const collectionNames = Object.keys(collections);
+      // Try to get the collection from database
+      const collection = database.collections.get(collectionName);
       
-      return collectionNames.map(name => ({
-        name,
-        collection: collections[name],
-      }));
-    } catch (error) {
-      console.error('Error getting collections:', error);
-      return [];
-    }
-  }, []);
-
-  // Fetch data from a specific collection
-  const fetchCollectionData = async (collection) => {
-    try {
+      if (!collection) {
+        console.warn(`Collection ${collectionName} not found`);
+        return [];
+      }
+      
       const records = await collection.query().fetch();
       
       // Convert records to plain objects with all properties
       return records.map(record => {
         const plainRecord = {};
         
-        // Get all raw properties from the record
+        // Get all properties from the record
         // This includes both database fields and any other properties
-        Object.keys(record).forEach(key => {
-          if (key !== '_raw' && key !== 'collection' && key !== '_changes') {
+        const allProps = Object.keys(record);
+        
+        allProps.forEach(key => {
+          // Skip internal properties and functions
+          if (!key.startsWith('_') && 
+              key !== 'collection' && 
+              key !== 'asModel' &&
+              typeof record[key] !== 'function') {
+            
             const value = record[key];
             
             // Handle special types
             if (value && typeof value === 'object' && value.toISOString) {
               plainRecord[key] = value.toISOString();
-            } else if (value && typeof value === 'object' && value.toString) {
-              plainRecord[key] = value.toString();
+            } else if (value && typeof value === 'object' && !Array.isArray(value) && value.toString) {
+              plainRecord[key] = JSON.stringify(value);
             } else {
               plainRecord[key] = value;
             }
           }
         });
         
-        // Also include any observed fields
-        if (record._raw && record._raw) {
-          Object.assign(plainRecord, record._raw);
+        // If we have _raw data, include it as well
+        if (record._raw) {
+          Object.keys(record._raw).forEach(key => {
+            if (!plainRecord[key]) {
+              plainRecord[key] = record._raw[key];
+            }
+          });
         }
         
         return plainRecord;
       });
     } catch (error) {
-      console.error(`Error fetching data from collection:`, error);
+      console.error(`Error fetching data from ${collectionName}:`, error);
       return [];
     }
+  };
+
+  // Define your collections based on your database schema
+  const getCollections = () => {
+    // List all your collections based on your models
+    // Update this list based on your actual models
+    const collections = [
+      'forms',
+      'form_components',
+      'submissions',
+      'pending_submissions',
+      'pending_files',
+      'submission_attempts'
+    ];
+    
+    return collections;
   };
 
   // Fetch all data from WatermelonDB
   const fetchDbData = async () => {
     try {
-      const collections = getAllCollections();
+      const collections = getCollections();
       const tablesData = [];
       
-      for (const { name, collection } of collections) {
-        const data = await fetchCollectionData(collection);
+      for (const collectionName of collections) {
+        const data = await fetchCollectionData(collectionName);
         tablesData.push({
-          name,
+          name: collectionName,
           data,
-          icon: getIconForTable(name),
-          color: getTableColor(name),
+          icon: getIconForTable(collectionName),
+          color: getTableColor(collectionName),
         });
       }
       
       setAllTables(tablesData);
-      
-      // Store colors for consistency
-      const colors = {};
-      tablesData.forEach(table => {
-        colors[table.name] = table.color;
-      });
-      setTableColors(colors);
-      
     } catch (error) {
       console.error('Error fetching database data:', error);
       Alert.alert('Error', 'Failed to fetch database data');
@@ -396,6 +404,9 @@ const DataInspectorScreen = ({ navigation }) => {
       'forms': 'description',
       'form_components': 'widgets',
       'submissions': 'assignment',
+      'pending_submissions': 'pending-actions',
+      'pending_files': 'attach-file',
+      'submission_attempts': 'history',
       'users': 'people',
       'settings': 'settings',
       'logs': 'list-alt',
@@ -639,7 +650,6 @@ const DataInspectorScreen = ({ navigation }) => {
             key={table.name}
             title={table.name.charAt(0).toUpperCase() + table.name.slice(1).replace(/_/g, ' ')}
             data={table.data}
-            collectionName={table.name}
             icon={table.icon}
             color={table.color}
             onRefresh={handleRefresh}

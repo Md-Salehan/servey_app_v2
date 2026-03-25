@@ -7,6 +7,7 @@ import UploadService from './uploadService';
 import { API_BASE_URL } from '../constants/api';
 import TokenService from './storage/tokenService';
 import NetInfo from '@react-native-community/netinfo';
+import { store } from '../app/store';
 
 class SubmissionService {
   constructor(database) {
@@ -39,6 +40,11 @@ class SubmissionService {
 
   // Main queue processing method
   async processQueue() {
+    if (!(await this.isOnline())) {
+      console.log('Device is offline, skipping queue processing');
+      return;
+    }
+
     if (this.isProcessing) {
       console.log('Already processing queue, skipping...');
       return;
@@ -164,9 +170,11 @@ class SubmissionService {
           throw new Error(result.error);
         }
       } catch (error) {
-        // Handle file upload failure
-        await this.handleFileUploadError(file, error);
-        uploadResults.push({ success: false, fileId: file.fileId, error });
+        // dont call handleFileUploadError if its network error, just set nextRetryAt and wait for next retry
+        if (error.message !== 'Network error') {
+          await this.handleFileUploadError(file, error);
+          uploadResults.push({ success: false, fileId: file.fileId, error });
+        }
       }
     }
 
@@ -246,8 +254,10 @@ class SubmissionService {
         throw new Error(errorMsg);
       }
     } catch (error) {
-      await attempt.markAsFailed(error);
-      return { success: false, error: error.message };
+      if (error.message !== 'Network error') {
+        await attempt.markAsFailed(error);
+        return { success: false, error: error.message };
+      }
     }
   }
 
@@ -301,48 +311,23 @@ class SubmissionService {
         .filter(item => item !== null) || [];
 
     // Get location from field values if exists
-    const { lat, lng } = this.getLatLng(
-      submission.fieldValues,
-      submission.formComponents,
-    );
+    // const { lat, lng } = this.getLatLng(
+    //   submission.fieldValues,
+    //   submission.formComponents,
+    // );
 
-    return {
-      apiId: 'SUA01031',
-      mst: {
-        appId: submission.appId,
-        formId: submission.formId,
-        dtl01: [
-          {
-            dtl02: dtl02,
-            blkCd: '',
-            blkNm: '',
-            csLocTyp: '',
-            distCd: '',
-            distNm: '',
-            geoJson: '',
-            jlNo: '',
-            latitude: lat,
-            longitude: lng,
-            lvlRefCd: '',
-            panCd: '',
-            panNm: '',
-            plcn: '',
-            stateCd: '',
-            stateNm: '',
-            subdCd: '',
-            subdNm: '',
-            surDate: now.toISOString().split('T')[0],
-            surMobNo: '', // Will be filled by server or from user data
-            surRefTyp: '',
-            surTime: now.toTimeString().split(' ')[0],
-            surUserId: '', // Will be filled by server or from user data
-            townNm: '',
-            villNm: '',
-            wardNo: '',
-          },
-        ],
-      },
-    };
+    const storePayload = submission.payload || {};
+
+    storePayload.mst[0].dtl01[0].dtl02 = dtl02;
+
+    storePayload.mst[0].dtl01[0].latitude =
+      storePayload.mst[0].dtl01[0].latitude || null;
+    storePayload.mst[0].dtl01[0].longitude =
+      storePayload.mst[0].dtl01[0].longitude || null;
+
+    console.log('pld storePayload', storePayload);
+
+    return storePayload;
   }
 
   // Helper to extract location from field values
@@ -402,8 +387,10 @@ class SubmissionService {
         throw new Error(confirmResult.error || 'Upload confirmation failed');
       }
     } catch (error) {
-      await attempt.markAsFailed(error);
-      return { success: false, error: error.message };
+      if (error.message !== 'Network error') {
+        await attempt.markAsFailed(error);
+        return { success: false, error: error.message };
+      }
     }
   }
 
@@ -445,7 +432,7 @@ class SubmissionService {
 
   // Create a new pending submission
   async createPendingSubmission(
-    formData,
+    formDetail,
     fieldValues,
     formComponents,
     payload,
@@ -455,9 +442,9 @@ class SubmissionService {
       const pendingSubmission = await PendingSubmission.createPendingSubmission(
         this.database,
         {
-          formId: formData.formId,
-          formName: formData.formName,
-          appId: formData.appId,
+          formId: formDetail.formId,
+          formName: formDetail.formName,
+          appId: formDetail.appId,
           fieldValues,
           formComponents,
           payload,
@@ -474,7 +461,7 @@ class SubmissionService {
         await PendingFile.createPendingFile(this.database, {
           submissionId: pendingSubmission.submissionId,
           fcId: file.fcId,
-          formId: formData.formId,
+          formId: formDetail.formId,
           localUri: file.uri,
           fileName: file.fileNm || file.fileName || `file_${Date.now()}.jpg`,
           fileType: file.type || 'image/jpeg',
@@ -537,8 +524,28 @@ class SubmissionService {
       const files = await submission.files.fetch();
       const attempts = await submission.attempts.fetch();
 
+      // Log the submission data for debugging
+      console.log('Submission data:', {
+        submissionId: submission.submissionId,
+        formName: submission.formName,
+        fieldValuesKeys: Object.keys(submission.fieldValues || {}),
+        formComponentsLength: submission.formComponents?.length,
+      });
+
       result.push({
-        ...submission,
+        ...submission._raw, // Use _raw to get raw data if needed
+        submissionId: submission.submissionId,
+        formId: submission.formId,
+        formName: submission.formName,
+        appId: submission.appId,
+        fieldValues: submission.fieldValues,
+        formComponents: submission.formComponents,
+        status: submission.status,
+        retryCount: submission.retryCount,
+        maxRetries: submission.maxRetries,
+        createdAt: submission.createdAt,
+        completedAt: submission.completedAt,
+        errorMessage: submission.errorMessage,
         files: files,
         attempts: attempts,
         totalFiles: files.length,

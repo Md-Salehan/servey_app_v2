@@ -296,10 +296,6 @@ class UploadService {
     }
   }
 
-  // Check if file is fully processed (uploaded and confirmed)
-  isFileFullyProcessed(file) {
-    return file?.uploaded && file?.confirmed === true && file?.flUpldLogNo;
-  }
 
   // Check if file is uploaded but not confirmed
   isFileUploadedOnly(file) {
@@ -337,37 +333,7 @@ class UploadService {
       }));
   }
 
-  // Get file URIs for display
-  getFileUris(fieldValue) {
-    if (!fieldValue) return [];
 
-    if (Array.isArray(fieldValue)) {
-      return fieldValue
-        .filter(file => file.uri || file.fileUri)
-        .map(file => file.uri || file.fileUri);
-    }
-
-    return [];
-  }
-
-  // Get file metadata for display
-  getFileMetadata(fieldValue) {
-    if (!fieldValue) return [];
-
-    if (Array.isArray(fieldValue)) {
-      return fieldValue.map(file => ({
-        uri: file.uri || file.fileUri,
-        name: file.fileNm,
-        type: file.fileType,
-        id: file.fileId,
-        uploaded: file.uploaded,
-        confirmed: file.confirmed,
-        flUpldLogNo: file.flUpldLogNo,
-      }));
-    }
-
-    return [];
-  }
 }
 
 export default new UploadService();

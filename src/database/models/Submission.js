@@ -2,14 +2,14 @@
 import { Model } from '@nozbe/watermelondb';
 import { field, json, readonly, date, relation } from '@nozbe/watermelondb/decorators';
 import uuid from 'react-native-uuid';
-
+import { STATUS } from '../../constants/enums';
 export default class Submission extends Model {
   static table = 'submissions';
 
   static STATUS = {
-    PENDING: 'pending',
-    UPLOADED: 'uploaded',
-    FAILED: 'failed',
+    PENDING: STATUS.PENDING,
+    UPLOADED: STATUS.UPLOADED,
+    FAILED: STATUS.FAILED,
   };
 
   static associations = {
@@ -57,7 +57,7 @@ export default class Submission extends Model {
   }
 
   async markAsUploaded() {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.status = Submission.STATUS.UPLOADED;
@@ -67,7 +67,7 @@ export default class Submission extends Model {
   }
 
   async markAsFailed(error) {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.status = Submission.STATUS.FAILED;
@@ -79,7 +79,7 @@ export default class Submission extends Model {
   }
 
   async retry() {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.status = Submission.STATUS.PENDING;

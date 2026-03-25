@@ -2,15 +2,15 @@
 import { Model } from '@nozbe/watermelondb';
 import { field, json, readonly, date, children, relation } from '@nozbe/watermelondb/decorators';
 import uuid from 'react-native-uuid';
-
+import { STATUS } from '../../constants/enums';
 export default class PendingSubmission extends Model {
   static table = 'pending_submissions';
 
   static STATUS = {
-    PENDING: 'pending',
-    PROCESSING: 'processing',
-    COMPLETED: 'completed',
-    FAILED: 'failed',
+    PENDING: STATUS.PENDING,
+    PROCESSING: STATUS.PROCESSING,
+    COMPLETED: STATUS.COMPLETED,
+    FAILED: STATUS.FAILED,
   };
 
   static STEP = {
@@ -80,7 +80,7 @@ export default class PendingSubmission extends Model {
   }
 
   async markAsProcessing() {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.status = PendingSubmission.STATUS.PROCESSING;
@@ -89,7 +89,7 @@ export default class PendingSubmission extends Model {
   }
 
   async markAsCompleted() {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.status = PendingSubmission.STATUS.COMPLETED;
@@ -99,7 +99,7 @@ export default class PendingSubmission extends Model {
   }
 
   async markAsFailed(error) {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.status = PendingSubmission.STATUS.FAILED;
@@ -110,7 +110,7 @@ export default class PendingSubmission extends Model {
   }
 
   async incrementRetry() {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.retryCount = (record.retryCount || 0) + 1;

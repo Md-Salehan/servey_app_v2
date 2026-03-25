@@ -17,7 +17,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS } from '../../constants/colors';
 import uploadService from '../../services/uploadService';
 import commonStyles from './FormComponents.styles';
-
+import { STATUS } from '../../constants/enums';
 const ImageUploadField = ({
   fcId,
   label,
@@ -227,8 +227,9 @@ const ImageUploadField = ({
           width: asset.width,
           height: asset.height,
           timestamp: new Date().toISOString(),
-          uploaded: false,
+          // uploaded: false,
           uploading: false,
+          status: STATUS.PENDING,
           error: null,
           flUpldLogNo: null, // Will store upload log number
           fileId: null, // Will store file ID
@@ -261,7 +262,7 @@ const ImageUploadField = ({
 
     setUploading(true);
     
-    const imagesToUpload = images.filter(img => !img.uploaded);
+    const imagesToUpload = images.filter(img => img.status !== STATUS.UPLOADED);
     if (imagesToUpload.length === 0) {
       setUploading(false);
       Alert.alert('Info', 'All images are already uploaded');
@@ -291,11 +292,12 @@ const ImageUploadField = ({
         if (result) {
           return {
             ...img,
-            uploaded: result.success,
+            // uploaded: result.success,
             uploading: false,
             fileUri: result.fileUri || result.uri,
             flUpldLogNo: result.flUpldLogNo,
             fileId: result.fileId,
+            status: result.success ? STATUS.UPLOADED : STATUS.FAILED,
             // fileNm: result.fileNm,
             confirmed: result.confirmed || false,
             error: result.error || null,
@@ -358,10 +360,11 @@ const ImageUploadField = ({
           return {
             ...img,
             uploading: false,
-            uploaded: result.success,
+            // uploaded: result.success,
             fileUri: result.fileUri,
             flUpldLogNo: result.flUpldLogNo,
             fileId: result.fileId,
+            status: result.success ? STATUS.UPLOADED : STATUS.FAILED,
             // fileNm: result.fileNm,
             confirmed: result.confirmed || false,
             error: result.error || null,
@@ -424,7 +427,7 @@ const ImageUploadField = ({
 
   // Retry all failed uploads
   const retryAllFailedUploads = async () => {
-    const failedImages = images.filter(img => img.error && !img.uploaded);
+    const failedImages = images.filter(img => img.error || img.status === STATUS.FAILED);
     
     if (failedImages.length === 0) {
       Alert.alert('Info', 'No failed uploads to retry');
@@ -448,7 +451,7 @@ const ImageUploadField = ({
   // Get value for API payload (returns array of upload log numbers for uploaded images)
   const getValueForApi = () => {
     return images
-      .filter(img => img.uploaded && img.flUpldLogNo)
+      .filter(img => img.status === STATUS.UPLOADED && img.flUpldLogNo)
       .map(img => img.flUpldLogNo);
   };
 
@@ -457,7 +460,7 @@ const ImageUploadField = ({
     const progress = uploadProgress[image.id] || 0;
     const isUploading = image.uploading;
     const hasError = image.error;
-    const isUploaded = image.uploaded;
+    const isUploaded = image.status === STATUS.UPLOADED;
 
     return (
       <View key={image.id} style={styles.imageItem}>
@@ -527,8 +530,7 @@ const ImageUploadField = ({
 
   // Preview mode render
   if (isPreview) {
-    const uploadedImages = images.filter(img => img.uploaded && img.fileUri);
-    const hasImages = uploadedImages.length > 0;
+    const hasImages = images.length > 0;
 
     return (
       <View style={[styles.fieldContainer, styles.previewFieldContainer]}>
@@ -541,7 +543,7 @@ const ImageUploadField = ({
           {hasImages && (
             <View style={styles.countContainer}>
               <Text style={styles.countText}>
-                {uploadedImages.length}/{maxImages}
+                {images.length}/{maxImages}
               </Text>
             </View>
           )}
@@ -554,16 +556,17 @@ const ImageUploadField = ({
               showsHorizontalScrollIndicator={false}
               style={styles.previewImagesScroll}
             >
-              {uploadedImages.map(image => (
+              {images.map(image => (
                 <View key={image.id} style={styles.previewImageWrapper}>
                   <Image
                     source={{ uri: image.uri }}
                     style={styles.previewImage}
                     resizeMode="cover"
                   />
-                  <View style={styles.previewSuccessBadge}>
+                  {image.status === STATUS.UPLOADED && !image.error &&
+                    <View style={styles.previewSuccessBadge}>
                     <Icon name="check-circle" size={16} color={COLORS.success} />
-                  </View>
+                  </View>}
                 </View>
               ))}
             </ScrollView>
@@ -661,7 +664,7 @@ const ImageUploadField = ({
             </TouchableOpacity>
             
             {/* Show retry all button if there are failed uploads */}
-            {images.some(img => img.error && !img.uploaded) && (
+            {images.some(img => img.status === STATUS.FAILED) && (
               <TouchableOpacity
                 style={[styles.actionButton, styles.retryAllButton]}
                 onPress={retryAllFailedUploads}

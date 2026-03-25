@@ -2,7 +2,7 @@
 import { Model } from '@nozbe/watermelondb';
 import { field, readonly, date, relation } from '@nozbe/watermelondb/decorators';
 import uuid from 'react-native-uuid';
-
+import { STATUS } from '../../constants/enums';
 export default class SubmissionAttempt extends Model {
   static table = 'submission_attempts';
 
@@ -13,9 +13,9 @@ export default class SubmissionAttempt extends Model {
   };
 
   static STATUS = {
-    STARTED: 'started',
-    SUCCESS: 'success',
-    FAILED: 'failed',
+    STARTED: STATUS.STARTED,
+    SUCCESS: STATUS.SUCCESS,
+    FAILED: STATUS.FAILED,
   };
 
   static associations = {
@@ -57,7 +57,7 @@ export default class SubmissionAttempt extends Model {
   }
 
   async markAsSuccess() {
-    const database = this.collections.database;
+    const database = this.database;
     const completedAt = Date.now();
     await database.write(async () => {
       await this.update(record => {
@@ -69,7 +69,7 @@ export default class SubmissionAttempt extends Model {
   }
 
   async markAsFailed(error) {
-    const database = this.collections.database;
+    const database = this.database;
     const completedAt = Date.now();
     await database.write(async () => {
       await this.update(record => {

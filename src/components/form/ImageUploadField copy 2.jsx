@@ -10,13 +10,14 @@ import {
   PermissionsAndroid,
   ScrollView,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS } from '../../constants/colors';
 import uploadService from '../../services/uploadService';
 import commonStyles from './FormComponents.styles';
-
+import { STATUS } from '../../constants/enums';
 const ImageUploadField = ({
   fcId,
   label,
@@ -176,7 +177,7 @@ const ImageUploadField = ({
         quality: imageQuality,
         maxWidth: compressImageMaxWidth,
         maxHeight: compressImageMaxHeight,
-        includeBase64: false, // Don't include base64 to save memory
+        includeBase64: false,
         selectionLimit: multiple ? maxImages - images.length : 1,
         saveToPhotos: source === 'camera',
       };
@@ -221,21 +222,24 @@ const ImageUploadField = ({
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           uri: asset.uri,
           type: asset.type || 'image/jpeg',
-          fileName: asset.fileName || `image_${Date.now()}.jpg`,
+          fileNm: asset.fileName || `image_${Date.now()}.jpg`,
           fileSize: asset.fileSize,
           width: asset.width,
           height: asset.height,
           timestamp: new Date().toISOString(),
           uploaded: false,
           uploading: false,
+          status: STATUS.PENDING,
           error: null,
-          serverUrl: null, // Will store the hosted URL after upload
+          flUpldLogNo: null, // Will store upload log number
+          fileId: null, // Will store file ID
+          fileUri: null, // Will store hosted URI after upload
         };
 
         newImages.push(imageObj);
       } catch (error) {
         console.error('Image processing error:', error);
-        errors.push(`Failed to process ${asset.fileName || 'image'}`);
+        errors.push(`Failed to process ${asset.fileNm || 'image'}`);
       }
     }
 
@@ -258,7 +262,7 @@ const ImageUploadField = ({
 
     setUploading(true);
     
-    const imagesToUpload = images.filter(img => !img.uploaded);
+    const imagesToUpload = images.filter(img => img.status !== STATUS.UPLOADED);
     if (imagesToUpload.length === 0) {
       setUploading(false);
       Alert.alert('Info', 'All images are already uploaded');
@@ -266,16 +270,19 @@ const ImageUploadField = ({
     }
 
     try {
-      const results = await uploadService.uploadMultipleImages(
+      // Use uploadMultipleFiles from uploadService
+      const results = await uploadService.uploadMultipleFiles(
         imagesToUpload,
         formId,
         fcId,
-        (current, total, image) => {
-          // Update progress
-          setUploadProgress(prev => ({
-            ...prev,
-            [image.id]: Math.round((current / total) * 100),
-          }));
+        (current, total, fileData) => {
+          // Update progress for the specific file
+          if (fileData && fileData.id) {
+            setUploadProgress(prev => ({
+              ...prev,
+              [fileData.id]: Math.round((current / total) * 100),
+            }));
+          }
         }
       );
 
@@ -287,7 +294,12 @@ const ImageUploadField = ({
             ...img,
             uploaded: result.success,
             uploading: false,
-            serverUrl: result.url,
+            fileUri: result.fileUri || result.uri,
+            flUpldLogNo: result.flUpldLogNo,
+            fileId: result.fileId,
+            status: result.success ? STATUS.UPLOADED : STATUS.FAILED,
+            // fileNm: result.fileNm,
+            confirmed: result.confirmed || false,
             error: result.error || null,
           };
         }
@@ -304,7 +316,8 @@ const ImageUploadField = ({
       // Show summary
       const successful = results.filter(r => r.success).length;
       const failed = results.filter(r => !r.success).length;
-
+      console.log(results, "results");
+      
       if (failed === 0) {
         Alert.alert('Success', `${successful} image(s) uploaded successfully`);
       } else if (successful > 0) {
@@ -335,7 +348,12 @@ const ImageUploadField = ({
         )
       );
 
-      const result = await uploadService.uploadImage(image, formId, fcId);
+      // Use uploadAndConfirmFile from uploadService
+      const result = await uploadService.uploadAndConfirmFile(
+        image, 
+        formId, 
+        fcId
+      );
 
       const updatedImages = images.map(img => {
         if (img.id === image.id) {
@@ -343,7 +361,12 @@ const ImageUploadField = ({
             ...img,
             uploading: false,
             uploaded: result.success,
-            serverUrl: result.url,
+            fileUri: result.fileUri,
+            flUpldLogNo: result.flUpldLogNo,
+            fileId: result.fileId,
+            status: result.success ? STATUS.UPLOADED : STATUS.FAILED,
+            // fileNm: result.fileNm,
+            confirmed: result.confirmed || false,
             error: result.error || null,
           };
         }
@@ -402,16 +425,34 @@ const ImageUploadField = ({
     uploadSingleImage(image);
   };
 
+  // Retry all failed uploads
+  const retryAllFailedUploads = async () => {
+    const failedImages = images.filter(img => img.error && !img.uploaded);
+    
+    if (failedImages.length === 0) {
+      Alert.alert('Info', 'No failed uploads to retry');
+      return;
+    }
+
+    setUploading(true);
+    
+    for (const image of failedImages) {
+      await uploadSingleImage(image);
+    }
+    
+    setUploading(false);
+  };
+
   // Handle errors
   const handleError = errorMessage => {
     Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
   };
 
-  // Get value for API payload (returns array of URLs for uploaded images)
+  // Get value for API payload (returns array of upload log numbers for uploaded images)
   const getValueForApi = () => {
     return images
-      .filter(img => img.uploaded && img.serverUrl)
-      .map(img => img.serverUrl);
+      .filter(img => img.uploaded && img.flUpldLogNo)
+      .map(img => img.flUpldLogNo);
   };
 
   // Render image item
@@ -461,15 +502,15 @@ const ImageUploadField = ({
         </View>
 
         <View style={styles.imageInfo}>
-          <Text style={styles.fileName} numberOfLines={1}>
-            {image.fileName}
+          <Text style={styles.fileNm} numberOfLines={1}>
+            {image.fileNm}
           </Text>
           <Text style={styles.fileSize}>
             {(image.fileSize / (1024 * 1024)).toFixed(2)} MB
           </Text>
           
-          {isUploaded && image.serverUrl && (
-            <Text style={styles.uploadedUrl} numberOfLines={1}>
+          {isUploaded && image.fileUri && (
+            <Text style={styles.uploadedUri} numberOfLines={1}>
               ✓ Uploaded
             </Text>
           )}
@@ -489,8 +530,7 @@ const ImageUploadField = ({
 
   // Preview mode render
   if (isPreview) {
-    const uploadedImages = images.filter(img => img.uploaded && img.serverUrl);
-    const hasImages = uploadedImages.length > 0;
+    const hasImages = images.length > 0;
 
     return (
       <View style={[styles.fieldContainer, styles.previewFieldContainer]}>
@@ -503,7 +543,7 @@ const ImageUploadField = ({
           {hasImages && (
             <View style={styles.countContainer}>
               <Text style={styles.countText}>
-                {uploadedImages.length}/{maxImages}
+                {images.length}/{maxImages}
               </Text>
             </View>
           )}
@@ -516,16 +556,17 @@ const ImageUploadField = ({
               showsHorizontalScrollIndicator={false}
               style={styles.previewImagesScroll}
             >
-              {uploadedImages.map(image => (
+              {images.map(image => (
                 <View key={image.id} style={styles.previewImageWrapper}>
                   <Image
                     source={{ uri: image.uri }}
                     style={styles.previewImage}
                     resizeMode="cover"
                   />
-                  <View style={styles.previewSuccessBadge}>
+                  {image.uploaded && !image.error &&
+                    <View style={styles.previewSuccessBadge}>
                     <Icon name="check-circle" size={16} color={COLORS.success} />
-                  </View>
+                  </View>}
                 </View>
               ))}
             </ScrollView>
@@ -604,22 +645,36 @@ const ImageUploadField = ({
         </TouchableOpacity>
 
         {images.length > 0 && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.uploadButton]}
-            onPress={uploadAllImages}
-            disabled={uploading}
-          >
-            {uploading ? (
-              <ActivityIndicator size="small" color={COLORS.text.inverse} />
-            ) : (
-              <>
-                <Icon name="cloud-upload" size={20} color={COLORS.text.inverse} />
-                <Text style={[styles.actionButtonText, styles.uploadButtonText]}>
-                  Upload All
-                </Text>
-              </>
+          <>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.uploadButton]}
+              onPress={uploadAllImages}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color={COLORS.text.inverse} />
+              ) : (
+                <>
+                  <Icon name="cloud-upload" size={20} color={COLORS.text.inverse} />
+                  <Text style={[styles.actionButtonText, styles.uploadButtonText]}>
+                    Upload All
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+            
+            {/* Show retry all button if there are failed uploads */}
+            {images.some(img => img.error && !img.uploaded) && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.retryAllButton]}
+                onPress={retryAllFailedUploads}
+                disabled={uploading}
+              >
+                <Icon name="refresh" size={20} color={COLORS.error} />
+                <Text style={styles.retryAllButtonText}>Retry Failed</Text>
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+          </>
         )}
       </View>
 
@@ -660,7 +715,7 @@ ImageUploadField.propTypes = {
   isPreview: PropTypes.bool,
   errorText: PropTypes.string,
   onError: PropTypes.func,
-  formId: PropTypes.string, // Add formId prop type
+  formId: PropTypes.string,
 };
 
 ImageUploadField.defaultProps = {
@@ -814,7 +869,7 @@ const styles = StyleSheet.create({
   imageInfo: {
     marginTop: 8,
   },
-  fileName: {
+  fileNm: {
     fontSize: 12,
     color: COLORS.text.primary,
     fontFamily: 'System',
@@ -942,6 +997,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
+  },
+   retryAllButton: {
+    backgroundColor: COLORS.errorLight,
+    borderColor: COLORS.error,
+  },
+  retryAllButtonText: {
+    color: COLORS.error,
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'System',
+  },
+  uploadedUri: {
+    fontSize: 11,
+    color: COLORS.success,
+    fontFamily: 'System',
+    marginTop: 2,
+    fontWeight: '500',
   },
 });
 

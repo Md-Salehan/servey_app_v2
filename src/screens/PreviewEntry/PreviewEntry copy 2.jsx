@@ -34,6 +34,7 @@ const PreviewScreen = ({ database }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const {
+    formData,
     formTitle,
     appId,
     formId,
@@ -217,83 +218,83 @@ const PreviewScreen = ({ database }) => {
     }
   };
 
+
   // Save submission to local database (offline mode)
   const saveToLocalDatabase = async () => {
     setIsSaving(true);
     try {
       const submissionService = new SubmissionService(database);
-      const now = new Date();
-      const { lat, lng } = getLatLng(fieldValues, formComponents);
-
-      // Process form components to extract flUpldLogNo for images
-      const dtl02 =
-        formComponents
-          ?.map(component => {
-            let value = fieldValues[component.fcId];
-            console.log(value, 'pld value');
-
-            // Handle image upload field (compTyp '07')
-            if (component.compTyp === '07' && value) {
-              if (Array.isArray(value)) {
-                // Extract serverUrl from each image object and filter out any invalid URLs
-                value = value
-                  .map(image => image.flUpldLogNo)
-                  .filter(flUpldLogNo => flUpldLogNo);
-                value = JSON.stringify(value); // Convert array of flUpldLogNo to JSON string for submission
-              }
-            }
-
-            // Only include fields with values
-            if (value !== undefined && value !== null && value !== '') {
-              return {
-                compTyp: component.compTyp,
-                fcId: component.fcId,
-                value: value,
-              };
-            }
-            return null;
-          })
-          .filter(item => item !== null) || [];
-
+      
+      
       // Prepare the payload for pending submission
+      const dtl02 = formComponents
+        ?.map(component => {
+          let value = fieldValues[component.fcId];
+
+          // Handle image upload field
+          if (component.compTyp === '07' && value) {
+            if (Array.isArray(value)) {
+              // Store file references for pending files
+              value = value.map(image => ({
+                ...image,
+                uploaded: false,
+                uploading: false,
+                flUpldLogNo: null,
+                fileId: null,
+                fileUri: null,
+              }));
+            }
+          }
+
+          // Only include fields with values
+          if (value !== undefined && value !== null && value !== '') {
+            return {
+              compTyp: component.compTyp,
+              fcId: component.fcId,
+              value: value,
+            };
+          }
+          return null;
+        })
+        .filter(item => item !== null) || [];
+
+      const now = new Date();
       const payload = {
         apiId: 'SUA01031',
-        mst: [
-          {
-            appId: appId,
-            formId: formId,
-            dtl01: [
-              {
-                dtl02: dtl02,
-                blkCd: '',
-                blkNm: '',
-                csLocTyp: '',
-                distCd: '',
-                distNm: '',
-                geoJson: '',
-                jlNo: '',
-                latitude: lat,
-                longitude: lng,
-                lvlRefCd: '',
-                panCd: '',
-                panNm: '',
-                plcn: '',
-                stateCd: '',
-                stateNm: '',
-                subdCd: '',
-                subdNm: '',
-                surDate: now.toISOString().split('T')[0],
-                surMobNo: user?.mobNo || '',
-                surRefTyp: '',
-                surTime: now.toTimeString().split(' ')[0],
-                surUserId: user?.userId || '',
-                townNm: '',
-                villNm: '',
-                wardNo: '',
-              },
-            ],
-          },
-        ],
+        mst: [{
+          appId: appId,
+          formId: formId,
+          dtl01: [
+            {
+              dtl02: dtl02,
+              blkCd: '',
+              blkNm: '',
+              csLocTyp: '',
+              distCd: '',
+              distNm: '',
+              geoJson: '',
+              jlNo: '',
+              latitude: '',
+              longitude: '',
+              lvlRefCd: '',
+              panCd: '',
+              panNm: '',
+              plcn: '',
+              stateCd: '',
+              stateNm: '',
+              subdCd: '',
+              subdNm: '',
+              surDate: now.toISOString().split('T')[0],
+              surMobNo: user?.mobNo || '',
+              surRefTyp: '',
+              surTime: now.toTimeString().split(' ')[0],
+              surUserId: user?.userId || '',
+              townNm: '',
+              villNm: '',
+              wardNo: '',
+            },
+          ],
+        }],
       };
 
       // Create pending submission
@@ -301,7 +302,7 @@ const PreviewScreen = ({ database }) => {
         { formId, formName: formTitle, appId },
         fieldValues,
         formComponents,
-        payload,
+        payload
       );
 
       Alert.alert(
@@ -329,14 +330,11 @@ const PreviewScreen = ({ database }) => {
               });
             },
           },
-        ],
+        ]
       );
     } catch (error) {
       console.error('Error saving offline submission:', error);
-      Alert.alert(
-        'Error',
-        'Failed to save submission offline. Please try again.',
-      );
+      Alert.alert('Error', 'Failed to save submission offline. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -378,42 +376,40 @@ const PreviewScreen = ({ database }) => {
 
     const payload = {
       apiId: 'SUA01031',
-      mst: [
-        {
-          appId: appId,
-          formId: formId,
-          dtl01: [
-            {
-              dtl02: dtl02,
-              blkCd: '',
-              blkNm: '',
-              csLocTyp: '',
-              distCd: '',
-              distNm: '',
-              geoJson: '',
-              jlNo: '',
-              latitude: lat,
-              longitude: lng,
-              lvlRefCd: '',
-              panCd: '',
-              panNm: '',
-              plcn: '',
-              stateCd: '',
-              stateNm: '',
-              subdCd: '',
-              subdNm: '',
-              surDate: now.toISOString().split('T')[0],
-              surMobNo: user?.mobNo || '',
-              surRefTyp: '',
-              surTime: now.toTimeString().split(' ')[0],
-              surUserId: user?.userId || '',
-              townNm: '',
-              villNm: '',
-              wardNo: '',
-            },
-          ],
-        },
-      ],
+      mst: [{
+        appId: appId,
+        formId: formId,
+        dtl01: [
+          {
+            dtl02: dtl02,
+            blkCd: '',
+            blkNm: '',
+            csLocTyp: '',
+            distCd: '',
+            distNm: '',
+            geoJson: '',
+            jlNo: '',
+            latitude: lat,
+            longitude: lng,
+            lvlRefCd: '',
+            panCd: '',
+            panNm: '',
+            plcn: '',
+            stateCd: '',
+            stateNm: '',
+            subdCd: '',
+            subdNm: '',
+            surDate: now.toISOString().split('T')[0],
+            surMobNo: user?.mobNo || '',
+            surRefTyp: '',
+            surTime: now.toTimeString().split(' ')[0],
+            surUserId: user?.userId || '',
+            townNm: '',
+            villNm: '',
+            wardNo: '',
+          },
+        ],
+      }],
     };
 
     console.log(payload, 'pld');
@@ -495,11 +491,11 @@ const PreviewScreen = ({ database }) => {
         <View style={styles.previewHeader}>
           <Text style={styles.previewTitle}>Review Your Entries</Text>
           <Text style={styles.previewSubtitle}>
-            {isViewOnly
+            {isViewOnly 
               ? 'View submitted data (read-only mode)'
-              : isOnline
-              ? 'Please verify all information before submitting'
-              : 'You are offline. Your submission will be saved locally.'}
+              : isOnline 
+                ? 'Please verify all information before submitting'
+                : 'You are offline. Your submission will be saved locally.'}
           </Text>
         </View>
 
@@ -538,6 +534,7 @@ const PreviewScreen = ({ database }) => {
             ) : (
               <>
                 <Text style={styles.submitButtonText}>Save Offline</Text>
+                <Text style={styles.offlineBadge}>📱</Text>
               </>
             )}
           </TouchableOpacity>
@@ -557,20 +554,14 @@ const PreviewScreen = ({ database }) => {
           </TouchableOpacity>
         )}
 
-        {!showSaveButton &&
-          !showSubmitButton &&
-          !isViewOnly &&
-          surFormGenFlg !== 'Y' && (
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                { backgroundColor: COLORS.gray[400] },
-              ]}
-              disabled={true}
-            >
-              <Text style={styles.submitButtonText}>Submit</Text>
-            </TouchableOpacity>
-          )}
+        {!showSaveButton && !showSubmitButton && !isViewOnly && surFormGenFlg !== 'Y' && (
+          <TouchableOpacity
+            style={[styles.submitButton, { backgroundColor: COLORS.gray[400] }]}
+            disabled={true}
+          >
+            <Text style={styles.submitButtonText}>Submit</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );

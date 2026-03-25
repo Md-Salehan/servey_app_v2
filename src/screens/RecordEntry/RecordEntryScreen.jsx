@@ -295,15 +295,6 @@ const RecordEntryScreen = ({ database }) => {
     if (isOnline) {
       // If online, navigate to preview for submission
       navigation.navigate(ROUTES.PREVIEW_ENTRY, {
-        formData: {
-          apiId: 'SUA00935',
-          mst: { appId, formId },
-          dtl01: formComponents.map(component => ({
-            fcId: component.fcId,
-            value: fieldValues[component.fcId],
-            compTyp: component.compTyp,
-          })),
-        },
         formTitle,
         appId,
         formId,
@@ -324,15 +315,6 @@ const RecordEntryScreen = ({ database }) => {
             onPress: async () => {
               // Navigate to preview with offline save flag
               navigation.navigate(ROUTES.PREVIEW_ENTRY, {
-                formData: {
-                  apiId: 'SUA00935',
-                  mst: { appId, formId },
-                  dtl01: formComponents.map(component => ({
-                    fcId: component.fcId,
-                    value: fieldValues[component.fcId],
-                    compTyp: component.compTyp,
-                  })),
-                },
                 formTitle,
                 appId,
                 formId,

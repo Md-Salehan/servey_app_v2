@@ -2,15 +2,15 @@
 import { Model } from '@nozbe/watermelondb';
 import { field, readonly, date, relation } from '@nozbe/watermelondb/decorators';
 import uuid from 'react-native-uuid';
-
+import { STATUS } from '../../constants/enums';
 export default class PendingFile extends Model {
   static table = 'pending_files';
 
   static STATUS = {
-    PENDING: 'pending',
-    UPLOADING: 'uploading',
-    UPLOADED: 'uploaded',
-    FAILED: 'failed',
+    PENDING: STATUS.PENDING,
+    UPLOADING: STATUS.UPLOADING,
+    UPLOADED: STATUS.UPLOADED,
+    FAILED: STATUS.FAILED,
   };
 
   static associations = {
@@ -77,7 +77,7 @@ export default class PendingFile extends Model {
   }
 
   async markAsUploading() {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.status = PendingFile.STATUS.UPLOADING;
@@ -86,7 +86,7 @@ export default class PendingFile extends Model {
   }
 
   async markAsUploaded(flUpldLogNo, fileIdServer, fileUriServer) {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.status = PendingFile.STATUS.UPLOADED;
@@ -99,7 +99,7 @@ export default class PendingFile extends Model {
   }
 
   async markAsFailed(error) {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.status = PendingFile.STATUS.FAILED;
@@ -109,7 +109,7 @@ export default class PendingFile extends Model {
   }
 
   async incrementRetry() {
-    const database = this.collections.database;
+    const database = this.database;
     await database.write(async () => {
       await this.update(record => {
         record.retryCount = (record.retryCount || 0) + 1;

@@ -1,5 +1,5 @@
 // screens/PendingSubmissions/PendingSubmissionsScreen.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,29 +25,44 @@ const PendingSubmissionsScreen = ({ database }) => {
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [submissionService, setSubmissionService] = useState(null);
+  const submissionServiceRef = useRef(null);
 
+  // Initialize submission service
   useEffect(() => {
-    // Initialize submission service
-    const service = new SubmissionService(database);
-    setSubmissionService(service);
-    service.startQueueProcessor();
+    if (database && !submissionServiceRef.current) {
+      const service = new SubmissionService(database);
+      submissionServiceRef.current = service;
+      service.startQueueProcessor();
+      
+      // Load submissions immediately after service is initialized
+      loadSubmissions();
+    }
 
     return () => {
-      service.stopQueueProcessor();
+      if (submissionServiceRef.current) {
+        submissionServiceRef.current.stopQueueProcessor();
+      }
     };
   }, [database]);
 
   useFocusEffect(
     useCallback(() => {
-      loadSubmissions();
+      // Refresh submissions when screen comes into focus
+      if (submissionServiceRef.current) {
+        loadSubmissions();
+      }
     }, [])
   );
 
   const loadSubmissions = async () => {
     setLoading(true);
     try {
-      const pendingSubmissions = await submissionService?.getPendingSubmissions() || [];
+      if (!submissionServiceRef.current) {
+        console.log('Submission service not initialized yet');
+        return;
+      }
+      const pendingSubmissions = await submissionServiceRef.current.getPendingSubmissions() || [];
+      console.log('Loaded pending submissions:', pendingSubmissions.length);
       setSubmissions(pendingSubmissions);
     } catch (error) {
       console.error('Error loading submissions:', error);
@@ -67,10 +82,11 @@ const PendingSubmissionsScreen = ({ database }) => {
           text: 'Retry',
           onPress: async () => {
             try {
-              await submissionService?.retrySubmission(submissionId);
+              await submissionServiceRef.current?.retrySubmission(submissionId);
               Alert.alert('Success', 'Submission queued for retry');
               loadSubmissions();
             } catch (error) {
+              console.error('Retry error:', error);
               Alert.alert('Error', 'Failed to retry submission');
             }
           },
@@ -85,8 +101,8 @@ const PendingSubmissionsScreen = ({ database }) => {
   };
 
   const handleViewSubmissionData = (submission) => {
+    // Navigate to preview with proper data
     navigation.navigate(ROUTES.PREVIEW_ENTRY, {
-      formData: submission.payload,
       formTitle: submission.formName,
       appId: submission.appId,
       formId: submission.formId,
@@ -124,7 +140,7 @@ const PendingSubmissionsScreen = ({ database }) => {
   };
 
   const renderSubmissionItem = ({ item }) => {
-    const progress = item.uploadedFiles / item.totalFiles;
+    const progress = item.uploadedFiles / (item.totalFiles || 1);
     const hasFailed = item.failedFiles > 0;
 
     return (
@@ -156,7 +172,7 @@ const PendingSubmissionsScreen = ({ database }) => {
                 <View 
                   style={[
                     styles.fileProgressFill, 
-                    { width: `${progress * 100}%` }
+                    { width: `${Math.min(progress * 100, 100)}%` }
                   ]} 
                 />
               </View>
