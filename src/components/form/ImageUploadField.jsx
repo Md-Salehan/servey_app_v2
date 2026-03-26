@@ -46,6 +46,8 @@ const ImageUploadField = ({
   });
   const scrollViewRef = useRef(null);
 
+  
+
   useEffect(() => {
     if (isPress) {
       validateField();
@@ -219,7 +221,8 @@ const ImageUploadField = ({
         }
 
         const imageObj = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          // id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `${formId}-${fcId}-${images.length}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           uri: asset.uri,
           type: asset.type || 'image/jpeg',
           fileNm: asset.fileName || `image_${Date.now()}.jpg`,
@@ -299,7 +302,7 @@ const ImageUploadField = ({
             fileId: result.fileId,
             status: result.success ? STATUS.UPLOADED : STATUS.FAILED,
             // fileNm: result.fileNm,
-            confirmed: result.confirmed || false,
+            // confirmed: result.confirmed || false,
             error: result.error || null,
           };
         }
@@ -316,7 +319,6 @@ const ImageUploadField = ({
       // Show summary
       const successful = results.filter(r => r.success).length;
       const failed = results.filter(r => !r.success).length;
-      console.log(results, "results");
       
       if (failed === 0) {
         Alert.alert('Success', `${successful} image(s) uploaded successfully`);
@@ -366,7 +368,7 @@ const ImageUploadField = ({
             fileId: result.fileId,
             status: result.success ? STATUS.UPLOADED : STATUS.FAILED,
             // fileNm: result.fileNm,
-            confirmed: result.confirmed || false,
+            // confirmed: result.confirmed || false,
             error: result.error || null,
           };
         }
@@ -448,12 +450,6 @@ const ImageUploadField = ({
     Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
   };
 
-  // Get value for API payload (returns array of upload log numbers for uploaded images)
-  const getValueForApi = () => {
-    return images
-      .filter(img => img.status === STATUS.UPLOADED && img.flUpldLogNo)
-      .map(img => img.flUpldLogNo);
-  };
 
   // Render image item
   const renderImageItem = image => {
@@ -461,7 +457,7 @@ const ImageUploadField = ({
     const isUploading = image.uploading;
     const hasError = image.error;
     const isUploaded = image.status === STATUS.UPLOADED;
-
+    
     return (
       <View key={image.id} style={styles.imageItem}>
         <View style={styles.imageContainer}>

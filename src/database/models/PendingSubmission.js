@@ -121,6 +121,36 @@ export default class PendingSubmission extends Model {
     });
   }
 
+  async updateFieldValuesByUploadedFiles(uploadedFiles) {
+    const database = this.database;
+
+    await database.write(async () => {
+      await this.update(record => {
+        const fieldValues = record.fieldValues || {};
+        const formComponents = record.formComponents || [];
+
+        for (const component of formComponents) {
+          if (component.compTyp === '07') {
+            let value = fieldValues[component.fcId];
+            if (Array.isArray(value)) {
+              value = value.map(file => {
+                const uploadedFile = uploadedFiles.find(f => f.fcId === component.fcId && f.localUri === file.uri);
+                return uploadedFile ? { ...file, 
+                  fileId: uploadedFile.fileId,
+                  fileUri: uploadedFile.fileUri,
+                  flUpldLogNo: uploadedFile.flUpldLogNo,
+                  status : uploadedFile.status,
+                 } : file;
+              });
+              fieldValues[component.fcId] = value;
+            } 
+          }
+        }
+        record.fieldValues = fieldValues;
+      });
+    });
+  }
+
   canRetry() {
     return this.retryCount < this.maxRetries;
   }

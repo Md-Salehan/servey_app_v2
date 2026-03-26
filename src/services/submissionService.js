@@ -8,7 +8,7 @@ import { API_BASE_URL } from '../constants/api';
 import TokenService from './storage/tokenService';
 import NetInfo from '@react-native-community/netinfo';
 import { store } from '../app/store';
-
+import { STATUS } from '../constants/enums';
 class SubmissionService {
   constructor(database) {
     this.database = database;
@@ -129,6 +129,9 @@ class SubmissionService {
       return { success: true };
     }
 
+    console.log(pendingFiles, "vvr pendingfile");
+    
+
     const uploadResults = [];
 
     for (const file of pendingFiles) {
@@ -214,6 +217,11 @@ class SubmissionService {
         )
         .fetch();
 
+      // const fieldValues = submission.fieldValues || {};
+      // const formComponents = submission.formComponents || [];
+
+      await submission.updateFieldValuesByUploadedFiles(uploadedFiles);
+
       // Prepare the submission payload similar to handleFormSubmit in PreviewEntry
       const payload = this.prepareSubmissionPayload(submission, uploadedFiles);
 
@@ -260,6 +268,8 @@ class SubmissionService {
       }
     }
   }
+
+
 
   // Prepare submission payload with file references
   prepareSubmissionPayload(submission, uploadedFiles) {
@@ -497,7 +507,7 @@ class SubmissionService {
         if (Array.isArray(images)) {
           images.forEach(image => {
             // Only include files that haven't been uploaded yet
-            if (!image.uploaded && image.uri) {
+            if (image.status === STATUS.PENDING || image.status === STATUS.FAILED) {
               files.push({
                 ...image,
                 fcId: component.fcId,

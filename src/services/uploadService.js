@@ -131,14 +131,6 @@ class UploadService {
       const headers = await this._getHeaders('multipart/form-data');
       const formData = this._createUploadFormData(file);
 
-      console.log('Uploading file:', {
-        fileNm: file.fileNm,
-        fileType: file.type,
-        formId,
-        fcId,
-        ...UploadService.API_IDS,
-      });
-
       const response = await fetch(`${API_BASE_URL}/SUF00134/fileUpload`, {
         method: 'POST',
         headers,
@@ -200,17 +192,7 @@ class UploadService {
   _createConfirmationPayload(confirmations) {
     let list = [];
     confirmations.map(conf => {
-      const {
-        flUpldLogNo,
-        formId,
-        fcId,
-        fileId,
-        keyStr,
-        keyStrVal,
-        tabNm,
-        colNm,
-        value,
-      } = conf;
+      const { keyStr, keyStrVal, tabNm, colNm, value } = conf;
       let flUpldLogNoArr = JSON.parse(value);
       flUpldLogNoArr.map(flUpldLogNo => {
         list.push({
@@ -295,45 +277,6 @@ class UploadService {
       onProgress(current, total, fileData);
     }
   }
-
-
-  // Check if file is uploaded but not confirmed
-  isFileUploadedOnly(file) {
-    return file?.uploaded && !file?.confirmed && file?.flUpldLogNo;
-  }
-
-  // Get uploaded file info for API payload (returns flUpldLogNo for form submission)
-  getUploadedFileInfoForSubmission(fieldValue) {
-    if (!fieldValue) return [];
-
-    if (Array.isArray(fieldValue)) {
-      return fieldValue
-        .filter(file => file.uploaded && file.flUpldLogNo)
-        .map(file => file.flUpldLogNo);
-    }
-
-    return [];
-  }
-
-  // Get confirmation payload from field value
-  getConfirmationPayloadFromField(fieldValue, formId, fcId) {
-    if (!fieldValue || !Array.isArray(fieldValue)) return [];
-
-    return fieldValue
-      .filter(file => this.isFileUploadedOnly(file))
-      .map(file => ({
-        flUpldLogNo: file.flUpldLogNo,
-        formId,
-        fcId,
-        fileId: file.fileId,
-        keyStr: 'fcId',
-        keyStrVal: fcId,
-        tabNm: UploadService.TABLE_NAMES.SURVEY_FORM_DTL,
-        colNm: 'FILE_ID',
-      }));
-  }
-
-
 }
 
 export default new UploadService();

@@ -527,8 +527,7 @@ const ImageUploadField = ({
 
   // Preview mode render
   if (isPreview) {
-    const uploadedImages = images.filter(img => img.uploaded && img.fileUri);
-    const hasImages = uploadedImages.length > 0;
+    const hasImages = images.length > 0;
 
     return (
       <View style={[styles.fieldContainer, styles.previewFieldContainer]}>
@@ -541,7 +540,7 @@ const ImageUploadField = ({
           {hasImages && (
             <View style={styles.countContainer}>
               <Text style={styles.countText}>
-                {uploadedImages.length}/{maxImages}
+                {images.length}/{maxImages}
               </Text>
             </View>
           )}
@@ -554,16 +553,17 @@ const ImageUploadField = ({
               showsHorizontalScrollIndicator={false}
               style={styles.previewImagesScroll}
             >
-              {uploadedImages.map(image => (
+              {images.map(image => (
                 <View key={image.id} style={styles.previewImageWrapper}>
                   <Image
                     source={{ uri: image.uri }}
                     style={styles.previewImage}
                     resizeMode="cover"
                   />
-                  <View style={styles.previewSuccessBadge}>
+                  {image.uploaded && !image.error &&
+                    <View style={styles.previewSuccessBadge}>
                     <Icon name="check-circle" size={16} color={COLORS.success} />
-                  </View>
+                  </View>}
                 </View>
               ))}
             </ScrollView>

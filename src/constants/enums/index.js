@@ -1,3 +1,1 @@
-import * as STATUS from './status';
-
-export { STATUS };
+export { STATUS } from './status';

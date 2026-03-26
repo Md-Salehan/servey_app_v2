@@ -52,6 +52,17 @@ const PreviewScreen = ({ database }) => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  console.log({
+    formTitle,
+    appId,
+    formId,
+    fieldValues,
+    formComponents,
+    surFormGenFlg,
+    isViewOnly,
+    isOfflineSave, // Flag to indicate this is from offline save
+  }, 'preview data');
+
   // Preview mode render function
   const renderPreviewFieldComponent = component => {
     const { fcId, compTyp, compTypTxt, props } = component;
