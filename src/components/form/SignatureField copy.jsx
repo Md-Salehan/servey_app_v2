@@ -1,4 +1,3 @@
-// components/SignatureField.jsx
 import React, {
   useState,
   useRef,
@@ -22,7 +21,6 @@ import PropTypes from 'prop-types';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS } from '../../constants/colors';
 import commonStyles from './FormComponents.styles';
-import { STATUS } from '../../constants/enums';
 
 // React Native Skia and Gesture Handler imports
 import {
@@ -39,10 +37,9 @@ import {
   GestureDetector,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
-
-// Import upload service for consistent handling
+import { STATUS } from '../../constants/enums';
 import uploadService from '../../services/uploadService';
-import useInternetStatus from '../../hook/useInternetStatus';
+
 
 const SignatureField = ({
   formId,
@@ -63,8 +60,11 @@ const SignatureField = ({
   isPreview = false,
   errorText = '',
   onError = null,
+
+  onUploadStart,
+  onUploadComplete,
+  onUploadError,
 }) => {
-  const { isOnline, isChecking } = useInternetStatus(); // Assume online by default
   // State for signature
   const [signature, setSignature] = useState(value);
   const [isSaving, setIsSaving] = useState(false);
@@ -76,16 +76,17 @@ const SignatureField = ({
   const [fieldValidationError, setFieldValidationError] = useState(
     errorText || '',
   );
-
-  // Upload status tracking - matches ImageUploadField pattern
   const [uploadStatus, setUploadStatus] = useState({
-    status: STATUS.PENDING, 
+    status: STATUS.PENDING, // pending, uploading, uploaded, failed
     progress: 0,
     flUpldLogNo: null,
     fileId: null,
     fileUri: null,
     error: null,
   });
+
+
+
 
   // Refs
   const canvasRef = useRef(null);
@@ -122,6 +123,7 @@ const SignatureField = ({
   // Check if signature exists
   const isSigned = useCallback(() => {
     if (!signature) return false;
+    // Signature should be an object with uri property
     return (
       typeof signature === 'object' &&
       signature !== null &&
@@ -130,28 +132,21 @@ const SignatureField = ({
     );
   }, [signature]);
 
-  // Convert signature to file object - matches ImageUploadField pattern
+  // Convert signature object to file object for upload
   const signatureToFile = useCallback((signatureObject) => {
     if (!signatureObject) return null;
-
+    
     return {
-      id:
-        signatureObject.id ||
-        `${formId}-${fcId}-1-${Date.now()}-${Math.random()
-          .toString(36)
-          .substr(2, 9)}`,
+      id: `${formId}-${fcId}-1-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       uri: signatureObject.uri,
       type: 'image/png',
-      fileNm: signatureObject.fileNm || `signature_${fcId}_${Date.now()}.png`,
-      fileSize: signatureObject.fileSize || 0,
-      fcId: signatureObject.fcId || fcId,
-      status: signatureObject.status || STATUS.PENDING,
-      flUpldLogNo: signatureObject.flUpldLogNo || null,
-      fileId: signatureObject.fileId || null,
-      fileUri: signatureObject.fileUri || null,
-      error: signatureObject.error || null,
+      fileNm: `signature_${formId}-${fcId}`,
+      fileSize: signatureObject.byteData?.length || 0,
+      byteData: signatureObject.byteData,
+      fcId: fcId,
+      status: 'pending',
     };
-  }, [ formId, fcId]);
+  }, [fcId]);
 
   // Create a smooth path from points
   const createSmoothPath = useCallback(points => {
@@ -160,6 +155,7 @@ const SignatureField = ({
     const path = Skia.Path.Make();
     path.moveTo(points[0].x, points[0].y);
 
+    // For smoother drawing, use quadratic bezier curves
     for (let i = 1; i < points.length - 1; i++) {
       const p1 = points[i];
       const p2 = points[i + 1];
@@ -167,9 +163,11 @@ const SignatureField = ({
         x: (p1.x + p2.x) / 2,
         y: (p1.y + p2.y) / 2,
       };
+
       path.quadTo(p1.x, p1.y, midPoint.x, midPoint.y);
     }
 
+    // Connect the last point
     if (points.length > 1) {
       const lastPoint = points[points.length - 1];
       path.lineTo(lastPoint.x, lastPoint.y);
@@ -186,17 +184,21 @@ const SignatureField = ({
       .minPointers(1)
       .maxPointers(1)
       .onBegin(event => {
+        // Start new stroke with initial point
         currentPointsRef.current = [{ x: event.x, y: event.y }];
         setCurrentPoints(currentPointsRef.current);
       })
       .onUpdate(event => {
+        // Add new point to current stroke
         currentPointsRef.current = [
           ...currentPointsRef.current,
           { x: event.x, y: event.y },
         ];
         setCurrentPoints([...currentPointsRef.current]);
 
+        // Limit points array size for performance
         if (currentPointsRef.current.length > 100) {
+          // Convert current points to a path and add to paths
           const newPath = createSmoothPath(currentPointsRef.current);
           if (newPath) {
             const updatedPaths = [...pathsRef.current, newPath];
@@ -208,6 +210,7 @@ const SignatureField = ({
         }
       })
       .onEnd(() => {
+        // Convert current points to a final path
         if (currentPointsRef.current.length > 1) {
           const newPath = createSmoothPath(currentPointsRef.current);
           if (newPath) {
@@ -230,77 +233,76 @@ const SignatureField = ({
     currentPointsRef.current = [];
   }, [isPreview]);
 
-  // Upload signature - uses uploadService for consistency
-  const uploadSignature = useCallback(
-    async signatureObject => {
-      if (!signatureObject || !formId) return null;
+  // Upload signature to server
+  const uploadSignature = useCallback(async (signatureObject) => {
+    if (!signatureObject || !formId) return null;
 
-      try {
-        // Update status to uploading - matches ImageUploadField pattern
-        setUploadStatus({
-          status: STATUS.UPLOADING,
-          progress: 0,
-          flUpldLogNo: null,
-          fileId: null,
-          fileUri: null,
+    try {
+      setUploadStatus({
+        status: STATUS.UPLOADING,
+        progress: 0,
+        flUpldLogNo: null,
+        fileId: null,
+        fileUri: null,
+        error: null,
+      });
+
+      if (onUploadStart) onUploadStart();
+
+      const file = signatureToFile(signatureObject);
+            
+      const result = await uploadService.uploadFile(file, formId, fcId);
+
+      if (result.success) {
+        const uploadData = {
+          status: STATUS.UPLOADED,
+          progress: 100,
+          flUpldLogNo: result.flUpldLogNo,
+          fileId: result.fileId,
+          fileUri: result.fileUri,
           error: null,
-        });
-
-
-
-        const file = signatureToFile(signatureObject);
-        console.log('Uploading signature:', file);
-
-        // Use uploadService.uploadFile (same as images)
-        const result = await uploadService.uploadFile(file, formId, fcId);
-
-        if (result.success) {
-          const uploadData = {
-            status: STATUS.UPLOADED,
-            progress: 100,
-            flUpldLogNo: result.flUpldLogNo,
-            fileId: result.fileId,
-            fileUri: result.fileUri,
-            error: null,
-          };
-
-          setUploadStatus(uploadData);
-
-          return uploadData;
-
-
-          // return uploadData;
-        } else {
-          throw new Error(result.error || 'Upload failed');
-        }
-      } catch (error) {
-        console.error('Signature upload error:', error);
-
-        const errorData = {
-          status: STATUS.FAILED,
-          progress: 0,
-          flUpldLogNo: null,
-          fileId: null,
-          fileUri: null,
-          error: error.message,
         };
-
-        setUploadStatus(errorData);
-
-
-
-        return errorData;
+        
+        setUploadStatus(uploadData);
+        
+        if (onUploadComplete) {
+          onUploadComplete(uploadData);
+        }
+        
+        return uploadData;
+      } else {
+        
+        throw new Error(result.error || 'Upload failed');
       }
-    },
-    [formId, fcId, signatureToFile, onChange],
-  );
+    } catch (error) {
+      console.error('Signature upload error:', error);
+      
+      const errorData = {
+        status: STATUS.FAILED,
+        progress: 0,
+        flUpldLogNo: null,
+        fileId: null,
+        fileUri: null,
+        error: error.message,
+      };
+      
+      setUploadStatus(errorData);
+      
+      if (onUploadError) {
+        onUploadError(errorData);
+      }
+      
+      return errorData;
+    }
+  }, [formId, fcId, signatureToFile, onUploadStart, onUploadComplete, onUploadError]);
 
-  // Manual upload retry - matches ImageUploadField pattern
+  // Manual upload retry
   const retryUpload = useCallback(async () => {
-    if (signature && signature.uri && signature.status !== STATUS.UPLOADED) {
+    if (signature && signature.uri) {
       await uploadSignature(signature);
     }
   }, [signature, uploadSignature]);
+
 
   // Capture signature as image object
   const captureSignature = useCallback(async () => {
@@ -314,7 +316,7 @@ const SignatureField = ({
     try {
       // Calculate total points for validation
       const totalPoints = pathsRef.current.reduce(total => {
-        return total + 10;
+        return total + 10; // Conservative estimate
       }, currentPointsRef.current.length);
 
       if (totalPoints < minPoints) {
@@ -354,7 +356,7 @@ const SignatureField = ({
         canvas.drawPath(path, strokePaint);
       });
 
-      // Draw current stroke if in progress
+      // If there's a current stroke in progress, draw it too
       if (currentPointsRef.current.length > 1) {
         const currentPath = createSmoothPath(currentPointsRef.current);
         if (currentPath) {
@@ -367,30 +369,30 @@ const SignatureField = ({
       if (!image) {
         throw new Error('Failed to create image snapshot');
       }
-      const id = `${formId}-${fcId}-1-${Date.now()}`;
+
+      // // Get base64 URI for display
+      // const base64Uri = image.encodeToBase64();
+      // const base64Data = `data:image/png;base64,${base64Uri}`;
+
+      // // Get raw PNG bytes for file storage
+      // const pngBytes = image.encodeToBytes();
+
+
       // Get base64 from image
       const base64Data = image.encodeToBase64();
-      const fileName = `signature_${id}.png`;
+      const fileName = `signature_${fcId}_${Date.now()}.png`;
       const localPath = `${RNFS.CachesDirectoryPath}/${fileName}`;
-
+      
       // Save to file system
       await RNFS.writeFile(localPath, base64Data, 'base64');
 
-      // Get file size
-      const stats = await RNFS.stat(localPath);
-      const fileSize = stats.size;
-
-      // Generate unique ID for the signature - matches ImageUploadField pattern
-      const signatureId = `${id}-${Math.random().toString(36).substr(2, 9)}`;
-
-      // Return the image object with all required fields
+      // Return the image object
       return {
-        id: signatureId,
-        uri: `file://${localPath}`,
-        type: 'image/png',
-        fileNm: fileName,
-        fileSize: fileSize,
-        byteData: base64Data, // Base64 data
+        uri: base64Data,
+        width: canvasSize.width,
+        height: canvasSize.height,
+        byteData: pngBytes, // Raw PNG bytes
+        base64: base64Uri, // Base64 without data prefix
       };
     } catch (error) {
       console.error('Error capturing signature:', error);
@@ -403,11 +405,9 @@ const SignatureField = ({
     strokeWidth,
     minPoints,
     createSmoothPath,
-    fcId,
-    formId,
   ]);
 
-  // Handle signature save and upload
+  // Handle signature save
   const handleSignatureSave = useCallback(async () => {
     if (isPreview) return;
 
@@ -424,25 +424,18 @@ const SignatureField = ({
         return;
       }
 
-      // Try to upload immediately if online
-      // The upload may succeed or fail - if it fails, it will be added to pending queue
-      // This matches ImageUploadField behavior where images are uploaded immediately
       const uploadResult = await uploadSignature(signatureObject);
+      setSignature(signatureObject);
 
-      const finalSignatureObject = {
+      onChange({
         ...signatureObject,
         ...uploadResult,
-        formId: formId,
         fcId: fcId,
-      };
-
-      setSignature(finalSignatureObject);
-
-      // Notify parent component of the signature data
-      onChange(finalSignatureObject);
+        formId: formId,
+      });
 
       if (onSave) {
-        onSave(finalSignatureObject);
+        onSave(signatureObject);
       }
 
       handleFieldValidation('');
@@ -469,7 +462,6 @@ const SignatureField = ({
     onSigningEnd,
     isPreview,
     label,
-    uploadSignature,
   ]);
 
   // Handle signature clear
@@ -477,8 +469,10 @@ const SignatureField = ({
     if (disabled || isPreview) return;
 
     if (isSigning) {
+      // If currently signing, clear the canvas
       clearCanvas();
     } else {
+      // If signature is saved, clear it
       Alert.alert(
         'Clear Signature',
         'Are you sure you want to clear the signature?',
@@ -492,14 +486,6 @@ const SignatureField = ({
               onChange(null);
               handleFieldValidation('');
               clearCanvas();
-              setUploadStatus({
-                status: STATUS.PENDING,
-                progress: 0,
-                flUpldLogNo: null,
-                fileId: null,
-                fileUri: null,
-                error: null,
-              });
             },
           },
         ],
@@ -538,14 +524,6 @@ const SignatureField = ({
             clearCanvas();
             setIsSigning(true);
             setIsTapped(true);
-            setUploadStatus({
-              status: STATUS.PENDING,
-              progress: 0,
-              flUpldLogNo: null,
-              fileId: null,
-              fileUri: null,
-              error: null,
-            });
             onSigningStart && onSigningStart();
           },
         },
@@ -580,26 +558,6 @@ const SignatureField = ({
   useEffect(() => {
     if (value && value !== signature) {
       setSignature(value);
-      // Update upload status based on signature status
-      if (value.status === STATUS.UPLOADED) {
-        setUploadStatus({
-          status: STATUS.UPLOADED,
-          progress: 100,
-          flUpldLogNo: value.flUpldLogNo,
-          fileId: value.fileId,
-          fileUri: value.fileUri,
-          error: null,
-        });
-      } else if (value.status === STATUS.FAILED) {
-        setUploadStatus({
-          status: STATUS.FAILED,
-          progress: 0,
-          flUpldLogNo: null,
-          fileId: null,
-          fileUri: null,
-          error: value.error,
-        });
-      }
     }
   }, [value, signature]);
 
@@ -612,6 +570,7 @@ const SignatureField = ({
   // Helper to get display URI for signature
   const getSignatureUri = useCallback(() => {
     if (!signature) return null;
+    // Signature should be an object with uri property
     if (typeof signature === 'object' && signature !== null && signature.uri) {
       return signature.uri;
     }
@@ -625,6 +584,7 @@ const SignatureField = ({
 
     return (
       <View style={[commonStyles.fieldContainer, styles.container]}>
+        {/* Label */}
         <View style={commonStyles.labelContainer}>
           <Text
             style={[
@@ -637,6 +597,7 @@ const SignatureField = ({
           {required && <Text style={commonStyles.requiredStar}> *</Text>}
         </View>
 
+        {/* Signature Preview */}
         <View
           style={[
             commonStyles.previewValueContainer,
@@ -653,23 +614,17 @@ const SignatureField = ({
                     resizeMode="contain"
                   />
                 </View>
-                {signature.status === STATUS.UPLOADED && (
-                  <View style={styles.previewSignatureBadge}>
-                    <Icon name="check" size={12} color={COLORS.surface} />
-                  </View>
-                )}
+                <View style={styles.previewSignatureBadge}>
+                  <Icon name="check" size={12} color={COLORS.surface} />
+                </View>
               </View>
               <View style={styles.previewSignatureInfo}>
                 <Text style={styles.previewSignatureTitle}>
                   Signature Captured
                 </Text>
                 <Text style={styles.previewSignatureSize}>
-                  {(signature.fileSize || 0 / 1024).toFixed(2)} KB
+                  {signatureUri ? Math.round(signatureUri.length / 1024) : 0} KB
                 </Text>
-                {signature.status === STATUS.UPLOADED && (
-                  <Text style={styles.uploadedText}>✓ Uploaded</Text>
-                )}
-                
               </View>
             </View>
           ) : (
@@ -687,6 +642,7 @@ const SignatureField = ({
           )}
         </View>
 
+        {/* Error message for required fields */}
         {required && !hasSignature && (
           <View style={styles.errorContainer}>
             <Text style={commonStyles.errorText}>This field is required</Text>
@@ -699,6 +655,7 @@ const SignatureField = ({
   // Regular edit mode render
   return (
     <View style={[commonStyles.fieldContainer, styles.container]}>
+      {/* Label */}
       <View style={commonStyles.labelContainer}>
         <Text
           style={[commonStyles.labelText, disabled && styles.labelTextDisabled]}
@@ -708,35 +665,14 @@ const SignatureField = ({
         </Text>
       </View>
 
+      {/* Description (only shown when not signing) */}
       {description && !isSigning && !isSigned() && (
         <View style={styles.descriptionContainer}>
           <Text style={commonStyles.descriptionText}>{description}</Text>
         </View>
       )}
 
-      {/* Upload Status Indicator - Matches ImageUploadField */}
-      {isSigned() && uploadStatus.status === STATUS.UPLOADING && (
-        <View style={styles.uploadingStatus}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-          <Text style={styles.uploadingText}>Uploading signature...</Text>
-        </View>
-      )}
-
-      {isSigned() && uploadStatus.status === STATUS.FAILED && isOnline && (
-        <View style={styles.failedStatus}>
-          <Icon name="error-outline" size={16} color={COLORS.error} />
-          <Text style={styles.failedText}>
-            Upload failed: {uploadStatus.error}
-          </Text>
-          <TouchableOpacity
-            onPress={retryUpload}
-            style={styles.retrySmallButton}
-          >
-            <Text style={styles.retrySmallText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
+      {/* Signature Area */}
       <View
         style={styles.signatureArea}
         accessibilityLabel={`${label}. ${
@@ -746,6 +682,7 @@ const SignatureField = ({
         importantForAccessibility="yes"
       >
         {isSigned() && !isSigning ? (
+          // Signature Preview
           <View
             style={[commonStyles.previewContainer, styles.previewContainer]}
           >
@@ -758,22 +695,19 @@ const SignatureField = ({
                     resizeMode="contain"
                   />
                 </View>
-                {signature.status === STATUS.UPLOADED && (
-                  <View style={styles.previewBadge}>
-                    <Icon name="check" size={12} color={COLORS.surface} />
-                  </View>
-                )}
+                <View style={styles.previewBadge}>
+                  <Icon name="check" size={12} color={COLORS.surface} />
+                </View>
               </View>
 
               <View style={styles.previewInfo}>
                 <Text style={styles.previewTitle}>Signature Captured</Text>
                 <Text style={styles.previewSize}>
-                  {(signature.fileSize || 0 / 1024).toFixed(2)} KB
+                  {getSignatureUri()
+                    ? Math.round(getSignatureUri().length / 1024)
+                    : 0}{' '}
+                  KB
                 </Text>
-                {uploadStatus.status === STATUS.UPLOADED && (
-                  <Text style={styles.uploadedText}>✓ Uploaded</Text>
-                )}
-                
                 <TouchableOpacity
                   onPress={handleEdit}
                   disabled={disabled}
@@ -796,6 +730,7 @@ const SignatureField = ({
             </View>
           </View>
         ) : isSigning ? (
+          // Signature Canvas
           <GestureHandlerRootView style={styles.gestureRoot}>
             <View style={[styles.canvasOuterContainer]}>
               <View
@@ -822,6 +757,7 @@ const SignatureField = ({
                       style={[styles.canvas, styles.canvasBorder]}
                       ref={canvasRef}
                     >
+                      {/* Background */}
                       <Path
                         path={Skia.Path.Make().addRect(
                           Skia.XYWHRect(
@@ -834,6 +770,7 @@ const SignatureField = ({
                         color={backgroundColor}
                       />
 
+                      {/* Draw all saved paths */}
                       <Group>
                         {paths.map((path, index) => (
                           <Path
@@ -849,6 +786,7 @@ const SignatureField = ({
                         ))}
                       </Group>
 
+                      {/* Draw current path (in progress) */}
                       {currentPath && (
                         <Path
                           path={currentPath}
@@ -865,12 +803,14 @@ const SignatureField = ({
                 </GestureDetector>
               </View>
 
+              {/* Control buttons */}
               <View
                 style={[
                   commonStyles.controlsContainer,
                   styles.controlsContainer,
                 ]}
               >
+                {/* Clear button */}
                 <TouchableOpacity
                   style={[
                     commonStyles.secondaryButton,
@@ -905,6 +845,7 @@ const SignatureField = ({
                   </Text>
                 </TouchableOpacity>
 
+                {/* Cancel button (only shown when signing) */}
                 {isSigning && (
                   <TouchableOpacity
                     style={[
@@ -938,6 +879,7 @@ const SignatureField = ({
                   </TouchableOpacity>
                 )}
 
+                {/* Save button */}
                 <TouchableOpacity
                   style={[
                     commonStyles.primaryButton,
@@ -980,6 +922,7 @@ const SignatureField = ({
                 </TouchableOpacity>
               </View>
 
+              {/* Mobile-specific instructions */}
               {isSigning && !disabled && (
                 <View style={styles.instructionsContainer}>
                   <Text style={styles.instructionsText}>
@@ -997,6 +940,7 @@ const SignatureField = ({
             </View>
           </GestureHandlerRootView>
         ) : (
+          // Start Signature Button
           <TouchableOpacity
             style={[
               commonStyles.secondaryButton,
@@ -1029,6 +973,7 @@ const SignatureField = ({
         )}
       </View>
 
+      {/* Error message */}
       {fieldValidationError ? (
         <View style={styles.errorContainer}>
           <Text style={commonStyles.errorText}>{fieldValidationError}</Text>
@@ -1039,21 +984,14 @@ const SignatureField = ({
 };
 
 SignatureField.propTypes = {
-  formId: PropTypes.string.isRequired,
   fcId: PropTypes.string.isRequired,
   label: PropTypes.string,
   value: PropTypes.shape({
-    id: PropTypes.string,
     uri: PropTypes.string,
-    fileNm: PropTypes.string,
-    fileSize: PropTypes.number,
     width: PropTypes.number,
     height: PropTypes.number,
-    status: PropTypes.string,
-    flUpldLogNo: PropTypes.string,
-    fileId: PropTypes.string,
-    fileUri: PropTypes.string,
-    error: PropTypes.string,
+    byteData: PropTypes.instanceOf(Uint8Array),
+    base64: PropTypes.string,
   }),
   onChange: PropTypes.func.isRequired,
   required: PropTypes.bool,
@@ -1088,10 +1026,16 @@ SignatureField.defaultProps = {
   onError: null,
 };
 
+export default React.memo(SignatureField);
+
+////////////////////////////////////////////////////////////////////////////////
+// STYLES /////////////////////////////////////////////////////////////////////
 const styles = StyleSheet.create({
   container: {
     marginBottom: 20,
   },
+
+  // Label states
   labelTextDisabled: {
     color: COLORS.text.disabled,
   },
@@ -1101,16 +1045,24 @@ const styles = StyleSheet.create({
   labelTextSigned: {
     color: COLORS.success,
   },
+
+  // Description
   descriptionContainer: {
     marginBottom: 12,
   },
+
+  // Signature area
   signatureArea: {
     borderRadius: 8,
     overflow: 'hidden',
   },
+
+  // Gesture handler root
   gestureRoot: {
     flex: 1,
   },
+
+  // Start button
   startButton: {
     paddingVertical: 16,
     paddingHorizontal: 24,
@@ -1126,6 +1078,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
+
+  // Canvas wrapper
   canvasOuterContainer: {
     alignItems: 'center',
     overflow: 'hidden',
@@ -1149,6 +1103,8 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+
+  // Controls
   controlsContainer: {
     marginBottom: 8,
     flexDirection: 'row',
@@ -1167,6 +1123,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginHorizontal: 4,
   },
+
+  // Instructions
   instructionsContainer: {
     marginTop: 8,
     paddingHorizontal: 16,
@@ -1184,6 +1142,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 2,
   },
+
+  // Preview (edit mode)
   previewContainer: {
     minHeight: 120,
     flexDirection: 'row',
@@ -1207,7 +1167,7 @@ const styles = StyleSheet.create({
   signatureBackground: {
     width: 150,
     height: 100,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.gray[50],
     borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -1218,6 +1178,12 @@ const styles = StyleSheet.create({
   signaturePreviewImage: {
     width: '90%',
     height: '90%',
+  },
+  noSignaturePreview: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   previewBadge: {
     position: 'absolute',
@@ -1253,6 +1219,8 @@ const styles = StyleSheet.create({
     display: 'flex',
     alignItems: 'flex-end',
   },
+
+  // Preview mode styles
   previewSignatureContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1264,7 +1232,7 @@ const styles = StyleSheet.create({
   previewSignatureBackground: {
     width: 120,
     height: 80,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.gray[50],
     borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -1307,68 +1275,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
   },
+
+  // Error container
   errorContainer: {
     marginTop: 8,
   },
-  uploadingStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    backgroundColor: COLORS.infoLight,
-    borderRadius: 6,
-    marginBottom: 12,
-    gap: 8,
-  },
-  uploadingText: {
-    fontSize: 12,
-    color: COLORS.info,
-    flex: 1,
-  },
-  failedStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    backgroundColor: COLORS.errorLight,
-    borderRadius: 6,
-    marginBottom: 12,
-    gap: 8,
-  },
-  failedText: {
-    fontSize: 12,
-    color: COLORS.error,
-    flex: 1,
-  },
-  retrySmallButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: COLORS.error,
-    borderRadius: 4,
-  },
-  retrySmallText: {
-    fontSize: 11,
-    color: COLORS.text.inverse,
-    fontWeight: '600',
-  },
-  retryButton: {
-    marginTop: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.errorLight,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  retryButtonText: {
-    fontSize: 11,
-    color: COLORS.error,
-    fontFamily: 'System',
-    fontWeight: '500',
-  },
-  uploadedText: {
-    fontSize: 11,
-    color: COLORS.success,
-    marginTop: 2,
-    fontWeight: '500',
-  },
 });
-
-export default React.memo(SignatureField);

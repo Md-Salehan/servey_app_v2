@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { withDatabase } from '@nozbe/watermelondb/DatabaseProvider';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import {
@@ -26,12 +27,14 @@ import { useSurveyFormSubmitMutation } from '../../features/form/formsApi';
 import { getLatLng } from './Functions';
 import { useDispatch, useSelector } from 'react-redux';
 import uploadService from '../../services/uploadService';
+import SubmissionService from '../../services/submissionService';
+import useInternetStatus from '../../hook/useInternetStatus';
+import { STATUS } from '../../constants/enums';
 
-const PreviewScreen = () => {
+const PreviewScreen = ({ database }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const {
-    formData,
     formTitle,
     appId,
     formId,
@@ -39,13 +42,30 @@ const PreviewScreen = () => {
     formComponents,
     surFormGenFlg,
     isViewOnly = false,
+    isOfflineSave = false, // Flag to indicate this is from offline save
   } = route.params || {};
 
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
+  const { isOnline } = useInternetStatus();
   const [surveyFormSubmit, { isLoading: isFormSubmitLoading }] =
     useSurveyFormSubmitMutation();
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  console.log(
+    {
+      formTitle,
+      appId,
+      formId,
+      fieldValues,
+      formComponents,
+      surFormGenFlg,
+      isViewOnly,
+      isOfflineSave, // Flag to indicate this is from offline save
+    },
+    'preview data',
+  );
 
   // Preview mode render function
   const renderPreviewFieldComponent = component => {
@@ -212,72 +232,8 @@ const PreviewScreen = () => {
     }
   };
 
-  // Function to confirm all uploaded images
-  const confirmAllUploads = async data => {
-    // Collect all flUpldLogNo from image fields
-    const confirmations = [];
-
-    formComponents.forEach(component => {
-      if (component.compTyp === '07') {
-        const images = fieldValues[component.fcId] || [];
-        images.forEach(img => {
-          if (img.uploaded && img.flUpldLogNo && !img.confirmed) {
-            confirmations.push({
-              flUpldLogNo: img.flUpldLogNo,
-              formId,
-              fcId: component.fcId,
-              fileId: img.fileId,
-              keyStr: 'fcId',
-              keyStrVal: component.fcId,
-              tabNm: uploadService.constructor.TABLE_NAMES.SURVEY_FORM_DTL,
-              colNm: 'FILE_ID',
-            });
-          }
-        });
-      }
-    });
-
-    if (confirmations.length === 0) {
-      return { success: true, message: 'No uploads to confirm' };
-    }
-
-    setIsConfirming(true);
-    try {
-      const confirmResult = await uploadService.confirmUploads(confirmations);
-
-      if (confirmResult.success) {
-        // Update the local fieldValues to mark images as confirmed
-        const updatedFieldValues = { ...fieldValues };
-
-        formComponents.forEach(component => {
-          if (component.compTyp === '07') {
-            const images = updatedFieldValues[component.fcId] || [];
-            updatedFieldValues[component.fcId] = images.map(img => {
-              const confirmed = confirmResult.results?.find(
-                r => r.flUpldLogNo === img.flUpldLogNo,
-              );
-              if (confirmed) {
-                return { ...img, confirmed: true };
-              }
-              return img;
-            });
-          }
-        });
-
-        // You might want to update the state or context here
-        // For now, we'll just return success
-      }
-
-      return confirmResult;
-    } catch (error) {
-      console.error('Confirmation error:', error);
-      return { success: false, error: error.message };
-    } finally {
-      setIsConfirming(false);
-    }
-  };
-
-  const handleFormSubmit = async () => {
+  // Generate payload for submission or local save
+  const generatePayload = () => {
     const now = new Date();
     const { lat, lng } = getLatLng(fieldValues, formComponents);
 
@@ -294,8 +250,21 @@ const PreviewScreen = () => {
               // Extract serverUrl from each image object and filter out any invalid URLs
               value = value
                 .map(image => image.flUpldLogNo)
-                .filter(flUpldLogNo => flUpldLogNo); // Keep only valid flUpldLogNo values
+                .filter(flUpldLogNo => flUpldLogNo);
               value = JSON.stringify(value); // Convert array of flUpldLogNo to JSON string for submission
+            }
+          }
+
+          // Handle signature field (compTyp '09')
+          else if (component.compTyp === '09' && value) {
+            // Signature can be an object with upload status
+            if (value && typeof value === 'object') {
+              // If signature has been uploaded, use the flUpldLogNo
+              if (value.status === STATUS.UPLOADED && value.flUpldLogNo) {
+                value = JSON.stringify([value.flUpldLogNo]);
+              } else {
+                value = JSON.stringify([]);
+              }
             }
           }
 
@@ -311,43 +280,105 @@ const PreviewScreen = () => {
         })
         .filter(item => item !== null) || [];
 
+    // Prepare the payload for pending submission
     const payload = {
       apiId: 'SUA01031',
-      mst: {
-        appId: appId,
-        formId: formId,
-        dtl01: [
+      mst: [
+        {
+          appId: appId,
+          formId: formId,
+          dtl01: [
+            {
+              dtl02: dtl02,
+              blkCd: '',
+              blkNm: '',
+              csLocTyp: '',
+              distCd: '',
+              distNm: '',
+              geoJson: '',
+              jlNo: '',
+              latitude: lat,
+              longitude: lng,
+              lvlRefCd: '',
+              panCd: '',
+              panNm: '',
+              plcn: '',
+              stateCd: '',
+              stateNm: '',
+              subdCd: '',
+              subdNm: '',
+              surDate: now.toISOString().split('T')[0],
+              surMobNo: user?.mobNo || '',
+              surRefTyp: '',
+              surTime: now.toTimeString().split(' ')[0],
+              surUserId: user?.userId || '',
+              townNm: '',
+              villNm: '',
+              wardNo: '',
+            },
+          ],
+        },
+      ],
+    };
+
+    return payload;
+  };
+
+  // Save submission to local database (offline mode)
+  const saveToLocalDatabase = async () => {
+    setIsSaving(true);
+    try {
+      const submissionService = new SubmissionService(database);
+      const payload = generatePayload();
+
+      // Create pending submission
+      await submissionService.createPendingSubmission(
+        { formId, formName: formTitle, appId },
+        fieldValues,
+        formComponents,
+        payload,
+      );
+
+      Alert.alert(
+        'Success',
+        'Your submission has been saved locally and will be automatically submitted when you reconnect.',
+        [
           {
-            dtl02: dtl02,
-            blkCd: '',
-            blkNm: '',
-            csLocTyp: '',
-            distCd: '',
-            distNm: '',
-            geoJson: '',
-            jlNo: '',
-            latitude: lat,
-            longitude: lng,
-            lvlRefCd: '',
-            panCd: '',
-            panNm: '',
-            plcn: '',
-            stateCd: '',
-            stateNm: '',
-            subdCd: '',
-            subdNm: '',
-            surDate: now.toISOString().split('T')[0],
-            surMobNo: user?.mobNo || '',
-            surRefTyp: '',
-            surTime: now.toTimeString().split(' ')[0],
-            surUserId: user?.userId || '',
-            townNm: '',
-            villNm: '',
-            wardNo: '',
+            text: 'OK',
+            onPress: () => {
+              navigation.reset({
+                index: 1,
+                routes: [
+                  { name: ROUTES.DASHBOARD },
+                  {
+                    name: ROUTES.RECORD_ENTRY,
+                    params: {
+                      appId,
+                      formId,
+                      formTitle,
+                      surFormGenFlg,
+                      shouldReset: true,
+                    },
+                  },
+                ],
+              });
+            },
           },
         ],
-      },
-    };
+      );
+    } catch (error) {
+      console.error('Error saving offline submission:', error);
+      Alert.alert(
+        'Error',
+        'Failed to save submission offline. Please try again.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleFormSubmit = async () => {
+    const payload = generatePayload();
 
     console.log(payload, 'pld');
 
@@ -405,6 +436,11 @@ const PreviewScreen = () => {
     }
   };
 
+  // Determine if we're in offline mode and should show Save button
+  const showSaveButton = !isOnline && !isViewOnly && surFormGenFlg === 'Y';
+  const showSubmitButton = isOnline && !isViewOnly && surFormGenFlg === 'Y';
+  const isLoading = isFormSubmitLoading || isConfirming || isSaving;
+
   return (
     <SafeAreaView style={styles.container}>
       <Header
@@ -423,7 +459,11 @@ const PreviewScreen = () => {
         <View style={styles.previewHeader}>
           <Text style={styles.previewTitle}>Review Your Entries</Text>
           <Text style={styles.previewSubtitle}>
-            Please verify all information before submitting
+            {isViewOnly
+              ? 'View submitted data (read-only mode)'
+              : isOnline
+              ? 'Please verify all information before submitting'
+              : 'You are offline. Your submission will be saved locally.'}
           </Text>
         </View>
 
@@ -451,29 +491,53 @@ const PreviewScreen = () => {
           </Text>
         </TouchableOpacity>
 
-        {surFormGenFlg === 'Y' ? (
+        {showSaveButton && (
+          <TouchableOpacity
+            style={[styles.submitButton, { backgroundColor: COLORS.warning }]}
+            onPress={saveToLocalDatabase}
+            disabled={isLoading}
+          >
+            {isSaving ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <>
+                <Text style={styles.submitButtonText}>Save Offline</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {showSubmitButton && (
           <TouchableOpacity
             style={styles.submitButton}
             onPress={handleFormSubmit}
-            disabled={isFormSubmitLoading || isConfirming}
+            disabled={isLoading}
           >
-            {isFormSubmitLoading || isConfirming ? (
+            {isLoading ? (
               <ActivityIndicator color="white" />
             ) : (
               <Text style={styles.submitButtonText}>Submit</Text>
             )}
           </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: COLORS.gray[400] }]}
-            disabled={true}
-          >
-            <Text style={styles.submitButtonText}>Submit</Text>
-          </TouchableOpacity>
         )}
+
+        {!showSaveButton &&
+          !showSubmitButton &&
+          !isViewOnly &&
+          surFormGenFlg !== 'Y' && (
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                { backgroundColor: COLORS.gray[400] },
+              ]}
+              disabled={true}
+            >
+              <Text style={styles.submitButtonText}>Submit</Text>
+            </TouchableOpacity>
+          )}
       </View>
     </SafeAreaView>
   );
 };
 
-export default PreviewScreen;
+export default withDatabase(PreviewScreen);

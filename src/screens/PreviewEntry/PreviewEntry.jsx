@@ -29,6 +29,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import uploadService from '../../services/uploadService';
 import SubmissionService from '../../services/submissionService';
 import useInternetStatus from '../../hook/useInternetStatus';
+import { STATUS } from '../../constants/enums';
 
 const PreviewScreen = ({ database }) => {
   const navigation = useNavigation();
@@ -52,16 +53,19 @@ const PreviewScreen = ({ database }) => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  console.log({
-    formTitle,
-    appId,
-    formId,
-    fieldValues,
-    formComponents,
-    surFormGenFlg,
-    isViewOnly,
-    isOfflineSave, // Flag to indicate this is from offline save
-  }, 'preview data');
+  console.log(
+    {
+      formTitle,
+      appId,
+      formId,
+      fieldValues,
+      formComponents,
+      surFormGenFlg,
+      isViewOnly,
+      isOfflineSave, // Flag to indicate this is from offline save
+    },
+    'preview data',
+  );
 
   // Preview mode render function
   const renderPreviewFieldComponent = component => {
@@ -228,84 +232,104 @@ const PreviewScreen = ({ database }) => {
     }
   };
 
+  // Generate payload for submission or local save
+  const generatePayload = () => {
+    const now = new Date();
+    const { lat, lng } = getLatLng(fieldValues, formComponents);
+
+    // Process form components to extract flUpldLogNo for images
+    const dtl02 =
+      formComponents
+        ?.map(component => {
+          let value = fieldValues[component.fcId];
+          console.log(value, 'pld value');
+
+          // Handle image upload field (compTyp '07')
+          if (component.compTyp === '07' && value) {
+            if (Array.isArray(value)) {
+              // Extract serverUrl from each image object and filter out any invalid URLs
+              value = value
+                .map(image => image.flUpldLogNo)
+                .filter(flUpldLogNo => flUpldLogNo);
+              value = JSON.stringify(value); // Convert array of flUpldLogNo to JSON string for submission
+            }
+          }
+
+          // Handle signature field (compTyp '09')
+          else if (component.compTyp === '09' && value) {
+            // Signature can be an object with upload status
+            if (value && typeof value === 'object') {
+              // If signature has been uploaded, use the flUpldLogNo
+              if (value.status === STATUS.UPLOADED && value.flUpldLogNo) {
+                value = JSON.stringify([value.flUpldLogNo]);
+              } else {
+                value = JSON.stringify([]);
+              }
+            }
+          }
+
+          // Only include fields with values
+          if (value !== undefined && value !== null && value !== '') {
+            return {
+              compTyp: component.compTyp,
+              fcId: component.fcId,
+              value: value,
+            };
+          }
+          return null;
+        })
+        .filter(item => item !== null) || [];
+
+    // Prepare the payload for pending submission
+    const payload = {
+      apiId: 'SUA01031',
+      mst: [
+        {
+          appId: appId,
+          formId: formId,
+          dtl01: [
+            {
+              dtl02: dtl02,
+              blkCd: '',
+              blkNm: '',
+              csLocTyp: '',
+              distCd: '',
+              distNm: '',
+              geoJson: '',
+              jlNo: '',
+              latitude: lat,
+              longitude: lng,
+              lvlRefCd: '',
+              panCd: '',
+              panNm: '',
+              plcn: '',
+              stateCd: '',
+              stateNm: '',
+              subdCd: '',
+              subdNm: '',
+              surDate: now.toISOString().split('T')[0],
+              surMobNo: user?.mobNo || '',
+              surRefTyp: '',
+              surTime: now.toTimeString().split(' ')[0],
+              surUserId: user?.userId || '',
+              townNm: '',
+              villNm: '',
+              wardNo: '',
+            },
+          ],
+        },
+      ],
+    };
+
+    return payload;
+  };
+
   // Save submission to local database (offline mode)
   const saveToLocalDatabase = async () => {
     setIsSaving(true);
     try {
       const submissionService = new SubmissionService(database);
-      const now = new Date();
-      const { lat, lng } = getLatLng(fieldValues, formComponents);
-
-      // Process form components to extract flUpldLogNo for images
-      const dtl02 =
-        formComponents
-          ?.map(component => {
-            let value = fieldValues[component.fcId];
-            console.log(value, 'pld value');
-
-            // Handle image upload field (compTyp '07')
-            if (component.compTyp === '07' && value) {
-              if (Array.isArray(value)) {
-                // Extract serverUrl from each image object and filter out any invalid URLs
-                value = value
-                  .map(image => image.flUpldLogNo)
-                  .filter(flUpldLogNo => flUpldLogNo);
-                value = JSON.stringify(value); // Convert array of flUpldLogNo to JSON string for submission
-              }
-            }
-
-            // Only include fields with values
-            if (value !== undefined && value !== null && value !== '') {
-              return {
-                compTyp: component.compTyp,
-                fcId: component.fcId,
-                value: value,
-              };
-            }
-            return null;
-          })
-          .filter(item => item !== null) || [];
-
-      // Prepare the payload for pending submission
-      const payload = {
-        apiId: 'SUA01031',
-        mst: [
-          {
-            appId: appId,
-            formId: formId,
-            dtl01: [
-              {
-                dtl02: dtl02,
-                blkCd: '',
-                blkNm: '',
-                csLocTyp: '',
-                distCd: '',
-                distNm: '',
-                geoJson: '',
-                jlNo: '',
-                latitude: lat,
-                longitude: lng,
-                lvlRefCd: '',
-                panCd: '',
-                panNm: '',
-                plcn: '',
-                stateCd: '',
-                stateNm: '',
-                subdCd: '',
-                subdNm: '',
-                surDate: now.toISOString().split('T')[0],
-                surMobNo: user?.mobNo || '',
-                surRefTyp: '',
-                surTime: now.toTimeString().split(' ')[0],
-                surUserId: user?.userId || '',
-                townNm: '',
-                villNm: '',
-                wardNo: '',
-              },
-            ],
-          },
-        ],
-      };
+      const payload = generatePayload();
 
       // Create pending submission
       await submissionService.createPendingSubmission(
@@ -354,78 +378,7 @@ const PreviewScreen = ({ database }) => {
   };
 
   const handleFormSubmit = async () => {
-    const now = new Date();
-    const { lat, lng } = getLatLng(fieldValues, formComponents);
-
-    // Process form components to extract flUpldLogNo for images
-    const dtl02 =
-      formComponents
-        ?.map(component => {
-          let value = fieldValues[component.fcId];
-          console.log(value, 'pld value');
-
-          // Handle image upload field (compTyp '07')
-          if (component.compTyp === '07' && value) {
-            if (Array.isArray(value)) {
-              // Extract serverUrl from each image object and filter out any invalid URLs
-              value = value
-                .map(image => image.flUpldLogNo)
-                .filter(flUpldLogNo => flUpldLogNo);
-              value = JSON.stringify(value); // Convert array of flUpldLogNo to JSON string for submission
-            }
-          }
-
-          // Only include fields with values
-          if (value !== undefined && value !== null && value !== '') {
-            return {
-              compTyp: component.compTyp,
-              fcId: component.fcId,
-              value: value,
-            };
-          }
-          return null;
-        })
-        .filter(item => item !== null) || [];
-
-    const payload = {
-      apiId: 'SUA01031',
-      mst: [
-        {
-          appId: appId,
-          formId: formId,
-          dtl01: [
-            {
-              dtl02: dtl02,
-              blkCd: '',
-              blkNm: '',
-              csLocTyp: '',
-              distCd: '',
-              distNm: '',
-              geoJson: '',
-              jlNo: '',
-              latitude: lat,
-              longitude: lng,
-              lvlRefCd: '',
-              panCd: '',
-              panNm: '',
-              plcn: '',
-              stateCd: '',
-              stateNm: '',
-              subdCd: '',
-              subdNm: '',
-              surDate: now.toISOString().split('T')[0],
-              surMobNo: user?.mobNo || '',
-              surRefTyp: '',
-              surTime: now.toTimeString().split(' ')[0],
-              surUserId: user?.userId || '',
-              townNm: '',
-              villNm: '',
-              wardNo: '',
-            },
-          ],
-        },
-      ],
-    };
+    const payload = generatePayload();
 
     console.log(payload, 'pld');
 
@@ -503,16 +456,6 @@ const PreviewScreen = ({ database }) => {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.previewHeader}>
-          <Text style={styles.previewTitle}>Review Your Entries</Text>
-          <Text style={styles.previewSubtitle}>
-            {isViewOnly
-              ? 'View submitted data (read-only mode)'
-              : isOnline
-              ? 'Please verify all information before submitting'
-              : 'You are offline. Your submission will be saved locally.'}
-          </Text>
-        </View>
 
         {/* Render form fields in preview mode */}
         <View style={styles.formContainer}>

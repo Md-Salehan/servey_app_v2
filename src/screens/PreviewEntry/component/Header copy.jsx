@@ -11,13 +11,10 @@ const Header = ({ navigation, formTitle, appId, formId, fieldValues={}, totalNum
         <Text style={styles.backButtonText}>←</Text>
       </TouchableOpacity>
       <View style={styles.headerContent}>
-        <Text style={styles.formTitle}>{totalNumFormComp>1 ? 'Review Entries' : 'Review Entry'}</Text>
-        {/* <Text style={styles.formSubtitle}>
-          Fields completed: {Object.values(fieldValues).filter(v => v).length} /{' '}
-          {totalNumFormComp}  
-        </Text> */}
+        <Text style={styles.formTitle}>{formTitle || 'Record Entry'}</Text>
         <Text style={styles.formSubtitle}>
-          Form: {formTitle || 'Untitled Form'} 
+          Fields completed: {Object.values(fieldValues).filter(v => v).length} /{' '}
+          {totalNumFormComp}
         </Text>
       </View>
     </View>

@@ -15,7 +15,7 @@ const RootNavigator = () => {
         {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
       {/* <MainNavigator /> */}
       </ProtectedRoute>
-      <OfflineBanner />
+      {/* <OfflineBanner /> */}
     </NavigationContainer>
   );
 };

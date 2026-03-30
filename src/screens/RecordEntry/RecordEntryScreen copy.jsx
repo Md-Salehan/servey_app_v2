@@ -8,7 +8,11 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from '@react-navigation/native';
 import { withDatabase } from '@nozbe/watermelondb/DatabaseProvider';
 import { Q } from '@nozbe/watermelondb';
 import { COLORS } from '../../constants/colors';
@@ -32,7 +36,14 @@ const RecordEntryScreen = ({ database }) => {
   const route = useRoute();
   const navigation = useNavigation();
 
-  const { appId, formId, formTitle, surFormGenFlg, shouldReset, resetTimestamp } = route.params || {};
+  const {
+    appId,
+    formId,
+    formTitle,
+    surFormGenFlg,
+    shouldReset,
+    resetTimestamp,
+  } = route.params || {};
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [formComponents, setFormComponents] = useState([]);
@@ -40,7 +51,6 @@ const RecordEntryScreen = ({ database }) => {
   const [submissionError, setSubmissionError] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
 
   const { isOnline, isChecking } = useInternetStatus();
   const [getFormComponents, { isLoading: isApiLoading }] =
@@ -70,16 +80,19 @@ const RecordEntryScreen = ({ database }) => {
       if (shouldReset) {
         resetForm();
         // Clear the flag from navigation params to prevent multiple resets
-        navigation.setParams({ shouldReset: undefined, resetTimestamp: undefined });
+        navigation.setParams({
+          shouldReset: undefined,
+          resetTimestamp: undefined,
+        });
       }
-    }, [shouldReset, resetTimestamp, resetForm, navigation])
+    }, [shouldReset, resetTimestamp, resetForm, navigation]),
   );
 
   const initializeData = async () => {
     setLoading(true);
     setError(null);
-    console.log("IN isOnline: ", isOnline);
-    
+    console.log('IN isOnline: ', isOnline);
+
     try {
       // Try to fetch from server if online
       if (isOnline) {
@@ -99,8 +112,7 @@ const RecordEntryScreen = ({ database }) => {
       setLoading(false);
     }
   };
-      console.log("OUT isOnline: ", isOnline);
-
+  console.log('OUT isOnline: ', isOnline);
 
   const fetchFormComponentsFromServer = async () => {
     try {
@@ -265,33 +277,58 @@ const RecordEntryScreen = ({ database }) => {
     return !hasErrors;
   };
 
-  const handleNext = () => {
-    const hasErrors = Object.keys(submissionError).filter(key => submissionError[key]).length > 0;
+  const handleNext = async () => {
+    const hasErrors =
+      Object.keys(submissionError).filter(key => submissionError[key]).length >
+      0;
     if (hasErrors) {
       Alert.alert(
         'Validation Error',
-        Object.values(submissionError).filter(error => error).join('\n'),
+        Object.values(submissionError)
+          .filter(error => error)
+          .join('\n'),
       );
       return;
     }
-    // Navigate to preview screen with all form data
-    navigation.navigate(ROUTES.PREVIEW_ENTRY, {
-      formData: {
-        apiId: 'SUA00935',
-        mst: { appId, formId },
-        dtl01: formComponents.map(component => ({
-          fcId: component.fcId,
-          value: fieldValues[component.fcId],
-          compTyp: component.compTyp,
-        })),
-      },
-      formTitle,
-      appId,
-      formId,
-      fieldValues,
-      formComponents,
-      surFormGenFlg,
-    });
+
+    // Check if online
+    if (isOnline) {
+      // If online, navigate to preview for submission
+      navigation.navigate(ROUTES.PREVIEW_ENTRY, {
+        formTitle,
+        appId,
+        formId,
+        fieldValues,
+        formComponents,
+        surFormGenFlg,
+        isViewOnly: false,
+      });
+    } else {
+      // If offline, show confirmation before saving
+      Alert.alert(
+        'Offline Mode',
+        'You are currently offline. Do you want to save this submission locally? It will be automatically submitted when you reconnect.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Save Locally',
+            onPress: async () => {
+              // Navigate to preview with offline save flag
+              navigation.navigate(ROUTES.PREVIEW_ENTRY, {
+                formTitle,
+                appId,
+                formId,
+                fieldValues,
+                formComponents,
+                surFormGenFlg,
+                isViewOnly: false,
+                isOfflineSave: true, // Flag to indicate offline save mode
+              });
+            },
+          },
+        ],
+      );
+    }
   };
 
   const renderFieldComponent = component => {
@@ -542,10 +579,7 @@ const RecordEntryScreen = ({ database }) => {
         />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={initializeData}
-          >
+          <TouchableOpacity style={styles.retryButton} onPress={initializeData}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -563,8 +597,6 @@ const RecordEntryScreen = ({ database }) => {
         fieldValues={fieldValues}
         totalNumFormComp={formComponents.length}
       />
-
-     
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}

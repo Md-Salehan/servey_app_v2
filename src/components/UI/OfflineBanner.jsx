@@ -18,15 +18,10 @@ export default function OfflineBanner() {
 
   return (
     <Animated.View
-      style={[
-        styles.container,
-        { transform: [{ translateY: slideAnim }] },
-      ]}
+      style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
     >
       <Text style={styles.text}>
-        {isOnline
-          ? 'Back Online'
-          : 'No Internet Connection'}
+        {isOnline ? 'Back Online' : 'No Internet Connection'}
       </Text>
     </Animated.View>
   );
@@ -37,9 +32,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     width: '100%',
+    height: 25,
     backgroundColor: '#ff3b30',
-    paddingVertical: 5,
+    paddingVertical: 0,
+    display: 'flex',
+    justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10000,
   },
   text: {
     color: '#fff',

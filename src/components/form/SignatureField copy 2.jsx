@@ -42,7 +42,6 @@ import {
 
 // Import upload service for consistent handling
 import uploadService from '../../services/uploadService';
-import useInternetStatus from '../../hook/useInternetStatus';
 
 const SignatureField = ({
   formId,
@@ -64,7 +63,6 @@ const SignatureField = ({
   errorText = '',
   onError = null,
 }) => {
-  const { isOnline, isChecking } = useInternetStatus(); // Assume online by default
   // State for signature
   const [signature, setSignature] = useState(value);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,7 +77,7 @@ const SignatureField = ({
 
   // Upload status tracking - matches ImageUploadField pattern
   const [uploadStatus, setUploadStatus] = useState({
-    status: STATUS.PENDING, 
+    status: STATUS.PENDING, // pending, uploading, uploaded, failed
     progress: 0,
     flUpldLogNo: null,
     fileId: null,
@@ -131,27 +129,27 @@ const SignatureField = ({
   }, [signature]);
 
   // Convert signature to file object - matches ImageUploadField pattern
-  const signatureToFile = useCallback((signatureObject) => {
-    if (!signatureObject) return null;
+  const signatureToFile = useCallback(() => {
+    if (!signature) return null;
 
     return {
       id:
-        signatureObject.id ||
+        signature.id ||
         `${formId}-${fcId}-1-${Date.now()}-${Math.random()
           .toString(36)
           .substr(2, 9)}`,
-      uri: signatureObject.uri,
+      uri: signature.uri,
       type: 'image/png',
-      fileNm: signatureObject.fileNm || `signature_${fcId}_${Date.now()}.png`,
-      fileSize: signatureObject.fileSize || 0,
-      fcId: signatureObject.fcId || fcId,
-      status: signatureObject.status || STATUS.PENDING,
-      flUpldLogNo: signatureObject.flUpldLogNo || null,
-      fileId: signatureObject.fileId || null,
-      fileUri: signatureObject.fileUri || null,
-      error: signatureObject.error || null,
+      fileNm: signature.fileNm || `signature_${fcId}_${Date.now()}.png`,
+      fileSize: signature.fileSize || 0,
+      fcId: fcId,
+      status: signature.status || STATUS.PENDING,
+      flUpldLogNo: signature.flUpldLogNo || null,
+      fileId: signature.fileId || null,
+      fileUri: signature.fileUri || null,
+      error: signature.error || null,
     };
-  }, [ formId, fcId]);
+  }, [signature, formId, fcId]);
 
   // Create a smooth path from points
   const createSmoothPath = useCallback(points => {
@@ -246,9 +244,15 @@ const SignatureField = ({
           error: null,
         });
 
+        // // Update signature object with uploading status
+        // setSignature(prev => ({
+        //   ...prev,
+        //   uploading: true,
+        //   status: STATUS.UPLOADING,
+        //   error: null,
+        // }));
 
-
-        const file = signatureToFile(signatureObject);
+        const file = signatureToFile();
         console.log('Uploading signature:', file);
 
         // Use uploadService.uploadFile (same as images)
@@ -265,9 +269,24 @@ const SignatureField = ({
           };
 
           setUploadStatus(uploadData);
-
           return uploadData;
 
+          // // Update signature with upload success - matches ImageUploadField pattern
+          // const updatedSignature = {
+          //   ...signatureObject,
+          //   uploaded: true,
+          //   uploading: false,
+          //   status: STATUS.UPLOADED,
+          //   flUpldLogNo: result.flUpldLogNo,
+          //   fileId: result.fileId,
+          //   fileUri: result.fileUri,
+          //   error: null,
+          // };
+
+          // setSignature(updatedSignature);
+
+          // // Notify parent component
+          // onChange(updatedSignature);
 
           // return uploadData;
         } else {
@@ -287,7 +306,17 @@ const SignatureField = ({
 
         setUploadStatus(errorData);
 
+        // // Update signature with failure status
+        // const failedSignature = {
+        //   ...signatureObject,
+        //   uploading: false,
+        //   uploaded: false,
+        //   status: STATUS.FAILED,
+        //   error: error.message,
+        // };
 
+        // setSignature(failedSignature);
+        // onChange(failedSignature);
 
         return errorData;
       }
@@ -390,7 +419,19 @@ const SignatureField = ({
         type: 'image/png',
         fileNm: fileName,
         fileSize: fileSize,
+        // width: canvasSize.width,
+        // height: canvasSize.height,
         byteData: base64Data, // Base64 data
+        // fcId: fcId,
+        // formId: formId,
+        // status: STATUS.PENDING, // Start as pending - will be uploaded
+        // uploaded: false,
+        // uploading: false,
+        // flUpldLogNo: null,
+        // fileId: null,
+        // fileUri: null,
+        // error: null,
+        // timestamp: new Date().toISOString(),
       };
     } catch (error) {
       console.error('Error capturing signature:', error);
@@ -432,8 +473,6 @@ const SignatureField = ({
       const finalSignatureObject = {
         ...signatureObject,
         ...uploadResult,
-        formId: formId,
-        fcId: fcId,
       };
 
       setSignature(finalSignatureObject);
@@ -653,11 +692,9 @@ const SignatureField = ({
                     resizeMode="contain"
                   />
                 </View>
-                {signature.status === STATUS.UPLOADED && (
-                  <View style={styles.previewSignatureBadge}>
-                    <Icon name="check" size={12} color={COLORS.surface} />
-                  </View>
-                )}
+                <View style={styles.previewSignatureBadge}>
+                  <Icon name="check" size={12} color={COLORS.surface} />
+                </View>
               </View>
               <View style={styles.previewSignatureInfo}>
                 <Text style={styles.previewSignatureTitle}>
@@ -669,7 +706,14 @@ const SignatureField = ({
                 {signature.status === STATUS.UPLOADED && (
                   <Text style={styles.uploadedText}>✓ Uploaded</Text>
                 )}
-                
+                {signature.status === STATUS.FAILED && (
+                  <TouchableOpacity
+                    onPress={retryUpload}
+                    style={styles.retryButton}
+                  >
+                    <Text style={styles.retryButtonText}>Retry Upload</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           ) : (
@@ -722,7 +766,7 @@ const SignatureField = ({
         </View>
       )}
 
-      {isSigned() && uploadStatus.status === STATUS.FAILED && isOnline && (
+      {isSigned() && uploadStatus.status === STATUS.FAILED && (
         <View style={styles.failedStatus}>
           <Icon name="error-outline" size={16} color={COLORS.error} />
           <Text style={styles.failedText}>
@@ -758,11 +802,9 @@ const SignatureField = ({
                     resizeMode="contain"
                   />
                 </View>
-                {signature.status === STATUS.UPLOADED && (
-                  <View style={styles.previewBadge}>
-                    <Icon name="check" size={12} color={COLORS.surface} />
-                  </View>
-                )}
+                <View style={styles.previewBadge}>
+                  <Icon name="check" size={12} color={COLORS.surface} />
+                </View>
               </View>
 
               <View style={styles.previewInfo}>
@@ -773,7 +815,14 @@ const SignatureField = ({
                 {uploadStatus.status === STATUS.UPLOADED && (
                   <Text style={styles.uploadedText}>✓ Uploaded</Text>
                 )}
-                
+                {uploadStatus.status === STATUS.FAILED && (
+                  <TouchableOpacity
+                    onPress={retryUpload}
+                    style={styles.retryButton}
+                  >
+                    <Text style={styles.retryButtonText}>Retry Upload</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   onPress={handleEdit}
                   disabled={disabled}
@@ -1207,7 +1256,7 @@ const styles = StyleSheet.create({
   signatureBackground: {
     width: 150,
     height: 100,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.gray[50],
     borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -1264,7 +1313,7 @@ const styles = StyleSheet.create({
   previewSignatureBackground: {
     width: 120,
     height: 80,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.gray[50],
     borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.border,

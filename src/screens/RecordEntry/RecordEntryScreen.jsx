@@ -29,8 +29,10 @@ import {
   SignatureField,
   TextInputField,
 } from '../../components';
+import Screen from '../../Layout/Screen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGetFormComponentsMutation } from '../../features/form/formsApi';
+import OfflineBanner from '../../components/UI/OfflineBanner';
 
 const RecordEntryScreen = ({ database }) => {
   const route = useRoute();
@@ -91,7 +93,6 @@ const RecordEntryScreen = ({ database }) => {
   const initializeData = async () => {
     setLoading(true);
     setError(null);
-    console.log('IN isOnline: ', isOnline);
 
     try {
       // Try to fetch from server if online
@@ -112,7 +113,6 @@ const RecordEntryScreen = ({ database }) => {
       setLoading(false);
     }
   };
-  console.log('OUT isOnline: ', isOnline);
 
   const fetchFormComponentsFromServer = async () => {
     try {
@@ -499,6 +499,7 @@ const RecordEntryScreen = ({ database }) => {
         return (
           <SignatureField
             key={fcId}
+            formId={formId}
             fcId={fcId}
             label={props?.label || 'Signature'}
             value={fieldValues[fcId]}
@@ -588,7 +589,9 @@ const RecordEntryScreen = ({ database }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Screen>
+      <View style={styles.container}>
+      
       <Header
         navigation={navigation}
         formTitle={formTitle}
@@ -634,7 +637,8 @@ const RecordEntryScreen = ({ database }) => {
           <Text style={styles.submitButtonText}>Preview Form</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
+    </Screen>
   );
 };
 

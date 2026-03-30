@@ -129,9 +129,6 @@ class SubmissionService {
       return { success: true };
     }
 
-    console.log(pendingFiles, "vvr pendingfile");
-    
-
     const uploadResults = [];
 
     for (const file of pendingFiles) {
@@ -225,7 +222,7 @@ class SubmissionService {
       // Prepare the submission payload similar to handleFormSubmit in PreviewEntry
       const payload = this.prepareSubmissionPayload(submission, uploadedFiles);
 
-      console.log('Submitting form data:', payload);
+      console.log('xxr Submitting form data:', payload);
 
       const token = await TokenService.getAccessToken();
       const response = await fetch(
@@ -241,7 +238,7 @@ class SubmissionService {
       );
 
       const result = await response.json();
-      console.log('Form submission response:', result);
+      console.log('xxr Form submission response:', result);
 
       if (result?.appMsgList?.errorStatus === false) {
         await attempt.markAsSuccess();
@@ -269,8 +266,6 @@ class SubmissionService {
     }
   }
 
-
-
   // Prepare submission payload with file references
   prepareSubmissionPayload(submission, uploadedFiles) {
     const now = new Date();
@@ -296,7 +291,9 @@ class SubmissionService {
 
               // Also include any existing flUpldLogNo from field values that might already be uploaded
               const existingFlUpldLogNos = value
-                .filter(img => img.uploaded && img.flUpldLogNo)
+                .filter(
+                  img => img.status === STATUS.UPLOADED && img.flUpldLogNo,
+                )
                 .map(img => img.flUpldLogNo);
 
               // Combine and deduplicate
@@ -305,6 +302,29 @@ class SubmissionService {
               ];
 
               value = JSON.stringify(allFlUpldLogNos);
+            }
+          }
+
+          // Handle signature field (compTyp '09') - NEW
+          else if (component.compTyp === '09' && value) {
+            // Signature can be an object with upload status
+            if (value && typeof value === 'object') {
+              // If signature has been uploaded, use the flUpldLogNo
+              if (value.flUpldLogNo && value.status === STATUS.UPLOADED) {
+                value = JSON.stringify([value.flUpldLogNo]);
+              }
+              // If uploaded files list contains this signature
+              else {
+                const signatureFile = uploadedFiles.find(
+                  file => file.fcId === component.fcId && file.flUpldLogNo,
+                );
+                if (signatureFile && signatureFile.flUpldLogNo) {
+                  value = JSON.stringify([signatureFile.flUpldLogNo]);
+                } else {
+                  // If not uploaded, send empty array
+                  value = JSON.stringify([]);
+                }
+              }
             }
           }
 
@@ -327,6 +347,8 @@ class SubmissionService {
     // );
 
     const storePayload = submission.payload || {};
+    console.log('xxr storePayload before preparing:', storePayload);
+    
 
     storePayload.mst[0].dtl01[0].dtl02 = dtl02;
 
@@ -335,7 +357,7 @@ class SubmissionService {
     storePayload.mst[0].dtl01[0].longitude =
       storePayload.mst[0].dtl01[0].longitude || null;
 
-    console.log('pld storePayload', storePayload);
+    console.log('xxr storePayload after preparing:', storePayload);
 
     return storePayload;
   }
@@ -467,14 +489,16 @@ class SubmissionService {
         formComponents,
       );
 
+      console.log('xxr Files to upload:', filesToUpload);
+
       for (const file of filesToUpload) {
         await PendingFile.createPendingFile(this.database, {
           submissionId: pendingSubmission.submissionId,
           fcId: file.fcId,
           formId: formDetail.formId,
           localUri: file.uri,
-          fileName: file.fileNm || file.fileName || `file_${Date.now()}.jpg`,
-          fileType: file.type || 'image/jpeg',
+          fileName: file.fileNm || `unknown_file_${Date.now()}`,
+          fileType: file.type || 'application/octet-stream',
           fileSize: file.fileSize || 0,
         });
       }
@@ -507,13 +531,35 @@ class SubmissionService {
         if (Array.isArray(images)) {
           images.forEach(image => {
             // Only include files that haven't been uploaded yet
-            if (image.status === STATUS.PENDING || image.status === STATUS.FAILED) {
+            if (
+              image.status === STATUS.PENDING ||
+              image.status === STATUS.FAILED
+            ) {
               files.push({
                 ...image,
                 fcId: component.fcId,
               });
             }
           });
+        }
+      }
+
+      // Handle signature field (compTyp '09') - NEW
+      if (component.compTyp === '09') {
+        const signature = fieldValues[component.fcId];
+        if (signature && typeof signature === 'object' && signature.uri) {
+          // Check if not uploaded yet (pending or failed)
+          if (
+            !signature.flUpldLogNo &&
+            (signature.status === STATUS.PENDING ||
+              signature.status === STATUS.FAILED ||
+              !signature.status)
+          ) {
+            files.push({
+              ...signature,
+              fcId: component.fcId,
+            });
+          }
         }
       }
     });
@@ -533,14 +579,6 @@ class SubmissionService {
     for (const submission of submissions) {
       const files = await submission.files.fetch();
       const attempts = await submission.attempts.fetch();
-
-      // Log the submission data for debugging
-      console.log('Submission data:', {
-        submissionId: submission.submissionId,
-        formName: submission.formName,
-        fieldValuesKeys: Object.keys(submission.fieldValues || {}),
-        formComponentsLength: submission.formComponents?.length,
-      });
 
       result.push({
         ...submission._raw, // Use _raw to get raw data if needed
