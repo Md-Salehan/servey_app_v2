@@ -26,17 +26,18 @@ import ProfileSection from './components/ProfileSection';
 import ProfileField from './components/ProfileField';
 import EditToggle from './components/EditToggle';
 import LogoutButton from './components/LogoutButton';
+import Screen from '../../Layout/Screen';
 
 const ProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
-  const { user, isLoading } = useSelector((state) => state.auth);
-  
+  const { user, isLoading } = useSelector(state => state.auth);
+
   const [isEditing, setIsEditing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [formData, setFormData] = useState({});
   const [originalData, setOriginalData] = useState({});
   const [isSaving, setIsSaving] = useState(false);
-  
+
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 100],
@@ -78,7 +79,7 @@ const ProfileScreen = ({ navigation }) => {
         workLocation: user.workLocation || '',
         role: user.role || 'Survey Collector',
       };
-      
+
       setFormData(mappedData);
       setOriginalData(mappedData);
     }
@@ -110,39 +111,39 @@ const ProfileScreen = ({ navigation }) => {
     ];
 
     const missingFields = requiredFields.filter(
-      req => !formData[req.field]?.trim()
+      req => !formData[req.field]?.trim(),
     );
 
     if (missingFields.length > 0) {
       Alert.alert(
         'Required Fields',
-        `Please fill in: ${missingFields.map(f => f.label).join(', ')}`
+        `Please fill in: ${missingFields.map(f => f.label).join(', ')}`,
       );
       return;
     }
 
     setIsSaving(true);
-    
+
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     if (JSON.stringify(formData) !== JSON.stringify(originalData)) {
       // Update Redux store with changes
       Object.keys(formData).forEach(key => {
-        if (JSON.stringify(formData[key]) !== JSON.stringify(originalData[key])) {
+        if (
+          JSON.stringify(formData[key]) !== JSON.stringify(originalData[key])
+        ) {
           dispatch(updateUserField({ [key]: formData[key] }));
         }
       });
       setOriginalData(formData);
-      
+
       // Show success message
-      Alert.alert(
-        'Success',
-        'Profile updated successfully',
-        [{ text: 'OK', style: 'default' }]
-      );
+      Alert.alert('Success', 'Profile updated successfully', [
+        { text: 'OK', style: 'default' },
+      ]);
     }
-    
+
     setIsSaving(false);
     setIsEditing(false);
   };
@@ -162,7 +163,7 @@ const ProfileScreen = ({ navigation }) => {
               setIsEditing(false);
             },
           },
-        ]
+        ],
       );
     } else {
       setIsEditing(false);
@@ -180,24 +181,20 @@ const ProfileScreen = ({ navigation }) => {
   }, [dispatch]);
 
   const handleLogout = useCallback(() => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await dispatch(logout());
-            navigation.reset({
-              index: 0,
-              routes: [{ name: ROUTES.LOGIN }],
-            });
-          },
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          await dispatch(logout());
+          navigation.reset({
+            index: 0,
+            routes: [{ name: ROUTES.LOGIN }],
+          });
         },
-      ]
-    );
+      },
+    ]);
   }, [dispatch, navigation]);
 
   if (isLoading) {
@@ -213,9 +210,9 @@ const ProfileScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
-      
+
       {/* Header with Back and Edit Toggle */}
       <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
         <TouchableOpacity
@@ -232,7 +229,7 @@ const ProfileScreen = ({ navigation }) => {
         >
           <Icon name="arrow-back" size={24} color={COLORS.text.primary} />
         </TouchableOpacity>
-        
+
         {isSaving ? (
           <View style={styles.editToggle}>
             <ActivityIndicator size="small" color={COLORS.primary} />
@@ -254,7 +251,7 @@ const ProfileScreen = ({ navigation }) => {
         scrollEventThrottle={16}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver: true },
         )}
         refreshControl={
           <RefreshControl
@@ -269,7 +266,9 @@ const ProfileScreen = ({ navigation }) => {
         <ProfileHeader
           userData={formData}
           isEditing={isEditing && !isSaving}
-          onImageChange={(imageData) => handleFieldChange('profilePicture', imageData.uri)}
+          onImageChange={imageData =>
+            handleFieldChange('profilePicture', imageData.uri)
+          }
         />
 
         {/* Personal Information Section */}
@@ -279,7 +278,7 @@ const ProfileScreen = ({ navigation }) => {
             value={formData.firstName}
             placeholder="Enter first name"
             isEditing={isEditing}
-            onChangeText={(value) => handleFieldChange('firstName', value)}
+            onChangeText={value => handleFieldChange('firstName', value)}
             required
           />
 
@@ -288,7 +287,7 @@ const ProfileScreen = ({ navigation }) => {
             value={formData.lastName}
             placeholder="Enter last name"
             isEditing={isEditing}
-            onChangeText={(value) => handleFieldChange('lastName', value)}
+            onChangeText={value => handleFieldChange('lastName', value)}
             required
           />
 
@@ -297,10 +296,10 @@ const ProfileScreen = ({ navigation }) => {
             value={formData.email}
             placeholder="Enter email address"
             isEditing={isEditing}
-            onChangeText={(value) => handleFieldChange('email', value)}
+            onChangeText={value => handleFieldChange('email', value)}
             keyboardType="email-address"
             required
-            rightIcon={!isEditing && formData.email ? "verified" : null}
+            rightIcon={!isEditing && formData.email ? 'verified' : null}
             rightIconColor={COLORS.success}
           />
 
@@ -320,7 +319,7 @@ const ProfileScreen = ({ navigation }) => {
             placeholder="Select date of birth"
             isEditing={isEditing}
             isDate
-            onDateChange={(date) => handleFieldChange('dateOfBirth', date)}
+            onDateChange={date => handleFieldChange('dateOfBirth', date)}
           />
 
           <ProfileField
@@ -335,7 +334,7 @@ const ProfileScreen = ({ navigation }) => {
               { label: 'Other', value: 'O' },
               { label: 'Prefer not to say', value: 'N' },
             ]}
-            onDropdownChange={(value) => handleFieldChange('gender', value)}
+            onDropdownChange={value => handleFieldChange('gender', value)}
           />
         </ProfileSection>
 
@@ -354,7 +353,7 @@ const ProfileScreen = ({ navigation }) => {
             value={formData.designation}
             placeholder="Enter designation"
             isEditing={isEditing}
-            onChangeText={(value) => handleFieldChange('designation', value)}
+            onChangeText={value => handleFieldChange('designation', value)}
           />
 
           <ProfileField
@@ -362,7 +361,7 @@ const ProfileScreen = ({ navigation }) => {
             value={formData.department}
             placeholder="Enter department"
             isEditing={isEditing}
-            onChangeText={(value) => handleFieldChange('department', value)}
+            onChangeText={value => handleFieldChange('department', value)}
           />
 
           <ProfileField
@@ -371,7 +370,7 @@ const ProfileScreen = ({ navigation }) => {
             placeholder="Select join date"
             isEditing={isEditing}
             isDate
-            onDateChange={(date) => handleFieldChange('joinDate', date)}
+            onDateChange={date => handleFieldChange('joinDate', date)}
           />
 
           <ProfileField
@@ -380,7 +379,9 @@ const ProfileScreen = ({ navigation }) => {
             placeholder="Capture work location"
             isEditing={isEditing}
             isLocation
-            onLocationChange={(location) => handleFieldChange('workLocation', location)}
+            onLocationChange={location =>
+              handleFieldChange('workLocation', location)
+            }
           />
         </ProfileSection>
 
@@ -391,7 +392,9 @@ const ProfileScreen = ({ navigation }) => {
             value={formData.address?.street}
             placeholder="Enter street address"
             isEditing={isEditing}
-            onChangeText={(value) => handleNestedFieldChange('address', 'street', value)}
+            onChangeText={value =>
+              handleNestedFieldChange('address', 'street', value)
+            }
             multiline
           />
 
@@ -400,7 +403,9 @@ const ProfileScreen = ({ navigation }) => {
             value={formData.address?.city}
             placeholder="Enter city"
             isEditing={isEditing}
-            onChangeText={(value) => handleNestedFieldChange('address', 'city', value)}
+            onChangeText={value =>
+              handleNestedFieldChange('address', 'city', value)
+            }
           />
 
           <ProfileField
@@ -408,7 +413,9 @@ const ProfileScreen = ({ navigation }) => {
             value={formData.address?.state}
             placeholder="Enter state"
             isEditing={isEditing}
-            onChangeText={(value) => handleNestedFieldChange('address', 'state', value)}
+            onChangeText={value =>
+              handleNestedFieldChange('address', 'state', value)
+            }
           />
 
           <ProfileField
@@ -416,7 +423,9 @@ const ProfileScreen = ({ navigation }) => {
             value={formData.address?.pincode}
             placeholder="Enter 6-digit pincode"
             isEditing={isEditing}
-            onChangeText={(value) => handleNestedFieldChange('address', 'pincode', value)}
+            onChangeText={value =>
+              handleNestedFieldChange('address', 'pincode', value)
+            }
             keyboardType="numeric"
             maxLength={6}
           />
@@ -434,7 +443,9 @@ const ProfileScreen = ({ navigation }) => {
               { label: 'Canada', value: 'CA' },
               { label: 'Australia', value: 'AU' },
             ]}
-            onDropdownChange={(value) => handleNestedFieldChange('address', 'country', value)}
+            onDropdownChange={value =>
+              handleNestedFieldChange('address', 'country', value)
+            }
           />
 
           <ProfileField
@@ -442,7 +453,7 @@ const ProfileScreen = ({ navigation }) => {
             value={formData.emergencyContact}
             placeholder="Enter emergency contact"
             isEditing={isEditing}
-            onChangeText={(value) => handleFieldChange('emergencyContact', value)}
+            onChangeText={value => handleFieldChange('emergencyContact', value)}
             keyboardType="phone-pad"
             helperText="For emergency purposes only"
           />
@@ -454,11 +465,17 @@ const ProfileScreen = ({ navigation }) => {
             label="Language"
             value={formData.preferences?.language}
             displayValue={
-              formData.preferences?.language === 'en' ? 'English' :
-              formData.preferences?.language === 'hi' ? 'Hindi' :
-              formData.preferences?.language === 'bn' ? 'Bengali' :
-              formData.preferences?.language === 'te' ? 'Telugu' :
-              formData.preferences?.language === 'ta' ? 'Tamil' : 'English'
+              formData.preferences?.language === 'en'
+                ? 'English'
+                : formData.preferences?.language === 'hi'
+                ? 'Hindi'
+                : formData.preferences?.language === 'bn'
+                ? 'Bengali'
+                : formData.preferences?.language === 'te'
+                ? 'Telugu'
+                : formData.preferences?.language === 'ta'
+                ? 'Tamil'
+                : 'English'
             }
             isEditing={isEditing}
             isDropdown
@@ -469,7 +486,9 @@ const ProfileScreen = ({ navigation }) => {
               { label: 'Telugu', value: 'te' },
               { label: 'Tamil', value: 'ta' },
             ]}
-            onDropdownChange={(value) => handleNestedFieldChange('preferences', 'language', value)}
+            onDropdownChange={value =>
+              handleNestedFieldChange('preferences', 'language', value)
+            }
           />
 
           <ProfileField
@@ -478,7 +497,9 @@ const ProfileScreen = ({ navigation }) => {
             isEditing={isEditing}
             isToggle
             toggleValue={formData.preferences?.notifications}
-            onToggleChange={(value) => handleNestedFieldChange('preferences', 'notifications', value)}
+            onToggleChange={value =>
+              handleNestedFieldChange('preferences', 'notifications', value)
+            }
             description="Receive notifications about survey assignments and updates"
           />
 
@@ -488,7 +509,9 @@ const ProfileScreen = ({ navigation }) => {
             isEditing={isEditing}
             isToggle
             toggleValue={formData.preferences?.darkMode}
-            onToggleChange={(value) => handleNestedFieldChange('preferences', 'darkMode', value)}
+            onToggleChange={value =>
+              handleNestedFieldChange('preferences', 'darkMode', value)
+            }
             description="Switch to dark theme for better visibility in low light"
           />
 
@@ -496,10 +519,15 @@ const ProfileScreen = ({ navigation }) => {
             label="Sync Frequency"
             value={formData.preferences?.syncFrequency}
             displayValue={
-              formData.preferences?.syncFrequency === 'realtime' ? 'Real Time' :
-              formData.preferences?.syncFrequency === 'hourly' ? 'Hourly' :
-              formData.preferences?.syncFrequency === 'daily' ? 'Daily' :
-              formData.preferences?.syncFrequency === 'weekly' ? 'Weekly' : 'Real Time'
+              formData.preferences?.syncFrequency === 'realtime'
+                ? 'Real Time'
+                : formData.preferences?.syncFrequency === 'hourly'
+                ? 'Hourly'
+                : formData.preferences?.syncFrequency === 'daily'
+                ? 'Daily'
+                : formData.preferences?.syncFrequency === 'weekly'
+                ? 'Weekly'
+                : 'Real Time'
             }
             isEditing={isEditing}
             isDropdown
@@ -509,7 +537,9 @@ const ProfileScreen = ({ navigation }) => {
               { label: 'Daily', value: 'daily' },
               { label: 'Weekly', value: 'weekly' },
             ]}
-            onDropdownChange={(value) => handleNestedFieldChange('preferences', 'syncFrequency', value)}
+            onDropdownChange={value =>
+              handleNestedFieldChange('preferences', 'syncFrequency', value)
+            }
             description="How often to sync data with server"
           />
         </ProfileSection>
@@ -518,7 +548,12 @@ const ProfileScreen = ({ navigation }) => {
         <ProfileSection title="Account Actions">
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => Alert.alert('Coming Soon', 'Change password feature will be available soon')}
+            onPress={() =>
+              Alert.alert(
+                'Coming Soon',
+                'Change password feature will be available soon',
+              )
+            }
             activeOpacity={0.6}
           >
             <Icon name="lock" size={22} color={COLORS.primary} />
@@ -528,7 +563,12 @@ const ProfileScreen = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => Alert.alert('Coming Soon', 'Export data feature will be available soon')}
+            onPress={() =>
+              Alert.alert(
+                'Coming Soon',
+                'Export data feature will be available soon',
+              )
+            }
             activeOpacity={0.6}
           >
             <Icon name="download" size={22} color={COLORS.info} />
@@ -544,12 +584,16 @@ const ProfileScreen = ({ navigation }) => {
                 'This action cannot be undone. All your data will be permanently deleted.',
                 [
                   { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Delete', 
+                  {
+                    text: 'Delete',
                     style: 'destructive',
-                    onPress: () => Alert.alert('Coming Soon', 'Delete account feature will be available soon')
+                    onPress: () =>
+                      Alert.alert(
+                        'Coming Soon',
+                        'Delete account feature will be available soon',
+                      ),
                   },
-                ]
+                ],
               );
             }}
             activeOpacity={0.6}
@@ -565,7 +609,7 @@ const ProfileScreen = ({ navigation }) => {
         {/* Logout Button */}
         <LogoutButton onPress={handleLogout} />
       </Animated.ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

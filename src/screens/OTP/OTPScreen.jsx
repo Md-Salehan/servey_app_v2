@@ -19,21 +19,23 @@ import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
 import { setUser } from '../../features/auth/authSlice';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Screen from '../../Layout/Screen';
 
 const { width } = Dimensions.get('window');
 
 const OTPScreen = ({ route, navigation }) => {
   const dispatch = useDispatch();
   const { phone, otpMethod, optnChngLogNo } = route.params || {};
-  
-  const [validateLoginOTP, { isLoading: isValidating }] = useValidateLoginOTPMutation();
-  
+
+  const [validateLoginOTP, { isLoading: isValidating }] =
+    useValidateLoginOTPMutation();
+
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [error, setError] = useState('');
   const [isResending, setIsResending] = useState(false);
-  
+
   const inputRefs = useRef([]);
   const slideAnim = useRef(new Animated.Value(width)).current;
 
@@ -47,7 +49,7 @@ const OTPScreen = ({ route, navigation }) => {
 
     // Start timer
     const interval = setInterval(() => {
-      setTimer((prev) => {
+      setTimer(prev => {
         if (prev <= 1) {
           clearInterval(interval);
           setCanResend(true);
@@ -78,10 +80,11 @@ const OTPScreen = ({ route, navigation }) => {
         if (i < 6) newOtp[i] = digit;
       });
       setOtp(newOtp);
-      
+
       // Focus last filled input
       const lastFilledIndex = pastedOtp.findIndex(d => !d) - 1;
-      const focusIndex = lastFilledIndex >= 0 ? lastFilledIndex : pastedOtp.length - 1;
+      const focusIndex =
+        lastFilledIndex >= 0 ? lastFilledIndex : pastedOtp.length - 1;
       if (inputRefs.current[focusIndex]) {
         inputRefs.current[focusIndex].focus();
       }
@@ -111,7 +114,7 @@ const OTPScreen = ({ route, navigation }) => {
 
   const handleVerifyOTP = async () => {
     const otpString = otp.join('');
-    
+
     if (otpString.length < 6) {
       setError('Please enter complete OTP');
       return;
@@ -119,7 +122,7 @@ const OTPScreen = ({ route, navigation }) => {
 
     try {
       setError('');
-      
+
       const payload = {
         phone,
         email: '', // Add email if available
@@ -129,11 +132,11 @@ const OTPScreen = ({ route, navigation }) => {
       };
 
       const response = await validateLoginOTP(payload).unwrap();
-      
+
       if (response.success) {
         // Dispatch user data to Redux
         dispatch(setUser(response.user));
-        
+
         // Show success message
         Alert.alert(
           'Success',
@@ -150,14 +153,14 @@ const OTPScreen = ({ route, navigation }) => {
               },
             },
           ],
-          { cancelable: false }
+          { cancelable: false },
         );
       }
     } catch (error) {
       console.error('OTP verification error:', error);
-      
+
       let errorMessage = 'Invalid OTP. Please try again.';
-      
+
       if (error?.data?.details) {
         errorMessage = error.data.details;
       } else if (error?.data?.message) {
@@ -165,9 +168,9 @@ const OTPScreen = ({ route, navigation }) => {
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
+
       setError(errorMessage);
-      
+
       // Clear OTP fields on error
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -177,26 +180,22 @@ const OTPScreen = ({ route, navigation }) => {
   const handleResendOTP = async () => {
     try {
       setIsResending(true);
-      
+
       // Navigate back to login screen to resend OTP
-      Alert.alert(
-        'Resend OTP',
-        'Do you want to resend OTP?',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => setIsResending(false),
+      Alert.alert('Resend OTP', 'Do you want to resend OTP?', [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => setIsResending(false),
+        },
+        {
+          text: 'Yes, Resend',
+          onPress: () => {
+            navigation.goBack();
+            setIsResending(false);
           },
-          {
-            text: 'Yes, Resend',
-            onPress: () => {
-              navigation.goBack();
-              setIsResending(false);
-            },
-          },
-        ]
-      );
+        },
+      ]);
     } catch (error) {
       console.error('Resend OTP error:', error);
       Alert.alert('Error', 'Failed to resend OTP. Please try again.');
@@ -204,7 +203,7 @@ const OTPScreen = ({ route, navigation }) => {
     }
   };
 
-  const formatTime = (seconds) => {
+  const formatTime = seconds => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -216,17 +215,17 @@ const OTPScreen = ({ route, navigation }) => {
       'Are you sure you want to cancel OTP verification?',
       [
         { text: 'No', style: 'cancel' },
-        { 
-          text: 'Yes', 
+        {
+          text: 'Yes',
           style: 'destructive',
-          onPress: () => navigation.goBack() 
+          onPress: () => navigation.goBack(),
         },
-      ]
+      ],
     );
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -262,9 +261,7 @@ const OTPScreen = ({ route, navigation }) => {
                   {otpMethod === 'mobile' ? '📱' : '✉️'}
                 </Text>
               </View>
-              <Text style={styles.infoTitle}>
-                Enter verification code
-              </Text>
+              <Text style={styles.infoTitle}>Enter verification code</Text>
               <Text style={styles.infoDescription}>
                 We've sent a 6-digit verification code to
               </Text>
@@ -278,15 +275,15 @@ const OTPScreen = ({ route, navigation }) => {
               {otp.map((digit, index) => (
                 <TextInput
                   key={index}
-                  ref={(ref) => (inputRefs.current[index] = ref)}
+                  ref={ref => (inputRefs.current[index] = ref)}
                   style={[
                     styles.otpInput,
                     error && styles.otpInputError,
                     otp[index] && styles.otpInputFilled,
                   ]}
                   value={digit}
-                  onChangeText={(value) => handleOtpChange(value, index)}
-                  onKeyPress={(e) => handleKeyPress(e, index)}
+                  onChangeText={value => handleOtpChange(value, index)}
+                  onKeyPress={e => handleKeyPress(e, index)}
                   keyboardType="number-pad"
                   maxLength={6}
                   editable={!isValidating}
@@ -307,9 +304,7 @@ const OTPScreen = ({ route, navigation }) => {
             <View style={styles.timerContainer}>
               <Text style={styles.timerLabel}>
                 Code expires in{' '}
-                <Text style={styles.timerValue}>
-                  {formatTime(timer)}
-                </Text>
+                <Text style={styles.timerValue}>{formatTime(timer)}</Text>
               </Text>
             </View>
 
@@ -356,15 +351,13 @@ const OTPScreen = ({ route, navigation }) => {
             <View style={styles.helpContainer}>
               <Text style={styles.helpText}>
                 Having trouble?{' '}
-                <Text style={styles.helpLink}>
-                  Contact Support
-                </Text>
+                <Text style={styles.helpLink}>Contact Support</Text>
               </Text>
             </View>
           </View>
         </Animated.View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

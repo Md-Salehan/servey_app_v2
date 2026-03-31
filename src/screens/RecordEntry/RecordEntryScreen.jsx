@@ -589,9 +589,7 @@ const RecordEntryScreen = ({ database }) => {
   }
 
   return (
-    <Screen>
-      <View style={styles.container}>
-      
+    <View style={styles.container}>
       <Header
         navigation={navigation}
         formTitle={formTitle}
@@ -638,7 +636,6 @@ const RecordEntryScreen = ({ database }) => {
         </TouchableOpacity>
       </View>
     </View>
-    </Screen>
   );
 };
 

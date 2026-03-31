@@ -13,30 +13,36 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
-import { 
+import {
   useGetOtpConfigQuery,
   useGetOtpLogNoMutation,
-  useGenerateLoginOTPMutation 
+  useGenerateLoginOTPMutation,
 } from '../../features/auth/authApi';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Screen from '../../Layout/Screen';
 
 const { width } = Dimensions.get('window');
 
 const LoginScreen = ({ navigation }) => {
   // RTK Query hooks
-  const { data: otpConfig, isLoading: isLoadingConfig, error: configError } = useGetOtpConfigQuery();
+  const {
+    data: otpConfig,
+    isLoading: isLoadingConfig,
+    error: configError,
+  } = useGetOtpConfigQuery();
   const [getOtpLogNo, { isLoading: isLoadingLogNo }] = useGetOtpLogNoMutation();
-  const [generateLoginOTP, { isLoading: isGeneratingOTP }] = useGenerateLoginOTPMutation();
-  
+  const [generateLoginOTP, { isLoading: isGeneratingOTP }] =
+    useGenerateLoginOTPMutation();
+
   // State
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState({});
   const [otpMethod, setOtpMethod] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -60,7 +66,7 @@ const LoginScreen = ({ navigation }) => {
   useEffect(() => {
     if (otpConfig) {
       const { otpMobFlg, otpEmailFlg, userOptnSelFlg } = otpConfig;
-      
+
       if (userOptnSelFlg) {
         // User can choose - default to null to force selection
         setOtpMethod(null);
@@ -83,7 +89,7 @@ const LoginScreen = ({ navigation }) => {
       Alert.alert(
         'Configuration Error',
         'Failed to load OTP configuration. Please restart the app.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
     }
   }, [configError]);
@@ -101,7 +107,7 @@ const LoginScreen = ({ navigation }) => {
     if (!otpMethod) {
       return true;
     }
-    
+
     if (otpMethod === 'mobile') {
       const phoneRegex = /^[0-9]{10}$/;
       if (!phone.trim()) {
@@ -110,7 +116,7 @@ const LoginScreen = ({ navigation }) => {
         newErrors.phone = 'Please enter a valid 10-digit phone number';
       }
     }
-    
+
     if (otpMethod === 'email') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!email.trim()) {
@@ -143,18 +149,22 @@ const LoginScreen = ({ navigation }) => {
         if (otpMobFlg && !otpEmailFlg) selectedMethod = 'mobile';
         else if (!otpMobFlg && otpEmailFlg) selectedMethod = 'email';
         else if (otpMobFlg && otpEmailFlg) selectedMethod = 'mobile';
-        else throw new Error('No OTP method available. Please contact support.');
+        else
+          throw new Error('No OTP method available. Please contact support.');
       }
 
       // Proceed with OTP generation
       await proceedWithOTP(selectedMethod);
     } catch (error) {
       setIsProcessing(false);
-      Alert.alert('Error', error.message || 'Failed to generate OTP. Please try again.');
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to generate OTP. Please try again.',
+      );
     }
   };
 
-  const proceedWithOTP = async (method) => {
+  const proceedWithOTP = async method => {
     try {
       // Step 1: Get OTP log number
       const otpLogNoResponse = await getOtpLogNo({
@@ -175,7 +185,7 @@ const LoginScreen = ({ navigation }) => {
       }).unwrap();
 
       // Navigate to OTP screen with necessary params
-      navigation.navigate(ROUTES.OTP, { 
+      navigation.navigate(ROUTES.OTP, {
         phone: method === 'mobile' ? phone : '',
         email: method === 'email' ? email : '',
         otpMethod: method,
@@ -183,18 +193,20 @@ const LoginScreen = ({ navigation }) => {
       });
     } catch (error) {
       console.error('OTP generation error:', error);
-      throw new Error(error?.data?.message || error?.message || 'Failed to generate OTP');
+      throw new Error(
+        error?.data?.message || error?.message || 'Failed to generate OTP',
+      );
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const selectOtpMethod = (method) => {
+  const selectOtpMethod = method => {
     setOtpMethod(method);
     setErrors({ ...errors, method: '' });
   };
 
-  const formatPhoneNumber = (text) => {
+  const formatPhoneNumber = text => {
     const cleaned = text.replace(/\D/g, '');
     const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
     if (match) {
@@ -203,11 +215,12 @@ const LoginScreen = ({ navigation }) => {
     return cleaned;
   };
 
-  const isLoading = isLoadingConfig || isProcessing || isLoadingLogNo || isGeneratingOTP;
+  const isLoading =
+    isLoadingConfig || isProcessing || isLoadingLogNo || isGeneratingOTP;
   const userCanSelectMethod = otpConfig?.userOptnSelFlg;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -219,44 +232,46 @@ const LoginScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <Animated.View 
+          <Animated.View
             style={[
-              styles.content, 
-              { 
+              styles.content,
+              {
                 opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
-              }
+                transform: [{ translateY: slideAnim }],
+              },
             ]}
           >
             {/* Logo Section */}
             <View style={styles.logoSection}>
-              <Animated.View 
+              <Animated.View
                 style={[
                   styles.logoContainer,
                   {
-                    transform: [{
-                      scale: fadeAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.8, 1]
-                      })
-                    }]
-                  }
+                    transform: [
+                      {
+                        scale: fadeAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.8, 1],
+                        }),
+                      },
+                    ],
+                  },
                 ]}
               >
                 <Text style={styles.logoText}>📋</Text>
               </Animated.View>
               <Text style={styles.brandName}>Survey App</Text>
               <Text style={styles.tagline}>Secure OTP Verification</Text>
-              
+
               {/* OTP Method Indicator */}
               {otpConfig && (
                 <View style={styles.otpMethodIndicator}>
                   <Text style={styles.otpMethodText}>
-                    {otpConfig.userOptnSelFlg 
+                    {otpConfig.userOptnSelFlg
                       ? '🔒 Select OTP method below'
-                      : otpConfig.otpMobFlg && otpConfig.otpEmailFlg 
+                      : otpConfig.otpMobFlg && otpConfig.otpEmailFlg
                       ? '📱✉️ Mobile & Email OTP available'
-                      : otpConfig.otpMobFlg 
+                      : otpConfig.otpMobFlg
                       ? '📱 Mobile OTP enabled'
                       : '✉️ Email OTP enabled'}
                   </Text>
@@ -271,7 +286,7 @@ const LoginScreen = ({ navigation }) => {
                 <Text style={styles.formSubtitle}>
                   {userCanSelectMethod && !otpMethod
                     ? 'Please select your preferred OTP method'
-                    : otpMethod === 'email' 
+                    : otpMethod === 'email'
                     ? 'Enter your email address to receive OTP'
                     : otpMethod === 'mobile'
                     ? 'Enter your phone number to receive OTP'
@@ -291,7 +306,7 @@ const LoginScreen = ({ navigation }) => {
                     disabled={isLoading}
                   >
                     <Text style={styles.methodToggleEmoji}>📱</Text>
-                    <Text 
+                    <Text
                       style={[
                         styles.methodToggleText,
                         otpMethod === 'mobile' && styles.methodToggleTextActive,
@@ -300,7 +315,7 @@ const LoginScreen = ({ navigation }) => {
                       Mobile OTP
                     </Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity
                     style={[
                       styles.methodToggleButton,
@@ -310,7 +325,7 @@ const LoginScreen = ({ navigation }) => {
                     disabled={isLoading}
                   >
                     <Text style={styles.methodToggleEmoji}>✉️</Text>
-                    <Text 
+                    <Text
                       style={[
                         styles.methodToggleText,
                         otpMethod === 'email' && styles.methodToggleTextActive,
@@ -324,7 +339,9 @@ const LoginScreen = ({ navigation }) => {
 
               {/* Method selection error */}
               {errors.method && (
-                <Text style={[styles.errorText, styles.methodError]}>{errors.method}</Text>
+                <Text style={[styles.errorText, styles.methodError]}>
+                  {errors.method}
+                </Text>
               )}
 
               {/* Phone Input - Show for mobile OTP */}
@@ -398,13 +415,14 @@ const LoginScreen = ({ navigation }) => {
                 style={[
                   styles.submitButton,
                   isLoading && styles.buttonDisabled,
-                  (otpMethod === 'mobile' && !phone) && styles.buttonDisabled,
-                  (otpMethod === 'email' && !email) && styles.buttonDisabled,
-                  (userCanSelectMethod && !otpMethod) && styles.buttonDisabled,
+                  otpMethod === 'mobile' && !phone && styles.buttonDisabled,
+                  otpMethod === 'email' && !email && styles.buttonDisabled,
+                  userCanSelectMethod && !otpMethod && styles.buttonDisabled,
                 ]}
                 onPress={handleGetOTP}
-                disabled={isLoading || 
-                  (otpMethod === 'mobile' && !phone) || 
+                disabled={
+                  isLoading ||
+                  (otpMethod === 'mobile' && !phone) ||
                   (otpMethod === 'email' && !email) ||
                   (userCanSelectMethod && !otpMethod)
                 }
@@ -429,7 +447,7 @@ const LoginScreen = ({ navigation }) => {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

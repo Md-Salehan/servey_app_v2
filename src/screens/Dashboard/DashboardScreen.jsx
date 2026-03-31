@@ -32,6 +32,7 @@ import InfoBar from '../../components/UI/InfoBar';
 import { useGetFormsMutation } from '../../features/form/formsApi';
 
 import { styles } from './Dashboard.styles';
+import Screen from '../../Layout/Screen';
 
 const DashboardScreen = ({ database }) => {
   const navigation = useNavigation();
@@ -463,7 +464,7 @@ const DashboardScreen = ({ database }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -509,7 +510,7 @@ const DashboardScreen = ({ database }) => {
 
       {/* Main Content */}
       {renderContent()}
-    </SafeAreaView>
+    </View>
   );
 };
 

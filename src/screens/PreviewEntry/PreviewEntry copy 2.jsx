@@ -443,90 +443,92 @@ const PreviewScreen = ({ database }) => {
   const isLoading = isFormSubmitLoading || isConfirming || isSaving;
 
   return (
-    <View style={styles.container}>
-      <Header
-        navigation={navigation}
-        formTitle={formTitle || 'Preview'}
-        appId={appId}
-        formId={formId}
-        fieldValues={fieldValues}
-        totalNumFormComp={formComponents?.length || 0}
-      />
+    <Screen>
+      <View style={styles.container}>
+        <Header
+          navigation={navigation}
+          formTitle={formTitle || 'Preview'}
+          appId={appId}
+          formId={formId}
+          fieldValues={fieldValues}
+          totalNumFormComp={formComponents?.length || 0}
+        />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Render form fields in preview mode */}
-        <View style={styles.formContainer}>
-          {formComponents?.length > 0 ? (
-            formComponents.map(renderPreviewFieldComponent)
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                No form components to preview
-              </Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => navigation.goBack()}
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.editButtonText}>
-            {isViewOnly ? 'Back' : 'Edit'}
-          </Text>
-        </TouchableOpacity>
-
-        {showSaveButton && (
-          <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: COLORS.warning }]}
-            onPress={saveToLocalDatabase}
-            disabled={isLoading}
-          >
-            {isSaving ? (
-              <ActivityIndicator color="white" />
+          {/* Render form fields in preview mode */}
+          <View style={styles.formContainer}>
+            {formComponents?.length > 0 ? (
+              formComponents.map(renderPreviewFieldComponent)
             ) : (
-              <>
-                <Text style={styles.submitButtonText}>Save Offline</Text>
-              </>
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  No form components to preview
+                </Text>
+              </View>
             )}
-          </TouchableOpacity>
-        )}
+          </View>
+        </ScrollView>
 
-        {showSubmitButton && (
+        <View style={styles.actionsContainer}>
           <TouchableOpacity
-            style={styles.submitButton}
-            onPress={handleFormSubmit}
-            disabled={isLoading}
+            style={styles.editButton}
+            onPress={() => navigation.goBack()}
           >
-            {isLoading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.submitButtonText}>Submit</Text>
-            )}
+            <Text style={styles.editButtonText}>
+              {isViewOnly ? 'Back' : 'Edit'}
+            </Text>
           </TouchableOpacity>
-        )}
 
-        {!showSaveButton &&
-          !showSubmitButton &&
-          !isViewOnly &&
-          surFormGenFlg !== 'Y' && (
+          {showSaveButton && (
             <TouchableOpacity
-              style={[
-                styles.submitButton,
-                { backgroundColor: COLORS.gray[400] },
-              ]}
-              disabled={true}
+              style={[styles.submitButton, { backgroundColor: COLORS.warning }]}
+              onPress={saveToLocalDatabase}
+              disabled={isLoading}
             >
-              <Text style={styles.submitButtonText}>Submit</Text>
+              {isSaving ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <>
+                  <Text style={styles.submitButtonText}>Save Offline</Text>
+                </>
+              )}
             </TouchableOpacity>
           )}
+
+          {showSubmitButton && (
+            <TouchableOpacity
+              style={styles.submitButton}
+              onPress={handleFormSubmit}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.submitButtonText}>Submit</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {!showSaveButton &&
+            !showSubmitButton &&
+            !isViewOnly &&
+            surFormGenFlg !== 'Y' && (
+              <TouchableOpacity
+                style={[
+                  styles.submitButton,
+                  { backgroundColor: COLORS.gray[400] },
+                ]}
+                disabled={true}
+              >
+                <Text style={styles.submitButtonText}>Submit</Text>
+              </TouchableOpacity>
+            )}
+        </View>
       </View>
-    </View>
+    </Screen>
   );
 };
 

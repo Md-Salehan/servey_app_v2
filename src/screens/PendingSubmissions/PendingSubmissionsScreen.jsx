@@ -33,7 +33,7 @@ const PendingSubmissionsScreen = ({ database }) => {
       const service = new SubmissionService(database);
       submissionServiceRef.current = service;
       service.startQueueProcessor();
-      
+
       // Load submissions immediately after service is initialized
       loadSubmissions();
     }
@@ -51,7 +51,7 @@ const PendingSubmissionsScreen = ({ database }) => {
       if (submissionServiceRef.current) {
         loadSubmissions();
       }
-    }, [])
+    }, []),
   );
 
   const loadSubmissions = async () => {
@@ -61,7 +61,8 @@ const PendingSubmissionsScreen = ({ database }) => {
         console.log('Submission service not initialized yet');
         return;
       }
-      const pendingSubmissions = await submissionServiceRef.current.getPendingSubmissions() || [];
+      const pendingSubmissions =
+        (await submissionServiceRef.current.getPendingSubmissions()) || [];
       console.log('Loaded pending submissions:', pendingSubmissions.length);
       setSubmissions(pendingSubmissions);
     } catch (error) {
@@ -72,7 +73,7 @@ const PendingSubmissionsScreen = ({ database }) => {
     }
   };
 
-  const handleRetry = async (submissionId) => {
+  const handleRetry = async submissionId => {
     Alert.alert(
       'Retry Submission',
       'Are you sure you want to retry this submission?',
@@ -91,16 +92,16 @@ const PendingSubmissionsScreen = ({ database }) => {
             }
           },
         },
-      ]
+      ],
     );
   };
 
-  const handleViewDetails = (submission) => {
+  const handleViewDetails = submission => {
     setSelectedSubmission(submission);
     setModalVisible(true);
   };
 
-  const handleViewSubmissionData = (submission) => {
+  const handleViewSubmissionData = submission => {
     // Navigate to preview with proper data
     navigation.navigate(ROUTES.PREVIEW_ENTRY, {
       formTitle: submission.formName,
@@ -113,7 +114,7 @@ const PendingSubmissionsScreen = ({ database }) => {
     });
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = status => {
     switch (status) {
       case 'completed':
         return <Icon name="check-circle" size={24} color={COLORS.success} />;
@@ -126,7 +127,7 @@ const PendingSubmissionsScreen = ({ database }) => {
     }
   };
 
-  const getStatusText = (status) => {
+  const getStatusText = status => {
     switch (status) {
       case 'completed':
         return 'Completed';
@@ -165,15 +166,15 @@ const PendingSubmissionsScreen = ({ database }) => {
           <Text style={styles.submissionDate}>
             Created: {new Date(item.createdAt).toLocaleString()}
           </Text>
-          
+
           {item.totalFiles > 0 && (
             <View style={styles.fileProgressContainer}>
               <View style={styles.fileProgressBar}>
-                <View 
+                <View
                   style={[
-                    styles.fileProgressFill, 
-                    { width: `${Math.min(progress * 100, 100)}%` }
-                  ]} 
+                    styles.fileProgressFill,
+                    { width: `${Math.min(progress * 100, 100)}%` },
+                  ]}
                 />
               </View>
               <Text style={styles.fileProgressText}>
@@ -246,22 +247,32 @@ const PendingSubmissionsScreen = ({ database }) => {
               <Text style={styles.sectionTitle}>General Information</Text>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Form Name:</Text>
-                <Text style={styles.detailValue}>{selectedSubmission.formName}</Text>
+                <Text style={styles.detailValue}>
+                  {selectedSubmission.formName}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Submission ID:</Text>
-                <Text style={styles.detailValue}>{selectedSubmission.submissionId}</Text>
+                <Text style={styles.detailValue}>
+                  {selectedSubmission.submissionId}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Status:</Text>
-                <Text style={[styles.detailValue, styles[`status${selectedSubmission.status}`]]}>
+                <Text
+                  style={[
+                    styles.detailValue,
+                    styles[`status${selectedSubmission.status}`],
+                  ]}
+                >
                   {getStatusText(selectedSubmission.status)}
                 </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Retry Count:</Text>
                 <Text style={styles.detailValue}>
-                  {selectedSubmission.retryCount}/{selectedSubmission.maxRetries}
+                  {selectedSubmission.retryCount}/
+                  {selectedSubmission.maxRetries}
                 </Text>
               </View>
               <View style={styles.detailRow}>
@@ -280,64 +291,89 @@ const PendingSubmissionsScreen = ({ database }) => {
               )}
             </View>
 
-            {selectedSubmission.files && selectedSubmission.files.length > 0 && (
-              <View style={styles.detailSection}>
-                <Text style={styles.sectionTitle}>Files ({selectedSubmission.files.length})</Text>
-                {selectedSubmission.files.map((file, index) => (
-                  <View key={index} style={styles.fileItem}>
-                    <View style={styles.fileInfo}>
-                      <Icon name="image" size={20} color={COLORS.text.secondary} />
-                      <Text style={styles.fileName}>{file.fileName}</Text>
-                    </View>
-                    <View style={styles.fileStatus}>
-                      {getStatusIcon(file.status)}
-                      <Text style={styles.fileStatusText}>
-                        {file.status === 'uploaded' ? 'Uploaded' : 
-                         file.status === 'uploading' ? 'Uploading' : 
-                         file.status === 'failed' ? 'Failed' : 'Pending'}
-                      </Text>
-                    </View>
-                    {file.errorMessage && (
-                      <Text style={styles.fileError}>{file.errorMessage}</Text>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {selectedSubmission.attempts && selectedSubmission.attempts.length > 0 && (
-              <View style={styles.detailSection}>
-                <Text style={styles.sectionTitle}>Submission Attempts</Text>
-                {selectedSubmission.attempts.map((attempt, index) => (
-                  <View key={index} style={styles.attemptItem}>
-                    <View style={styles.attemptHeader}>
-                      <Text style={styles.attemptStep}>{attempt.step}</Text>
-                      <View style={styles.attemptStatus}>
-                        {attempt.status === 'success' ? (
-                          <Icon name="check-circle" size={16} color={COLORS.success} />
-                        ) : attempt.status === 'failed' ? (
-                          <Icon name="error" size={16} color={COLORS.error} />
-                        ) : (
-                          <ActivityIndicator size="small" color={COLORS.primary} />
-                        )}
-                        <Text style={styles.attemptStatusText}>{attempt.status}</Text>
+            {selectedSubmission.files &&
+              selectedSubmission.files.length > 0 && (
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>
+                    Files ({selectedSubmission.files.length})
+                  </Text>
+                  {selectedSubmission.files.map((file, index) => (
+                    <View key={index} style={styles.fileItem}>
+                      <View style={styles.fileInfo}>
+                        <Icon
+                          name="image"
+                          size={20}
+                          color={COLORS.text.secondary}
+                        />
+                        <Text style={styles.fileName}>{file.fileName}</Text>
                       </View>
+                      <View style={styles.fileStatus}>
+                        {getStatusIcon(file.status)}
+                        <Text style={styles.fileStatusText}>
+                          {file.status === 'uploaded'
+                            ? 'Uploaded'
+                            : file.status === 'uploading'
+                            ? 'Uploading'
+                            : file.status === 'failed'
+                            ? 'Failed'
+                            : 'Pending'}
+                        </Text>
+                      </View>
+                      {file.errorMessage && (
+                        <Text style={styles.fileError}>
+                          {file.errorMessage}
+                        </Text>
+                      )}
                     </View>
-                    <Text style={styles.attemptTime}>
-                      Started: {new Date(attempt.startedAt).toLocaleString()}
-                    </Text>
-                    {attempt.completedAt && (
+                  ))}
+                </View>
+              )}
+
+            {selectedSubmission.attempts &&
+              selectedSubmission.attempts.length > 0 && (
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Submission Attempts</Text>
+                  {selectedSubmission.attempts.map((attempt, index) => (
+                    <View key={index} style={styles.attemptItem}>
+                      <View style={styles.attemptHeader}>
+                        <Text style={styles.attemptStep}>{attempt.step}</Text>
+                        <View style={styles.attemptStatus}>
+                          {attempt.status === 'success' ? (
+                            <Icon
+                              name="check-circle"
+                              size={16}
+                              color={COLORS.success}
+                            />
+                          ) : attempt.status === 'failed' ? (
+                            <Icon name="error" size={16} color={COLORS.error} />
+                          ) : (
+                            <ActivityIndicator
+                              size="small"
+                              color={COLORS.primary}
+                            />
+                          )}
+                          <Text style={styles.attemptStatusText}>
+                            {attempt.status}
+                          </Text>
+                        </View>
+                      </View>
                       <Text style={styles.attemptTime}>
-                        Duration: {(attempt.durationMs / 1000).toFixed(2)}s
+                        Started: {new Date(attempt.startedAt).toLocaleString()}
                       </Text>
-                    )}
-                    {attempt.errorMessage && (
-                      <Text style={styles.attemptError}>{attempt.errorMessage}</Text>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
+                      {attempt.completedAt && (
+                        <Text style={styles.attemptTime}>
+                          Duration: {(attempt.durationMs / 1000).toFixed(2)}s
+                        </Text>
+                      )}
+                      {attempt.errorMessage && (
+                        <Text style={styles.attemptError}>
+                          {attempt.errorMessage}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
           </ScrollView>
 
           <View style={styles.modalFooter}>
@@ -348,10 +384,13 @@ const PendingSubmissionsScreen = ({ database }) => {
                 handleViewSubmissionData(selectedSubmission);
               }}
             >
-              <Text style={styles.viewDataButtonText}>View Submission Data</Text>
+              <Text style={styles.viewDataButtonText}>
+                View Submission Data
+              </Text>
             </TouchableOpacity>
 
-            {(selectedSubmission.status === 'failed' || selectedSubmission.status === 'pending') && (
+            {(selectedSubmission.status === 'failed' ||
+              selectedSubmission.status === 'pending') && (
               <TouchableOpacity
                 style={styles.retryNowButton}
                 onPress={() => {
@@ -381,7 +420,7 @@ const PendingSubmissionsScreen = ({ database }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Pending Submissions</Text>
         <TouchableOpacity onPress={loadSubmissions}>
@@ -401,14 +440,14 @@ const PendingSubmissionsScreen = ({ database }) => {
         <FlatList
           data={submissions}
           renderItem={renderSubmissionItem}
-          keyExtractor={(item) => item.submissionId}
+          keyExtractor={item => item.submissionId}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
         />
       )}
 
       {renderDetailsModal()}
-    </SafeAreaView>
+    </View>
   );
 };
 
