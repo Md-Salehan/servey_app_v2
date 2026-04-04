@@ -337,7 +337,7 @@ const DashboardScreen = ({ database }) => {
 
   // Handle form press
   const handleFormPress = form => {
-    navigation.navigate(ROUTES.RECORD_ENTRY, {
+    navigation.navigate(ROUTES.LOCATION_SELECTION, {
       appId: 'AP000001',
       formId: form.formId,
       formTitle: form.formName,

@@ -10,6 +10,7 @@ export const ROUTES = {
   DATA_INSPECTOR: 'DATA_INSPECTOR',
   PENDING_SUBMISSIONS: 'PendingSubmissions',
   SELECT_LOCATION: 'SelectLocation',
+  LOCATION_SELECTION: 'LocationSelection',
 };
 
 export const STORAGE_KEYS = {

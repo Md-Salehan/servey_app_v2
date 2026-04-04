@@ -20,82 +20,11 @@ import commonStyles from './FormComponents.styles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-/**
- * Parse options from string format "key1~value1;key2~value2" to array
- * @param {string} str - String to parse
- * @returns {Array} - Array of option objects
- */
-const parseStringOptions = (str) => {
-  if (!str || typeof str !== 'string') return [];
-
-  try {
-    return str
-      .split(';')
-      .map(option => option.trim())
-      .filter(option => option.includes('~'))
-      .map(option => {
-        const [key, ...valueParts] = option.split('~');
-        return {
-          key: key.trim(),
-          value: valueParts.join('~').trim(),
-          label: valueParts.join('~').trim(),
-        };
-      })
-      .filter(option => option.key && option.value);
-  } catch (error) {
-    console.error('Error parsing dropdown options:', error);
-    return [];
-  }
-};
-
-/**
- * Normalize options to consistent array format
- * @param {string|Object|Array} options - Options in various formats
- * @returns {Array} - Normalized array of option objects
- */
-const normalizeOptions = (options) => {
-  // If options is empty or null/undefined
-  if (!options) return [];
-
-  // If options is already an array
-  if (Array.isArray(options)) {
-    return options
-      .map(opt => {
-        // If option is object with key/value/label
-        if (typeof opt === 'object' && opt !== null) {
-          return {
-            key: opt.key || opt.value || '',
-            value: opt.value || opt.key || '',
-            label: opt.label || opt.value || opt.key || '',
-          };
-        }
-        return null;
-      })
-      .filter(opt => opt && opt.key);
-  }
-
-  // If options is an object (not array)
-  if (typeof options === 'object' && options !== null) {
-    return Object.entries(options).map(([key, value]) => ({
-      key: key,
-      value: value,
-      label: typeof value === 'string' ? value : String(value),
-    }));
-  }
-
-  // If options is a string
-  if (typeof options === 'string') {
-    return parseStringOptions(options);
-  }
-
-  return [];
-};
-
 const DropdownField = ({
   fcId,
   label,
   placeholder = 'Select option',
-  options = '', // Can be string "key1~value1;key2~value2" OR object {key1: "value1", key2: "value2"} OR array [{key, value, label}]
+  options = '', // Expecting format: "key1~value1;key2~value2;key3~value3"
   value,
   onChange,
   multiple = false,
@@ -103,9 +32,9 @@ const DropdownField = ({
   disabled = false,
   searchable = true,
   maxSelections,
-  isPreview = false,
-  errorText = '',
-  onError = null,
+  isPreview = false, // New prop for preview mode
+  errorText = '', // New prop for external error messages
+  onError = null, // New prop for error callback
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -113,13 +42,32 @@ const DropdownField = ({
   const [isModelOpened, setIsModelOpened] = useState(false);
   const [fieldValidationError, setFieldValidationError] = useState(
     errorText || '',
-  );
+  ); // Local state for validation errors
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
-  // Parse and normalize options
+  // Parse options string into array of objects
   const parsedOptions = useMemo(() => {
-    return normalizeOptions(options);
+    if (!options) return [];
+
+    try {
+      return options
+        .split(';')
+        .map(option => option.trim())
+        .filter(option => option.includes('~'))
+        .map(option => {
+          const [key, ...valueParts] = option.split('~');
+          return {
+            key: key.trim(),
+            value: valueParts.join('~').trim(),
+            label: valueParts.join('~').trim(),
+          };
+        })
+        .filter(option => option.key && option.value);
+    } catch (error) {
+      console.error('Error parsing dropdown options:', error);
+      return [];
+    }
   }, [options]);
 
   const selectAllDisabled = useMemo(() => {
@@ -141,6 +89,9 @@ const DropdownField = ({
       parsedOptions?.length === 0,
       Array.isArray(value) && value.length === parsedOptions?.length,
       maxSelections && Array.isArray(value) && value.length >= maxSelections,
+      // !parsedOptions?.some(
+      //   opt => !Array.isArray(value) || !value.includes(opt.key),
+      // ),
       maxSelections && maxSelections < parsedOptions?.length,
     );
 
@@ -149,11 +100,11 @@ const DropdownField = ({
       disabled ||
       isPreview ||
       parsedOptions?.length === 0 ||
-      (Array.isArray(value) && value.length === parsedOptions?.length) ||
+      (Array.isArray(value) && value.length === parsedOptions?.length) || // Disable if all options are already selected
       (maxSelections &&
         Array.isArray(value) &&
-        value.length >= maxSelections) ||
-      (maxSelections && maxSelections < parsedOptions?.length)
+        value.length >= maxSelections) || // Disable if max selections reached
+      (maxSelections && maxSelections < parsedOptions?.length) // Disable if max selections is less than total options
     )
       state = true;
     else state = false;
@@ -172,6 +123,7 @@ const DropdownField = ({
   // Validation effect for required fields
   useEffect(() => {
     if (isModelOpened) {
+      // user action occurred, then validate
       if (required && !value) {
         handleFieldValidation(
           'This field is required',
@@ -215,10 +167,12 @@ const DropdownField = ({
       const isSelected = currentValues.includes(option.key);
 
       if (isSelected) {
+        // Deselect
         newValue = currentValues.filter(v => v !== option.key);
       } else {
+        // Check max selections limit
         if (maxSelections && currentValues.length >= maxSelections) {
-          return;
+          return; // Don't exceed max selections
         }
         newValue = [...currentValues, option.key];
       }
@@ -394,6 +348,7 @@ const DropdownField = ({
                 disabled || isPreview || selectAllDisabled
                   ? COLORS.text.disabled
                   : COLORS.text.inverse
+                // COLORS.text.inverse
               }
             />
             <Text
@@ -416,12 +371,18 @@ const DropdownField = ({
             <Icon
               name="check-box-outline-blank"
               size={16}
-              color={COLORS.text.inverse}
+              color={
+                // disabled || isPreview
+                //   ? COLORS.text.disabled
+                //   : COLORS.text.secondary
+                COLORS.text.inverse
+              }
             />
             <Text
               style={[
                 styles.actionButtonText,
                 { color: COLORS.text.inverse },
+                // (disabled || isPreview) && styles.disabledText
               ]}
             >
               Clear All
@@ -441,7 +402,7 @@ const DropdownField = ({
           maxToRenderPerBatch={10}
           windowSize={21}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={!isPreview}
+          scrollEnabled={!isPreview} // Disable scrolling in preview mode
         />
       ) : (
         <View style={[styles.emptyContainer]}>
@@ -619,11 +580,7 @@ DropdownField.propTypes = {
   fcId: PropTypes.string.isRequired,
   label: PropTypes.string.isRequired,
   placeholder: PropTypes.string,
-  options: PropTypes.oneOfType([
-    PropTypes.string,
-    PropTypes.object,
-    PropTypes.array
-  ]), // Now accepts string, object, or array
+  options: PropTypes.string,
   value: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),
   onChange: PropTypes.func,
   multiple: PropTypes.bool,

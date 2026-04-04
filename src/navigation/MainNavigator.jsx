@@ -7,6 +7,7 @@ import PreviewEntryScreen from '../screens/PreviewEntry/PreviewEntry';
 import DataInspectorScreen from '../screens/DataInspector/DataInspectorScreen';
 import PendingSubmissionsScreen from '../screens/PendingSubmissions/PendingSubmissionsScreen';
 import SelectLocationScreen from '../screens/SelectLocation/SelectLocationScreen';
+import LocationSelectionScreen from '../screens/LocationSelection/LocationSelectionScreen';
 import { ROUTES } from '../constants/routes';
 import SubmissionService from '../services/submissionService';
 import { database } from '../database';
@@ -89,6 +90,11 @@ const MainNavigator = () => {
         name={ROUTES.SELECT_LOCATION} // Add this route
         component={SelectLocationScreen}
         options={{ title: 'Select Location' }}
+      />
+      <Stack.Screen
+        name={ROUTES.LOCATION_SELECTION} // Add this route
+        component={LocationSelectionScreen}
+        options={{ title: 'Select Location', headerShown: false }}
       />
     </Stack.Navigator>
   );
