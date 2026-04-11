@@ -29,9 +29,10 @@ import {
   SignatureField,
   TextInputField,
 } from '../../components';
+import Screen from '../../Layout/Screen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGetFormComponentsMutation } from '../../features/form/formsApi';
-import InfoBar from '../../components/UI/InfoBar';
+import OfflineBanner from '../../components/UI/OfflineBanner';
 import useGeoFenceData from '../../hook/useGeoFenceData';
 
 const RecordEntryScreen = ({ database }) => {
@@ -59,20 +60,19 @@ const RecordEntryScreen = ({ database }) => {
     useGetFormComponentsMutation();
 
   const {
-    geoFenceData,
+    geofenceData,
     loading: geofenceLoading,
     error: geofenceError,
     isFromCache,
     retry: retryGeofence,
   } = useGeoFenceData(database, appId, formId);
-
-  // console.log('useGeoFenceData', {
-  //   geoFenceData,
-  //   geofenceLoading,
-  //   geofenceError,
-  //   isFromCache,
-  //   retryGeofence,
-  // });
+  console.log('useGeoFenceData', {
+    geofenceData,
+    geofenceLoading,
+    geofenceError,
+    isFromCache,
+    retryGeofence,
+  });
 
   useEffect(() => {
     if (appId && formId) {
@@ -163,6 +163,7 @@ const RecordEntryScreen = ({ database }) => {
             // Update existing
             await existing[0].update(record => {
               record.components = sortedComponents;
+              // updatedAt is automatically set by WatermelonDB
             });
           } else {
             // Create new
@@ -170,6 +171,7 @@ const RecordEntryScreen = ({ database }) => {
               record.formId = formId;
               record.components = sortedComponents;
               record.version = '1.0';
+              // createdAt and updatedAt are automatically set
             });
           }
         });
@@ -222,6 +224,8 @@ const RecordEntryScreen = ({ database }) => {
       return false;
     }
   };
+
+
 
   const initializeFieldValues = components => {
     const initialValues = {};
@@ -316,7 +320,6 @@ const RecordEntryScreen = ({ database }) => {
         formComponents,
         surFormGenFlg,
         isViewOnly: false,
-        geoFenceData, // Pass geofence data to preview
       });
     } else {
       // If offline, show confirmation before saving
@@ -337,8 +340,7 @@ const RecordEntryScreen = ({ database }) => {
                 formComponents,
                 surFormGenFlg,
                 isViewOnly: false,
-                isOfflineSave: true,
-                geoFenceData, // Pass geofence data to preview
+                isOfflineSave: true, // Flag to indicate offline save mode
               });
             },
           },
@@ -614,21 +616,6 @@ const RecordEntryScreen = ({ database }) => {
         fieldValues={fieldValues}
         totalNumFormComp={formComponents.length}
       />
-
-      {/* Geofence InfoBar */}
-      {geofenceError && (
-        <View style={styles.infoBarWrapper}>
-          <InfoBar
-            type="warning"
-            title={geofenceError}
-            showAction={true}
-            actionTitle="Retry"
-            onAction={retryGeofence}
-          />
-        </View>
-      )}
-
-      
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}

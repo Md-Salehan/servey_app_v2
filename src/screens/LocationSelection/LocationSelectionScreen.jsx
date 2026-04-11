@@ -26,16 +26,21 @@ import {
   fetchBlocks,
   fetchPanchayats,
   fetchVillages,
+  setCsLocType,
   setState,
   setDistrict,
   setBlock,
   setPanchayat,
+  setTown,
   setVillage,
+  setWard,
   saveLocationSelections,
   loadLocationSelections,
   clearLocationSelections,
   clearErrors,
   resetLocationState,
+  fetchTowns,
+  fetchWards,
 } from '../../features/location/locationSlice';
 
 import styles from './LocationSelection.styles';
@@ -145,6 +150,33 @@ const LocationSelectionScreen = () => {
     loading.panchayats,
   ]);
 
+  // Auto-fetch towns only when block changes AND towns list is empty
+  useEffect(() => {
+    console.log('fetchTowns-', lists.towns.length, selections.csLocType);
+
+    if (
+      selections.state &&
+      selections.district &&
+      lists.towns.length === 0 &&
+      !loading.towns &&
+      selections.csLocType === 'U'
+    ) {
+      dispatch(
+        fetchTowns({
+          censusYr: 2011,
+          stateCd: selections.state.code,
+          distCd: selections.district.code,
+        }),
+      );
+    }
+  }, [
+    selections.district,
+    selections.state,
+    dispatch,
+    lists.towns.length,
+    loading.towns,
+  ]);
+
   // Auto-fetch villages only when panchayat changes AND villages list is empty
   useEffect(() => {
     if (
@@ -175,6 +207,41 @@ const LocationSelectionScreen = () => {
     loading.villages,
   ]);
 
+  // Auto-fetch Wards only when town changes AND wards list is empty
+  useEffect(() => {
+    console.log(
+      'fetchWards-',
+      selections.state,
+      selections.district,
+      selections.town,
+      lists.wards.length,
+      loading.wards,
+    );
+    if (
+      selections.state &&
+      selections.district &&
+      selections.town &&
+      lists.wards.length === 0 &&
+      !loading.wards
+    ) {
+      dispatch(
+        fetchWards({
+          censusYr: 2011,
+          stateCd: selections.state.code,
+          distCd: selections.district.code,
+          townCd: selections.town.code,
+        }),
+      );
+    }
+  }, [
+    selections.town,
+    selections.district,
+    selections.state,
+    dispatch,
+    lists.wards.length,
+    loading.wards,
+  ]);
+
   // Save selections to AsyncStorage whenever they change (but not on first load)
   useEffect(() => {
     if (!isLoadingSavedData && !isFirstLoad && selections.state) {
@@ -183,7 +250,9 @@ const LocationSelectionScreen = () => {
         selections.district ||
         selections.block ||
         selections.panchayat ||
-        selections.village;
+        selections.town ||
+        selections.village ||
+        selections.ward;
       if (hasAnySelection) {
         dispatch(saveLocationSelections(selections));
       }
@@ -209,6 +278,26 @@ const LocationSelectionScreen = () => {
     { key: 'code', title: 'Code', width: 100 },
     { key: 'name', title: 'Name', flex: 1 },
   ];
+
+  const handleLocationTypeChange = value => {
+    console.log('Location type changed to:', value);
+    if (!value) {
+      dispatch(setCsLocType(''));
+    } else {
+      dispatch(setCsLocType(value));
+    }
+
+    if (value === 'R') {
+      // Clear urban-specific selections
+      dispatch(setTown(null));
+      dispatch(setWard(null));
+    } else if (value === 'U') {
+      // Clear rural-specific selections
+      dispatch(setBlock(null));
+      dispatch(setPanchayat(null));
+      dispatch(setVillage(null));
+    }
+  };
 
   // Handle state selection
   const handleStateChange = value => {
@@ -251,6 +340,17 @@ const LocationSelectionScreen = () => {
     }
   };
 
+  // Handle town selection
+  const handleTownChange = value => {
+    if (!value) {
+      dispatch(setTown(null));
+    } else {
+      const selectedTown = lists.towns.find(t => t.code === value);
+      dispatch(setTown(selectedTown));
+    }
+  };
+  console.log('towns--', lists.towns, selections.csLocType, selections.town);
+
   // Handle village selection
   const handleVillageChange = value => {
     if (!value) {
@@ -261,15 +361,36 @@ const LocationSelectionScreen = () => {
     }
   };
 
+  const handleWardChange = value => {
+    if (!value) {
+      dispatch(setWard(null));
+    } else {
+      const selectedWard = lists.wards.find(w => w.code === value);
+      dispatch(setWard(selectedWard));
+    }
+  };
+
   // Check if all required fields are selected
   const isFormValid = useCallback(() => {
-    return (
-      selections.state &&
-      selections.district &&
-      selections.block &&
-      selections.panchayat &&
-      selections.village
-    );
+    if (selections.csLocType === 'R') {
+      return (
+        selections.csLocType &&
+        selections.state &&
+        selections.district &&
+        selections.block &&
+        selections.panchayat &&
+        selections.village
+      );
+    } else if (selections.csLocType === 'U') {
+      return (
+        selections.csLocType &&
+        selections.state &&
+        selections.district &&
+        selections.town &&
+        selections.ward
+      );
+    }
+    return false;
   }, [selections]);
 
   // Handle continue button press
@@ -337,11 +458,18 @@ const LocationSelectionScreen = () => {
   };
 
   // Get display value for LOV fields
+  const getCsLocTypeDisplayValue = () => {
+    if (selections.csLocType === 'R') return 'RURAL';
+    if (selections.csLocType === 'U') return 'URBAN';
+    return '';
+  };
   const getStateDisplayValue = () => selections.state?.code || '';
   const getDistrictDisplayValue = () => selections.district?.code || '';
   const getBlockDisplayValue = () => selections.block?.code || '';
   const getPanchayatDisplayValue = () => selections.panchayat?.code || '';
+  const getTownDisplayValue = () => selections.town?.code || '';
   const getVillageDisplayValue = () => selections.village?.code || '';
+  const getWardDisplayValue = () => selections.ward?.code || '';
 
   // Render progress indicator
   const renderProgress = () => {
@@ -402,7 +530,7 @@ const LocationSelectionScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {renderProgress()}
+      {/* {renderProgress()} */}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -410,23 +538,17 @@ const LocationSelectionScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.formContainer}>
-          
           <DropdownField
-            fcId={"csLocTyp"}
-            label={"Location Type"}
-            placeholder={"Select Location Type"}
-            options={props?.options || ''}
-            multiple={props?.multiple === 'Y'}
-            required={props?.required === 'Y'}
-            value={fieldValues[fcId]}
-            onChange={value => handleFieldChange(fcId, value)}
-            disabled={props?.editable === 'N'}
-            searchable={true}
-            maxSelections={
-              props?.maxSelections ? parseInt(props.maxSelections) : undefined
-            }
-            errorText={''} // submissionError[fcId] || ''
-            onError={error => handleError(fcId, error)}
+            fcId={'csLocTyp'}
+            label={'Location Type'}
+            placeholder={'Select Location Type'}
+            options={{ R: 'RURAL', U: 'URBAN' }}
+            multiple={false}
+            required={true}
+            value={selections.csLocType}
+            onChange={handleLocationTypeChange}
+            disabled={false}
+            searchable={false}
           />
 
           {/* State Field */}
@@ -442,7 +564,6 @@ const LocationSelectionScreen = () => {
             primaryKey="code"
             required={true}
             loading={loading.states}
-            // error={errors.states}
             searchable={true}
             searchPlaceholder="Search state..."
             emptyMessage={
@@ -467,7 +588,6 @@ const LocationSelectionScreen = () => {
             required={true}
             disabled={!selections.state}
             loading={loading.districts}
-            // error={errors.districts}
             searchable={true}
             searchPlaceholder="Search district..."
             emptyMessage={
@@ -478,93 +598,152 @@ const LocationSelectionScreen = () => {
           />
 
           {/* Block Field */}
-          <LOVField
-            fcId="block"
-            label="Block"
-            placeholder={
-              selections.district ? 'Select Block' : 'Select District first'
-            }
-            data={lists.blocks}
-            columns={locationColumns}
-            value={getBlockDisplayValue()}
-            onChange={handleBlockChange}
-            displayKey="name"
-            primaryKey="code"
-            required={true}
-            disabled={!selections.district}
-            loading={loading.blocks}
-            // error={errors.blocks}
-            searchable={true}
-            searchPlaceholder="Search block..."
-            emptyMessage={
-              loading.blocks ? 'Loading blocks...' : 'No blocks found'
-            }
-            modalTitle="Select Block"
-            dependencyValues={[selections.state, selections.district]}
-          />
+          {selections.csLocType === 'R' && (
+            <LOVField
+              fcId="block"
+              label="Block"
+              placeholder={
+                selections.district ? 'Select Block' : 'Select District first'
+              }
+              data={lists.blocks}
+              columns={locationColumns}
+              value={getBlockDisplayValue()}
+              onChange={handleBlockChange}
+              displayKey="name"
+              primaryKey="code"
+              required={true}
+              disabled={!selections.district}
+              loading={loading.blocks}
+              searchable={true}
+              searchPlaceholder="Search block..."
+              emptyMessage={
+                loading.blocks ? 'Loading blocks...' : 'No blocks found'
+              }
+              modalTitle="Select Block"
+              dependencyValues={[selections.state, selections.district]}
+            />
+          )}
 
           {/* Panchayat Field */}
-          <LOVField
-            fcId="panchayat"
-            label="Panchayat"
-            placeholder={
-              selections.block ? 'Select Panchayat' : 'Select Block first'
-            }
-            data={lists.panchayats}
-            columns={locationColumns}
-            value={getPanchayatDisplayValue()}
-            onChange={handlePanchayatChange}
-            displayKey="name"
-            primaryKey="code"
-            required={true}
-            disabled={!selections.block}
-            loading={loading.panchayats}
-            // error={errors.panchayats}
-            searchable={true}
-            searchPlaceholder="Search panchayat..."
-            emptyMessage={
-              loading.panchayats
-                ? 'Loading panchayats...'
-                : 'No panchayats found'
-            }
-            modalTitle="Select Panchayat"
-            dependencyValues={[
-              selections.state,
-              selections.district,
-              selections.block,
-            ]}
-          />
+          {selections.csLocType === 'R' && (
+            <LOVField
+              fcId="panchayat"
+              label="Panchayat"
+              placeholder={
+                selections.block ? 'Select Panchayat' : 'Select Block first'
+              }
+              data={lists.panchayats}
+              columns={locationColumns}
+              value={getPanchayatDisplayValue()}
+              onChange={handlePanchayatChange}
+              displayKey="name"
+              primaryKey="code"
+              required={true}
+              disabled={!selections.block}
+              loading={loading.panchayats}
+              searchable={true}
+              searchPlaceholder="Search panchayat..."
+              emptyMessage={
+                loading.panchayats
+                  ? 'Loading panchayats...'
+                  : 'No panchayats found'
+              }
+              modalTitle="Select Panchayat"
+              dependencyValues={[
+                selections.state,
+                selections.district,
+                selections.block,
+              ]}
+            />
+          )}
+
+          {/* Town Field */}
+          {selections.csLocType === 'U' && (
+            <LOVField
+              fcId="town"
+              label="Town"
+              placeholder={
+                selections.block ? 'Select Town' : 'Select Block first'
+              }
+              data={lists.towns}
+              columns={locationColumns}
+              value={getTownDisplayValue()}
+              onChange={handleTownChange}
+              displayKey="name"
+              primaryKey="code"
+              required={true}
+              disabled={!selections.district}
+              loading={loading.towns}
+              searchable={true}
+              searchPlaceholder="Search town..."
+              emptyMessage={
+                loading.towns ? 'Loading towns...' : 'No towns found'
+              }
+              modalTitle="Select Town"
+              dependencyValues={[selections.state, selections.district]}
+            />
+          )}
 
           {/* Village Field */}
-          <LOVField
-            fcId="village"
-            label="Village"
-            placeholder={
-              selections.panchayat ? 'Select Village' : 'Select Panchayat first'
-            }
-            data={lists.villages}
-            columns={locationColumns}
-            value={getVillageDisplayValue()}
-            onChange={handleVillageChange}
-            displayKey="name"
-            primaryKey="code"
-            required={true}
-            disabled={!selections.panchayat}
-            loading={loading.villages}
-            // error={errors.villages}
-            searchable={true}
-            searchPlaceholder="Search village..."
-            emptyMessage={
-              loading.villages ? 'Loading villages...' : 'No villages found'
-            }
-            modalTitle="Select Village"
-            dependencyValues={[
-              selections.state,
-              selections.district,
-              selections.block,
-              selections.panchayat,
-            ]}
-          />
+          {selections.csLocType === 'R' && (
+            <LOVField
+              fcId="village"
+              label="Village"
+              placeholder={
+                selections.panchayat
+                  ? 'Select Village'
+                  : 'Select Panchayat first'
+              }
+              data={lists.villages}
+              columns={locationColumns}
+              value={getVillageDisplayValue()}
+              onChange={handleVillageChange}
+              displayKey="name"
+              primaryKey="code"
+              required={true}
+              disabled={!selections.panchayat}
+              loading={loading.villages}
+              searchable={true}
+              searchPlaceholder="Search village..."
+              emptyMessage={
+                loading.villages ? 'Loading villages...' : 'No villages found'
+              }
+              modalTitle="Select Village"
+              dependencyValues={[
+                selections.state,
+                selections.district,
+                selections.block,
+                selections.panchayat,
+              ]}
+            />
+          )}
+
+          {/* Ward Field */}
+          {selections.csLocType === 'U' && (
+            <LOVField
+              fcId="ward"
+              label="Ward"
+              placeholder={
+                selections.block ? 'Select Ward' : 'Select Block first'
+              }
+              data={lists.wards}
+              columns={locationColumns}
+              value={getWardDisplayValue()}
+              onChange={handleWardChange}
+              displayKey="name"
+              primaryKey="code"
+              required={true}
+              disabled={!selections.district}
+              loading={loading.wards}
+              searchable={true}
+              searchPlaceholder="Search ward..."
+              emptyMessage={
+                loading.wards ? 'Loading wards...' : 'No wards found'
+              }
+              modalTitle="Select Ward"
+              dependencyValues={[selections.state, selections.district]}
+            />
+          )}
         </View>
       </ScrollView>
 

@@ -1,6 +1,13 @@
 // models/PendingSubmission.js
 import { Model } from '@nozbe/watermelondb';
-import { field, json, readonly, date, children, relation } from '@nozbe/watermelondb/decorators';
+import {
+  field,
+  json,
+  readonly,
+  date,
+  children,
+  relation,
+} from '@nozbe/watermelondb/decorators';
 import uuid from 'react-native-uuid';
 import { STATUS } from '../../constants/enums';
 export default class PendingSubmission extends Model {
@@ -22,6 +29,8 @@ export default class PendingSubmission extends Model {
   static associations = {
     pending_files: { type: 'has_many', foreignKey: 'submission_id' },
     submission_attempts: { type: 'has_many', foreignKey: 'submission_id' },
+    geo_fences: { type: 'has_many', foreignKey: 'submission_id' },
+
     forms: { type: 'belongs_to', key: 'form_id' },
   };
 
@@ -45,23 +54,22 @@ export default class PendingSubmission extends Model {
 
   @children('pending_files') files;
   @children('submission_attempts') attempts;
+  @children('geo_fences') geoFences;
   @relation('forms', 'form_id') form;
 
-  static async createPendingSubmission(database, { 
-    formId, 
-    formName, 
-    appId, 
-    fieldValues, 
-    formComponents, 
-    payload 
-  }) {
+  static async createPendingSubmission(
+    database,
+    { formId, formName, appId, fieldValues, formComponents, payload },
+  ) {
     let createdSubmission = null;
-    
+
     await database.write(async () => {
       const submissionId = uuid.v4();
 
-      const pendingSubmissionsCollection = database.collections.get('pending_submissions');
-      
+      const pendingSubmissionsCollection = database.collections.get(
+        'pending_submissions',
+      );
+
       createdSubmission = await pendingSubmissionsCollection.create(record => {
         record.submissionId = submissionId;
         record.formId = formId;
@@ -75,7 +83,7 @@ export default class PendingSubmission extends Model {
         record.maxRetries = 3;
       });
     });
-    
+
     return createdSubmission;
   }
 
@@ -134,16 +142,21 @@ export default class PendingSubmission extends Model {
             let value = fieldValues[component.fcId];
             if (Array.isArray(value)) {
               value = value.map(file => {
-                const uploadedFile = uploadedFiles.find(f => f.fcId === component.fcId && f.localUri === file.uri);
-                return uploadedFile ? { ...file, 
-                  fileId: uploadedFile.fileId,
-                  fileUri: uploadedFile.fileUri,
-                  flUpldLogNo: uploadedFile.flUpldLogNo,
-                  status : uploadedFile.status,
-                 } : file;
+                const uploadedFile = uploadedFiles.find(
+                  f => f.fcId === component.fcId && f.localUri === file.uri,
+                );
+                return uploadedFile
+                  ? {
+                      ...file,
+                      fileId: uploadedFile.fileId,
+                      fileUri: uploadedFile.fileUri,
+                      flUpldLogNo: uploadedFile.flUpldLogNo,
+                      status: uploadedFile.status,
+                    }
+                  : file;
               });
               fieldValues[component.fcId] = value;
-            } 
+            }
           }
         }
         record.fieldValues = fieldValues;
@@ -156,9 +169,11 @@ export default class PendingSubmission extends Model {
   }
 
   shouldRetryNow() {
-    return this.status === PendingSubmission.STATUS.FAILED && 
-           this.canRetry() && 
-           (!this.nextRetryAt || this.nextRetryAt <= Date.now());
+    return (
+      this.status === PendingSubmission.STATUS.FAILED &&
+      this.canRetry() &&
+      (!this.nextRetryAt || this.nextRetryAt <= Date.now())
+    );
   }
 
   getFilesByStatus(status) {

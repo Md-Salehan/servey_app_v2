@@ -17,6 +17,7 @@ export default class Form extends Model {
     pending_submissions: { type: 'has_many', foreignKey: 'form_id' },
     pending_files: { type: 'has_many', foreignKey: 'form_id' },
     submissions: { type: 'has_many', foreignKey: 'form_id' },
+    geo_fences: { type: 'has_many', foreignKey: 'form_id' },
   };
 
   @field('form_id') formId;
@@ -38,6 +39,7 @@ export default class Form extends Model {
   @children('pending_submissions') pendingSubmissions;
   @children('pending_files') pendingFiles;
   @children('submissions') submissions;
+  @children('geo_fences') geoFences;
 
   async getComponents() {
     const components = await this.components.fetch();

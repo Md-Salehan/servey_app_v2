@@ -1,7 +1,15 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../../../constants/colors';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const Header = ({ navigation, formTitle, appId, formId, fieldValues={}, totalNumFormComp }) => {
+const Header = ({
+  navigation,
+  formTitle,
+  appId,
+  formId,
+  fieldValues = {},
+  totalNumFormComp,
+}) => {
   return (
     <View style={styles.header}>
       <TouchableOpacity
@@ -10,16 +18,20 @@ const Header = ({ navigation, formTitle, appId, formId, fieldValues={}, totalNum
       >
         <Text style={styles.backButtonText}>←</Text>
       </TouchableOpacity>
+
       <View style={styles.headerContent}>
-        <Text style={styles.formTitle}>{totalNumFormComp>1 ? 'Review Entries' : 'Review Entry'}</Text>
-        {/* <Text style={styles.formSubtitle}>
-          Fields completed: {Object.values(fieldValues).filter(v => v).length} /{' '}
-          {totalNumFormComp}  
-        </Text> */}
+        <Text style={styles.formTitle}>
+          {totalNumFormComp > 1 ? 'Review Entries' : 'Review Entry'}
+        </Text>
+      
         <Text style={styles.formSubtitle}>
-          Form: {formTitle || 'Untitled Form'} 
+          Form: {formTitle || 'Untitled Form'}
         </Text>
       </View>
+
+      <TouchableOpacity >
+                <Icon name="refresh" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
     </View>
   );
 };
@@ -29,9 +41,11 @@ export default Header;
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 20,
+    paddingBottom: 16,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,

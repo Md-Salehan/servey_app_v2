@@ -11,6 +11,7 @@ import Submission from './models/Submission';
 import PendingSubmission from './models/PendingSubmission';
 import PendingFile from './models/PendingFile';
 import SubmissionAttempt from './models/SubmissionAttempt';
+import GeoFence from './models/GeoFence';
 
 // Create adapter
 const adapter = new SQLiteAdapter({
@@ -33,6 +34,7 @@ export const database = new Database({
     PendingSubmission,
     PendingFile,
     SubmissionAttempt,
+    GeoFence,
   ],
   actionsEnabled: true, // Enable actions for better performance
 });

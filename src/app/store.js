@@ -4,6 +4,7 @@ import { formsApi } from '../features/form/formsApi';
 import { formComponentsApi } from '../features/form/formComponentsApi'; 
 import authReducer from '../features/auth/authSlice';
 import locationReducer from '../features/location/locationSlice';
+import { geoFenceApi } from '../features/geoFence/geoFence.api';
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +12,7 @@ export const store = configureStore({
     location: locationReducer,
     [authApi.reducerPath]: authApi.reducer,
     [formsApi.reducerPath]: formsApi.reducer,
+    [geoFenceApi.reducerPath]: geoFenceApi.reducer,
     [formComponentsApi.reducerPath]: formComponentsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
@@ -19,5 +21,6 @@ export const store = configureStore({
     })
     .concat(authApi.middleware)
     .concat(formsApi.middleware)
-    .concat(formComponentsApi.middleware),
+    .concat(formComponentsApi.middleware)
+    .concat(geoFenceApi.middleware),
 });

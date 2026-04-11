@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { use, useEffect, useRef, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -16,6 +16,7 @@ import {
   DatePickerField,
   DropdownField,
   ImageUploadField,
+  InfoBar,
   LocationField,
   SignatureField,
   TextInputField,
@@ -24,6 +25,8 @@ import styles from './PreviewScreen.styles';
 import { Header } from './component';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSurveyFormSubmitMutation } from '../../features/form/formsApi';
+import { useGetFenceDataMutation } from '../../features/geoFence/geoFence.api';
+import { useGeofence } from '../../hook/useGeofence';
 import { getLatLng } from './Functions';
 import { useDispatch, useSelector } from 'react-redux';
 import uploadService from '../../services/uploadService';
@@ -54,6 +57,26 @@ const PreviewScreen = ({ database }) => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const { selections } = useSelector(state => state.location);
+  const needFileUpload = useRef(false); // Track if any file uploads are present in the form
+  const [inputLocation, setInputLocation] = useState(
+    
+
+{
+    latitude: 23.634695664871302,
+    longitude: 87.63916790485384
+}
+);
+  const [fenceData, setFenceData] = useState(null);
+  const [
+    getFenceData,
+    { isLoading: isFenceDataLoading, error: fenceDataError },
+  ] = useGetFenceDataMutation();
+  const { location, isInside, loading, error, retry, validateWithLocation } =
+    useGeofence(fenceData, {
+      inputLocation: inputLocation, // Pass the input location to the hook
+    });
+
   console.log(
     {
       formTitle,
@@ -64,9 +87,44 @@ const PreviewScreen = ({ database }) => {
       surFormGenFlg,
       isViewOnly,
       isOfflineSave, // Flag to indicate this is from offline save
+      selections,
+      location,
+      isInside,
+      loading,
+      error,
+      retry,
+      validateWithLocation,
+      fenceData,
+      isFenceDataLoading,
+      fenceDataError,
     },
     'preview data',
   );
+
+  const initializeGeoFenceData = async () => {
+    try {
+      const payload = {
+        apiId: 'WGA00238',
+        criteria: {
+          layerId: '00003',
+          portalId: '00001',
+        },
+      };
+      const response = await getFenceData(payload).unwrap();
+      console.log('Geofence API response:', response);
+      if (response) {
+        setFenceData(response);
+      } else {
+        console.error('Failed to load geofence data:', response);
+      }
+    } catch (error) {
+      console.error('Error loading geofence data:', error);
+    }
+  };
+
+  useEffect(() => {
+    initializeGeoFenceData();
+  }, []);
 
   // Preview mode render function
   const renderPreviewFieldComponent = component => {
@@ -252,7 +310,11 @@ const PreviewScreen = ({ database }) => {
               value = value
                 .map(image => image.flUpldLogNo)
                 .filter(flUpldLogNo => flUpldLogNo);
-              value = JSON.stringify(value); // Convert array of flUpldLogNo to JSON string for submission
+
+              if (value.length === 0) {
+                needFileUpload.current = true; // Mark that we have files that need to be uploaded
+              }
+              value = JSON.stringify(value);
             }
           }
 
@@ -265,6 +327,7 @@ const PreviewScreen = ({ database }) => {
                 value = JSON.stringify([value.flUpldLogNo]);
               } else {
                 value = JSON.stringify([]);
+                needFileUpload.current = true; // Mark that we have a file that needs to be uploaded
               }
             }
           }
@@ -281,6 +344,20 @@ const PreviewScreen = ({ database }) => {
         })
         .filter(item => item !== null) || [];
 
+    if (dtl02.length === 0) {
+      return {
+        hasError: true,
+        errorMessage: 'No valid data to submit. Please fill out the form.',
+      };
+    }
+
+    if (needFileUpload.current && !isOfflineSave) {
+      return {
+        hasError: true,
+        errorMessage: 'Please upload all required files before submitting.',
+      };
+    }
+
     // Prepare the payload for pending submission
     const payload = {
       apiId: 'SUA01031',
@@ -291,21 +368,21 @@ const PreviewScreen = ({ database }) => {
           dtl01: [
             {
               dtl02: dtl02,
-              blkCd: '',
-              blkNm: '',
-              csLocTyp: '',
-              distCd: '',
-              distNm: '',
+              blkCd: selections?.block?.code || '',
+              blkNm: selections?.block?.name || '',
+              csLocTyp: selections?.csLocType || '',
+              distCd: selections?.district?.code || '',
+              distNm: selections?.district?.name || '',
               geoJson: '',
               jlNo: '',
               latitude: lat,
               longitude: lng,
               lvlRefCd: '',
-              panCd: '',
-              panNm: '',
-              plcn: '',
-              stateCd: '',
-              stateNm: '',
+              panCd: selections?.panchayat?.code || '',
+              panNm: selections?.panchayat?.name || '',
+              plcn: selections?.town?.code || '',
+              stateCd: selections?.state?.code || '',
+              stateNm: selections?.state?.name || '',
               subdCd: '',
               subdNm: '',
               surDate: now.toISOString().split('T')[0],
@@ -313,9 +390,9 @@ const PreviewScreen = ({ database }) => {
               surRefTyp: '',
               surTime: now.toTimeString().split(' ')[0],
               surUserId: user?.userId || '',
-              townNm: '',
-              villNm: '',
-              wardNo: '',
+              townNm: selections?.town?.name || '',
+              villNm: selections?.village?.name || '',
+              wardNo: selections?.ward?.code || '',
             },
           ],
         },
@@ -331,6 +408,13 @@ const PreviewScreen = ({ database }) => {
     try {
       const submissionService = new SubmissionService(database);
       const payload = generatePayload();
+
+      if (payload.hasError) {
+        Alert.alert('Error', payload.errorMessage);
+        return;
+      }
+
+      console.log(payload, 'submit data');
 
       // Create pending submission
       await submissionService.createPendingSubmission(
@@ -381,9 +465,14 @@ const PreviewScreen = ({ database }) => {
   const handleFormSubmit = async () => {
     const payload = generatePayload();
 
-    console.log(payload, 'pld');
+    if (payload.hasError) {
+      Alert.alert('Error', payload.errorMessage);
+      return;
+    }
 
     try {
+      console.log(payload, 'submit data', needFileUpload.current);
+
       // Step 1: Submit the form
       const response = await surveyFormSubmit(payload).unwrap();
       console.log('Form submission response:', response);
@@ -452,6 +541,10 @@ const PreviewScreen = ({ database }) => {
         fieldValues={fieldValues}
         totalNumFormComp={formComponents?.length || 0}
       />
+
+      <View style={styles.infoWrapper}>
+        <InfoBar />
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}

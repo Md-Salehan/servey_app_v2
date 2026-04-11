@@ -49,7 +49,7 @@ const LOVField = ({
   searchPlaceholder = 'Search...',
   maxSelections,
   loading = false,
-  error = null,
+  errorText = null,
   emptyMessage = 'No data available',
   searchKeys = [],
   displayKey = null,
@@ -780,10 +780,10 @@ const LOVField = ({
         </View>
       )}
 
-      {error && (
+      {errorText && (
         <View style={styles.errorContainer}>
           <Icon name="error-outline" size={14} color={COLORS.error} />
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>{errorText}</Text>
         </View>
       )}
 
@@ -950,7 +950,7 @@ LOVField.propTypes = {
   searchPlaceholder: PropTypes.string,
   maxSelections: PropTypes.number,
   loading: PropTypes.bool,
-  error: PropTypes.string,
+  errorText: PropTypes.string,
   emptyMessage: PropTypes.string,
   searchKeys: PropTypes.arrayOf(PropTypes.string),
   displayKey: PropTypes.string,
@@ -982,7 +982,7 @@ LOVField.defaultProps = {
   searchPlaceholder: 'Search...',
   maxSelections: null,
   loading: false,
-  error: null,
+  errorText: null,
   emptyMessage: 'No data available',
   searchKeys: [],
   displayKey: null,
@@ -1066,7 +1066,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
-    minHeight: '50%',
+    minHeight: '70%',
     ...Platform.select({
       ios: {
         shadowColor: '#000',

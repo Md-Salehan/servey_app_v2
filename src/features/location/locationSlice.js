@@ -164,6 +164,37 @@ export const fetchPanchayats = createAsyncThunk(
   },
 );
 
+export const fetchTowns = createAsyncThunk(
+  'location/fetchTowns',
+  async ({ censusYr = 2011, stateCd, distCd }) => {
+    if (!stateCd || !distCd) return [];
+
+    const token = await TokenService.getAccessToken();
+    const response = await fetch(`${API_BASE_URL}/WGF00022/getAllTownPlcn`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        apiId: 'WGA00115',
+        criteria: { censusYr, stateCd, distCd },
+      }),
+    });
+    const data = await response.json();
+    console.log('fetchTownsxx', data);
+
+    if (data.code === 0 && data.content?.qryRsltSet) {
+      return data.content.qryRsltSet.map((item, id) => ({
+        id: id + 1,
+        code: item.plcn,
+        name: item.townNm,
+      }));
+    }
+    throw new Error(data.msg || 'Failed to fetch towns');
+  },
+);
+
 export const fetchVillages = createAsyncThunk(
   'location/fetchVillages',
   async ({ censusYr = 2011, stateCd, distCd, blkCd, panCd }) => {
@@ -194,6 +225,41 @@ export const fetchVillages = createAsyncThunk(
       }));
     }
     throw new Error(data.msg || 'Failed to fetch villages');
+  },
+);
+
+export const fetchWards = createAsyncThunk(
+  'location/fetchWards',
+  async ({ censusYr = 2011, stateCd, distCd, townCd }) => {
+    if (!stateCd || !distCd || !townCd) return [];
+
+    const token = await TokenService.getAccessToken();
+
+    console.log('fetchWards payload-', {
+      apiId: 'WGA00312',
+      criteria: { censusYr, stateCd, distCd, plcn:townCd },
+    });
+    const response = await fetch(`${API_BASE_URL}/WGF00022/getAllWards`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        apiId: 'WGA00312',
+        criteria: { censusYr, stateCd, distCd, plcn: townCd },
+      }),
+    });
+    const data = await response.json();
+
+    if (data.code === 0 && data.content?.qryRsltSet) {
+      return data.content.qryRsltSet.map((item, id) => ({
+        id: id + 1,
+        code: item.wardNo,
+        name: item.wardNm,
+      }));
+    }
+    throw new Error(data.msg || 'Failed to fetch wards');
   },
 );
 
@@ -230,22 +296,27 @@ export const clearLocationSelections = createAsyncThunk(
 const initialState = {
   // Selected values
   selections: {
+    csLocType: 'R', // Default to Rural
     state: null,
     district: null,
-    subDivision: null,
+    // subDivision: null,
     block: null,
     panchayat: null,
     village: null,
+    town: null,
+    ward: null,
   },
 
   // Lists data
   lists: {
     states: [],
     districts: [],
-    subDivision: [],
+    // subDivision: [],
     blocks: [],
     panchayats: [],
     villages: [],
+    towns: [],
+    wards: [],
   },
 
   // Loading states
@@ -256,16 +327,20 @@ const initialState = {
     blocks: false,
     panchayats: false,
     villages: false,
+    towns: false,
+    wards: false,
   },
 
   // Error states
   errors: {
     states: null,
     districts: null,
-    subDivision: null,
+    // subDivision: null,
     blocks: null,
     panchayats: null,
     villages: null,
+    towns: null,
+    wards: null,
   },
 
   // Initialization state
@@ -276,6 +351,9 @@ const locationSlice = createSlice({
   name: 'location',
   initialState,
   reducers: {
+    setCsLocType: (state, action) => {
+      state.selections.csLocType = action.payload;
+    },
     setState: (state, action) => {
       state.selections.state = action.payload;
       // Reset dependent selections
@@ -309,10 +387,10 @@ const locationSlice = createSlice({
       state.errors.panchayats = null;
       state.errors.villages = null;
     },
-    setSubDivision: (state, action) => {
-      state.selections.block = action.payload;
-     
-    }, 
+    // setSubDivision: (state, action) => {
+    //   state.selections.block = action.payload;
+    // },
+
     setBlock: (state, action) => {
       state.selections.block = action.payload;
       // Reset dependent selections
@@ -334,8 +412,23 @@ const locationSlice = createSlice({
       // Clear dependent errors
       state.errors.villages = null;
     },
+
+    setTown: (state, action) => {
+      state.selections.town = action.payload;
+      // Reset dependent selections
+      state.selections.ward = null;
+      // Clear dependent lists
+      state.lists.wards = [];
+      // Clear dependent errors
+      state.errors.wards = null;
+    },
+
     setVillage: (state, action) => {
       state.selections.village = action.payload;
+    },
+
+    setWard: (state, action) => {
+      state.selections.ward = action.payload;
     },
     resetLocationState: () => initialState,
     clearErrors: state => {
@@ -345,6 +438,8 @@ const locationSlice = createSlice({
         blocks: null,
         panchayats: null,
         villages: null,
+        towns: null,
+        wards: null,
       };
     },
   },
@@ -379,20 +474,19 @@ const locationSlice = createSlice({
         state.errors.districts = action.error.message;
       })
 
-
       // Fetch SubDivisions
-      .addCase(fetchSubDivisions.pending, state => {
-        state.loading.subDivisions = true;
-        state.errors.subDivisions = null;
-      })
-      .addCase(fetchSubDivisions.fulfilled, (state, action) => {
-        state.loading.subDivisions = false;
-        state.lists.subDivisions = action.payload;
-      })
-      .addCase(fetchSubDivisions.rejected, (state, action) => {
-        state.loading.subDivisions = false;
-        state.errors.subDivisions = action.error.message;
-      })
+      // .addCase(fetchSubDivisions.pending, state => {
+      //   state.loading.subDivisions = true;
+      //   state.errors.subDivisions = null;
+      // })
+      // .addCase(fetchSubDivisions.fulfilled, (state, action) => {
+      //   state.loading.subDivisions = false;
+      //   state.lists.subDivisions = action.payload;
+      // })
+      // .addCase(fetchSubDivisions.rejected, (state, action) => {
+      //   state.loading.subDivisions = false;
+      //   state.errors.subDivisions = action.error.message;
+      // })
 
       // Fetch Blocks
       .addCase(fetchBlocks.pending, state => {
@@ -422,6 +516,20 @@ const locationSlice = createSlice({
         state.errors.panchayats = action.error.message;
       })
 
+      // Fetch Towns
+      .addCase(fetchTowns.pending, state => {
+        state.loading.towns = true;
+        state.errors.towns = null;
+      })
+      .addCase(fetchTowns.fulfilled, (state, action) => {
+        state.loading.towns = false;
+        state.lists.towns = action.payload;
+      })
+      .addCase(fetchTowns.rejected, (state, action) => {
+        state.loading.towns = false;
+        state.errors.towns = action.error.message;
+      })
+
       // Fetch Villages
       .addCase(fetchVillages.pending, state => {
         state.loading.villages = true;
@@ -434,6 +542,20 @@ const locationSlice = createSlice({
       .addCase(fetchVillages.rejected, (state, action) => {
         state.loading.villages = false;
         state.errors.villages = action.error.message;
+      })
+
+      // Fetch Wards
+      .addCase(fetchWards.pending, state => {
+        state.loading.wards = true;
+        state.errors.wards = null;
+      })
+      .addCase(fetchWards.fulfilled, (state, action) => {
+        state.loading.wards = false;
+        state.lists.wards = action.payload;
+      })
+      .addCase(fetchWards.rejected, (state, action) => {
+        state.loading.wards = false;
+        state.errors.wards = action.error.message;
       })
 
       // Load saved selections
@@ -451,29 +573,37 @@ const locationSlice = createSlice({
       // Clear selections
       .addCase(clearLocationSelections.fulfilled, state => {
         state.selections = {
+          csLocType: 'R',
           state: null,
           district: null,
           block: null,
           panchayat: null,
+          towns: null,
           village: null,
+          ward: null,
         };
         state.lists = {
           ...state.lists,
           districts: [],
           blocks: [],
           panchayats: [],
+          towns: [],
           villages: [],
+          wards: [],
         };
       });
   },
 });
 
 export const {
+  setCsLocType,
   setState,
   setDistrict,
   setBlock,
   setPanchayat,
+  setTown,
   setVillage,
+  setWard,
   resetLocationState,
   clearErrors,
 } = locationSlice.actions;

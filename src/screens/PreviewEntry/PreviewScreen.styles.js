@@ -5,6 +5,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+    // paddingBottom: 30,
+  },
+  infoWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+
   },
   scrollContainer: {
     paddingBottom: 30,
@@ -113,7 +119,8 @@ const styles = StyleSheet.create({
   },
 
   formContainer: {
-    padding: 20,
+    paddingHorizontal: 20,
+    // paddingTop: 16,
   },
   emptyContainer: {
     alignItems: 'center',
