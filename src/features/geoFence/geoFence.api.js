@@ -31,7 +31,7 @@ export const geoFenceApi = createApi({
           payload
         );
         return {
-          url: '/WGF00101/getLayerGeoJson',
+          url: '/SUF00191/getUserJuridiction',
           method: 'POST',
           body: payload,
         };

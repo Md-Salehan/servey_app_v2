@@ -10,11 +10,11 @@ const useGeoFenceData = (database, appId, formId) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFromCache, setIsFromCache] = useState(false);
-  
+
   const { user } = useSelector(state => state.auth);
   const { isOnline } = useInternetStatus();
   const [getFenceData, { isLoading: isApiLoading }] = useGetFenceDataMutation();
-  
+
   const geoFenceService = new GeoFenceService(database);
 
   // Load from local database
@@ -23,7 +23,7 @@ const useGeoFenceData = (database, appId, formId) => {
       const data = await geoFenceService.getGeoFenceData(
         appId,
         formId,
-        user?.userId
+        user?.userId,
       );
       if (data) {
         setGeoFenceData(data);
@@ -43,15 +43,15 @@ const useGeoFenceData = (database, appId, formId) => {
   const fetchFromServer = useCallback(async () => {
     try {
       const payload = {
-        apiId: 'WGA00238',
+        apiId: 'SUA01049',
         criteria: {
-          layerId: '00001',
-          portalId: '00001',
+          appId: 'AP000002',
+          userId: 'demo1',
         },
       };
-      
+
       const response = await getFenceData(payload).unwrap();
-      
+
       if (response) {
         // Save to local database
         await geoFenceService.saveGeoFenceData(
@@ -60,9 +60,9 @@ const useGeoFenceData = (database, appId, formId) => {
           user?.userId,
           response,
           0, // latitude
-          0  // longitude
+          0, // longitude
         );
-        
+
         setGeoFenceData(response);
         setIsFromCache(false);
         setError(null);
@@ -80,20 +80,24 @@ const useGeoFenceData = (database, appId, formId) => {
   const initializeGeoFence = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // First, try to load from local DB
       const hasLocalData = await loadFromLocalDB();
-      
+
       // If online, try to fetch latest from server regardless of local data
       if (isOnline) {
         const success = await fetchFromServer();
         if (!success && !hasLocalData) {
-          setError('Failed to load geoFence data. Please check your connection and try again.');
+          setError(
+            'Failed to load geoFence data. Please check your connection and try again.',
+          );
         }
       } else if (!hasLocalData) {
         // Offline and no local data
-        setError('No geoFence data available offline. Please connect to the internet to download it.');
+        setError(
+          'No geoFence data available offline. Please connect to the internet to download it.',
+        );
       }
     } catch (err) {
       console.error('Error initializing geoFence:', err);
@@ -107,7 +111,7 @@ const useGeoFenceData = (database, appId, formId) => {
   const retry = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     if (isOnline) {
       const success = await fetchFromServer();
       if (!success) {
@@ -119,10 +123,12 @@ const useGeoFenceData = (database, appId, formId) => {
     } else {
       const hasLocalData = await loadFromLocalDB();
       if (!hasLocalData) {
-        setError('No geoFence data available offline. Please connect to the internet.');
+        setError(
+          'No geoFence data available offline. Please connect to the internet.',
+        );
       }
     }
-    
+
     setLoading(false);
   }, [isOnline, fetchFromServer, loadFromLocalDB]);
 
