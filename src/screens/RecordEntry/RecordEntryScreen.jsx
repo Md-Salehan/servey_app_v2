@@ -316,7 +316,7 @@ const RecordEntryScreen = ({ database }) => {
         formComponents,
         surFormGenFlg,
         isViewOnly: false,
-        geoFenceData, // Pass geofence data to preview
+        // geoFenceData, // Pass geofence data to preview
       });
     } else {
       // If offline, show confirmation before saving
@@ -338,7 +338,7 @@ const RecordEntryScreen = ({ database }) => {
                 surFormGenFlg,
                 isViewOnly: false,
                 isOfflineSave: true,
-                geoFenceData, // Pass geofence data to preview
+                // geoFenceData, // Pass geofence data to preview
               });
             },
           },
@@ -616,17 +616,19 @@ const RecordEntryScreen = ({ database }) => {
       />
 
       {/* Geofence InfoBar */}
-      {geofenceError && (
-        <View style={styles.infoBarWrapper}>
-          <InfoBar
-            type="warning"
-            title={geofenceError}
-            showAction={true}
-            actionTitle="Retry"
-            onAction={retryGeofence}
-          />
-        </View>
-      )}
+      {
+      // geofenceError && (
+      //   <View style={styles.infoBarWrapper}>
+      //     <InfoBar
+      //       type="warning"
+      //       title={geofenceError}
+      //       showAction={true}
+      //       actionTitle="Retry"
+      //       onAction={retryGeofence}
+      //     />
+      //   </View>
+      // )
+      }
 
       
 

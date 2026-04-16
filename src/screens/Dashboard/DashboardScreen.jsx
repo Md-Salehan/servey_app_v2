@@ -33,6 +33,7 @@ import { useGetFormsMutation } from '../../features/form/formsApi';
 
 import { styles } from './Dashboard.styles';
 import Screen from '../../Layout/Screen';
+import useGeoFenceData from '../../hook/useGeoFenceData';
 
 const DashboardScreen = ({ database }) => {
   const navigation = useNavigation();
@@ -44,8 +45,6 @@ const DashboardScreen = ({ database }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isFromCache, setIsFromCache] = useState(false);
-  const [syncError, setSyncError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeSort, setActiveSort] = useState('newest');
 
@@ -53,6 +52,14 @@ const DashboardScreen = ({ database }) => {
   const { isOnline, isChecking } = useInternetStatus();
 
   const [fetchForms] = useGetFormsMutation();
+
+  const {
+      geoFenceData,
+      loading: geofenceLoading,
+      error: geofenceError,
+      isFromCache,
+      retry: retryGeofence,
+    } = useGeoFenceData(database, 'AP000001', 'SUA01049');
 
   useEffect(() => {
     if (!isInitialized) {
