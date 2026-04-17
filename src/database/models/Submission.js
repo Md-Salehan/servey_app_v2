@@ -29,7 +29,6 @@ export default class Submission extends Model {
   @field('uploaded_at') uploadedAt;
   @readonly @date('created_at') createdAt;
   @readonly @date('updated_at') updatedAt;
-
   @relation('forms', 'form_id') form;
 
   static async createSubmission(database, { formId, formName, appId, payload }) {

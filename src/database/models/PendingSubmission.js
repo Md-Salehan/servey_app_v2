@@ -29,8 +29,6 @@ export default class PendingSubmission extends Model {
   static associations = {
     pending_files: { type: 'has_many', foreignKey: 'submission_id' },
     submission_attempts: { type: 'has_many', foreignKey: 'submission_id' },
-    geo_fences: { type: 'has_many', foreignKey: 'submission_id' },
-
     forms: { type: 'belongs_to', key: 'form_id' },
   };
 
@@ -48,6 +46,8 @@ export default class PendingSubmission extends Model {
   @field('next_retry_at') nextRetryAt;
   @field('error_message') errorMessage;
   @field('error_stack') errorStack;
+  @field('current_latitude') currentLatitude;
+  @field('current_longitude') currentLongitude;
   @readonly @date('created_at') createdAt;
   @readonly @date('updated_at') updatedAt;
   @field('completed_at') completedAt;

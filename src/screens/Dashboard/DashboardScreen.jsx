@@ -58,8 +58,8 @@ const DashboardScreen = ({ database }) => {
       loading: geofenceLoading,
       error: geofenceError,
       isFromCache,
-      retry: retryGeofence,
-    } = useGeoFenceData(database, 'AP000001', 'SUA01049');
+      retry: retryGeoFence,
+    } = useGeoFenceData(database, 'AP000001');
 
   useEffect(() => {
     if (!isInitialized) {
@@ -458,7 +458,7 @@ const DashboardScreen = ({ database }) => {
             <InfoBar
               type={'warning'}
               title={
-                error || 'Failed to sync with server. Showing cached data.'
+                error || 'Some forms may not be up to date due to a network error.'
               }
               showAction={isOnline}
               actionTitle="Retry"
@@ -505,6 +505,21 @@ const DashboardScreen = ({ database }) => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Geofence InfoBar */}
+      {
+      geofenceError && (
+        <View style={styles.infoBarWrapper}>
+          <InfoBar
+            type="warning"
+            title={geofenceError}
+            showAction={true}
+            actionTitle="Retry"
+            onAction={retryGeoFence}
+          />
+        </View>
+      )
+      }
 
       {/* Filter Component */}
       <FormFilter

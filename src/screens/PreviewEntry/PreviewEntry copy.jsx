@@ -57,7 +57,10 @@ const PreviewScreen = ({ database }) => {
     useSurveyFormSubmitMutation();
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
+  const [isValidLocation, setIsValidLocation] = useState({
+    status: false,
+    errorText: 'Validating location...',
+  });
   const { selections } = useSelector(state => state.location);
   const needFileUpload = useRef(false); // Track if any file uploads are present in the form
 
@@ -71,6 +74,29 @@ const PreviewScreen = ({ database }) => {
     checkSubmissionAllowed,
     retry: retryGeoFence,
   } = useGeoFenceData(database, appId, true);
+
+  useEffect(() => {
+    handleLocationValidation();
+  }, [geoFenceData]);
+
+  const handleLocationValidation = async () => {
+    const validation = await checkSubmissionAllowed({
+      latitude: 23.670310760991175,
+      longitude: 87.57751464843751,
+    });
+    console.log('Location validation result:', validation);
+
+    if (!validation.allowed) {
+      setIsValidLocation({
+        status: false,
+        errorText:
+          validation.reason ||
+          'Your location does not meet the geofence requirements for submission.',
+      });
+    } else {
+      setIsValidLocation({ status: true, errorText: '' });
+    }
+  };
 
   console.log(
     {
@@ -364,31 +390,10 @@ const PreviewScreen = ({ database }) => {
     return payload;
   };
 
-  const handleSubmitValidations = async () => {
-    // First validate location if we have geofence data
-    const LocationValidation = await checkSubmissionAllowed({
-      latitude: 23.670310760991175,
-      longitude: 87.57751464843751,
-    });
-    console.log('Location validation result:', LocationValidation);
-
-    if (!LocationValidation.allowed) {
-      Alert.alert(
-        'Location Error',
-        LocationValidation.reason ||
-          'Your current location does not meet the submission criteria.',
-      );
-      return false;
-    }
-
-    // Add any additional validations here (e.g., required fields)
-    return true;
-  };
-
   // Save submission to local database (offline mode)
   const saveToLocalDatabase = async () => {
-    const isLocationValid = await handleLocationValidation();
-    if (!isLocationValid) {
+    if (!isValidLocation.status) {
+      Alert.alert('Error', isValidLocation.errorText);
       return;
     }
     return;
@@ -451,9 +456,8 @@ const PreviewScreen = ({ database }) => {
   };
 
   const handleFormSubmit = async () => {
-    const isValid = await handleSubmitValidations();
-
-    if (!isValid) {
+    if (!isValidLocation.status) {
+      Alert.alert('Error', isValidLocation.errorText);
       return;
     }
     return;
@@ -521,25 +525,6 @@ const PreviewScreen = ({ database }) => {
     }
   };
 
-  const handleLocationValidation = async () => {
-    const { lat, lng } = getLatLng(fieldValues, formComponents);
-    const validation = await checkSubmissionAllowed({
-      latitude: 23.670310760991175,
-      longitude: 87.57751464843751,
-    });
-    console.log('Location validation result:', validation);
-
-    if (!validation.allowed) {
-      Alert.alert(
-        'Location Error',
-        validation.reason ||
-          'Your current location does not meet the submission criteria.',
-      );
-      return false;
-    }
-    return true;
-  };
-
   // Determine if we're in offline mode and should show Save button
   const showSaveButton = !isOnline && !isViewOnly && surFormGenFlg === 'Y';
   const showSubmitButton = isOnline && !isViewOnly && surFormGenFlg === 'Y';
@@ -558,9 +543,6 @@ const PreviewScreen = ({ database }) => {
         retryGeoFence={retryGeoFence}
       />
 
-      <View style={styles.infoWrapper}>
-        <InfoBar />
-      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}

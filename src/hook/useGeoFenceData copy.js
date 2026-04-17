@@ -1,16 +1,15 @@
 // hook/useGeoFenceData.js
 import { useState, useEffect, useCallback } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useGetFenceDataMutation } from '../features/geoFence/geoFence.api';
 import GeoFenceService from '../services/geoFenceService';
 import useInternetStatus from './useInternetStatus';
 
-const useGeoFenceData = (database, appId, useLocalDB = false) => {
+const useGeoFenceData = (database, appId) => {
   const [geoFenceData, setGeoFenceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFromCache, setIsFromCache] = useState(false);
-  const [validationResult, setValidationResult] = useState(null);
 
   const { user } = useSelector(state => state.auth);
   const { isOnline } = useInternetStatus();
@@ -21,7 +20,10 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
   // Load from local database
   const loadFromLocalDB = useCallback(async () => {
     try {
-      const data = await geoFenceService.getGeoFenceData(appId, user?.userId);
+      const data = await geoFenceService.getGeoFenceData(
+        appId,
+        user?.userId,
+      );
       if (data) {
         setGeoFenceData(data);
         setIsFromCache(true);
@@ -51,7 +53,11 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
 
       if (geojson) {
         // Save to local database
-        await geoFenceService.saveGeoFenceData(appId, user?.userId, geojson);
+        await geoFenceService.saveGeoFenceData(
+          appId,
+          user?.userId,
+          geojson
+        );
 
         setGeoFenceData(geojson);
         setIsFromCache(false);
@@ -76,7 +82,7 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
       const hasLocalData = await loadFromLocalDB();
 
       // If online, try to fetch latest from server regardless of local data
-      if (isOnline && (!hasLocalData || useLocalDB === false)) {
+      if (isOnline) {
         const success = await fetchFromServer();
         if (!success && !hasLocalData) {
           setError(
@@ -96,52 +102,6 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
       setLoading(false);
     }
   }, [isOnline, loadFromLocalDB, fetchFromServer]);
-
-  // Validate current location against geofence
-  const validateLocation = useCallback(
-    async location => {
-      if (!geoFenceData) {
-        return {
-          isValid: false,
-          error: 'Geofence data not loaded yet',
-          isInside: false,
-        };
-      }
-
-      const result = geoFenceService.validateLocationInGeofence(
-        geoFenceData,
-        location,
-      );
-      setValidationResult(result);
-      return result;
-    },
-    [geoFenceData],
-  );
-
-  // Check if submission is allowed
-  const checkSubmissionAllowed = useCallback(
-    async location => {
-      const result = await geoFenceService.isSubmissionAllowed(
-        appId,
-        user?.userId,
-        location,
-      );
-      setValidationResult(result);
-      return result;
-    },
-    [appId, user?.userId],
-  );
-
-  // Process geofence with buffer
-  const getProcessedGeofence = useCallback(
-    (bufferMeters = 0) => {
-      return geoFenceService.processGeofenceWithBuffer(
-        geoFenceData,
-        bufferMeters,
-      );
-    },
-    [geoFenceData],
-  );
 
   // Retry function
   const retry = useCallback(async () => {
@@ -168,11 +128,6 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
     setLoading(false);
   }, [isOnline, fetchFromServer, loadFromLocalDB]);
 
-  // Clear validation result
-  const clearValidation = useCallback(() => {
-    setValidationResult(null);
-  }, []);
-
   useEffect(() => {
     if (appId && user?.userId) {
       initializeGeoFence();
@@ -184,13 +139,8 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
     loading: loading || isApiLoading,
     error,
     isFromCache,
-    validationResult,
-    validateLocation,
-    checkSubmissionAllowed,
-    getProcessedGeofence,
     retry,
     refresh: fetchFromServer,
-    clearValidation,
   };
 };
 

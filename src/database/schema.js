@@ -53,6 +53,8 @@ export default appSchema({
         { name: 'next_retry_at', type: 'number' },
         { name: 'error_message', type: 'string' },
         { name: 'error_stack', type: 'string' },
+        { name: 'current_latitude', type: 'number' },
+        { name: 'current_longitude', type: 'number' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'completed_at', type: 'number' },
@@ -122,20 +124,14 @@ export default appSchema({
     }),
 
     tableSchema({
-        name: 'geo_fences',
-        columns: [
-          { name: 'fence_id', type: 'string', isIndexed: true },
-          { name: 'submission_id', type: 'string' },
-          { name: 'app_id', type: 'string', isIndexed: true },
-          { name: 'form_id', type: 'string', isIndexed: true },
-          { name: 'user_id', type: 'string' },
-          { name: 'geojson', type: 'string' },
-          { name: 'status', type: 'string' },
-          { name: 'latitude', type: 'number' },
-          { name: 'longitude', type: 'number' },
-          { name: 'created_at', type: 'number' },
-          { name: 'updated_at', type: 'number' },
-        ],  
-      })
+      name: 'geo_fences',
+      columns: [
+        { name: 'app_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string' },
+        { name: 'geojson', type: 'string' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
   ],
 });

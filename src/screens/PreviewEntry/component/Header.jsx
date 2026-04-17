@@ -1,14 +1,13 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../../../constants/colors';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const Header = ({
   navigation,
   formTitle,
-  appId,
-  formId,
-  fieldValues = {},
   totalNumFormComp,
+  geoFenceLoading,
+  retryGeoFence,
 }) => {
   return (
     <View style={styles.header}>
@@ -29,9 +28,13 @@ const Header = ({
         </Text>
       </View>
 
-      <TouchableOpacity >
-                <Icon name="refresh" size={24} color={COLORS.primary} />
-              </TouchableOpacity>
+      {geoFenceLoading ? (
+        <ActivityIndicator color={COLORS.primary} />
+      ) : (
+        <TouchableOpacity onPress={retryGeoFence}>
+          <Icon name="refresh" size={24} color={COLORS.primary} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

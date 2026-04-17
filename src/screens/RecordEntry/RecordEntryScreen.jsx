@@ -31,8 +31,7 @@ import {
 } from '../../components';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGetFormComponentsMutation } from '../../features/form/formsApi';
-import InfoBar from '../../components/UI/InfoBar';
-import useGeoFenceData from '../../hook/useGeoFenceData';
+
 
 const RecordEntryScreen = ({ database }) => {
   const route = useRoute();
@@ -58,21 +57,7 @@ const RecordEntryScreen = ({ database }) => {
   const [getFormComponents, { isLoading: isApiLoading }] =
     useGetFormComponentsMutation();
 
-  const {
-    geoFenceData,
-    loading: geofenceLoading,
-    error: geofenceError,
-    isFromCache,
-    retry: retryGeofence,
-  } = useGeoFenceData(database, appId, formId);
 
-  // console.log('useGeoFenceData', {
-  //   geoFenceData,
-  //   geofenceLoading,
-  //   geofenceError,
-  //   isFromCache,
-  //   retryGeofence,
-  // });
 
   useEffect(() => {
     if (appId && formId) {
@@ -615,22 +600,6 @@ const RecordEntryScreen = ({ database }) => {
         totalNumFormComp={formComponents.length}
       />
 
-      {/* Geofence InfoBar */}
-      {
-      // geofenceError && (
-      //   <View style={styles.infoBarWrapper}>
-      //     <InfoBar
-      //       type="warning"
-      //       title={geofenceError}
-      //       showAction={true}
-      //       actionTitle="Retry"
-      //       onAction={retryGeofence}
-      //     />
-      //   </View>
-      // )
-      }
-
-      
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
