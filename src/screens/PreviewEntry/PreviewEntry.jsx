@@ -23,18 +23,15 @@ import {
 } from '../../components';
 import styles from './PreviewScreen.styles';
 import { Header } from './component';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSurveyFormSubmitMutation } from '../../features/form/formsApi';
-import { useGetFenceDataMutation } from '../../features/geoFence/geoFence.api';
-import { useGeofence } from '../../hook/useGeofence';
 import { getLatLng } from './Functions';
 import { useDispatch, useSelector } from 'react-redux';
 import uploadService from '../../services/uploadService';
 import SubmissionService from '../../services/submissionService';
 import useInternetStatus from '../../hook/useInternetStatus';
 import { STATUS } from '../../constants/enums';
-import Screen from '../../Layout/Screen';
 import useGeoFenceData from '../../hook/useGeoFenceData';
+import useCurrentLocation from '../../hook/useCurrentLocation';
 
 const PreviewScreen = ({ database }) => {
   const navigation = useNavigation();
@@ -57,7 +54,9 @@ const PreviewScreen = ({ database }) => {
     useSurveyFormSubmitMutation();
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
+  const [isSubmitClicked, setIsSubmitClicked] = useState(false);
+  const [checkSubmitLocationAllowed, setCheckSubmitLocationAllowed] =
+    useState(false);
   const { selections } = useSelector(state => state.location);
   const needFileUpload = useRef(false); // Track if any file uploads are present in the form
 
@@ -72,6 +71,37 @@ const PreviewScreen = ({ database }) => {
     retry: retryGeoFence,
   } = useGeoFenceData(database, appId, true);
 
+  const {
+    location: currentLocation,
+    loading: currentLocationLoading,
+    error: currentLocationError,
+    getLocation: getCurrentLocation,
+    retry: retryCurrentLocation,
+  } = useCurrentLocation({
+    enableHighAccuracy: true,
+    timeout: 30000,
+    maximumAge: 0,
+  });
+
+  console.log('Current Location:', {
+    currentLocation,
+    currentLocationLoading,
+    currentLocationError,
+  });
+
+  console.log('Geofence data:', {
+    geoFenceData,
+    geoFenceLoading,
+    geoFenceError,
+    isFromCache,
+    validationResult,
+  });
+
+  // Determine if we're in offline mode and should show Save button
+  const showSaveButton = !isOnline && !isViewOnly && surFormGenFlg === 'Y';
+  const showSubmitButton = isOnline && !isViewOnly && surFormGenFlg === 'Y';
+  const isLoading = isFormSubmitLoading || isConfirming || isSaving;
+
   console.log(
     {
       formTitle,
@@ -84,6 +114,7 @@ const PreviewScreen = ({ database }) => {
       isOfflineSave, // Flag to indicate this is from offline save
       selections,
       geoFenceLoading,
+      currentLocationLoading,
     },
     'preview data',
   );
@@ -270,8 +301,12 @@ const PreviewScreen = ({ database }) => {
             if (Array.isArray(value)) {
               // Extract serverUrl from each image object and filter out any invalid URLs
               value = value
-                .map(image => image.flUpldLogNo)
-                .filter(flUpldLogNo => flUpldLogNo);
+                .map(image =>
+                (image.status === STATUS.UPLOADED)
+                    ? image.fileUri + '~' + image.flUpldLogNo
+                    : null
+                )
+                .filter(logUri => logUri);
 
               if (value.length === 0) {
                 needFileUpload.current = true; // Mark that we have files that need to be uploaded
@@ -286,7 +321,9 @@ const PreviewScreen = ({ database }) => {
             if (value && typeof value === 'object') {
               // If signature has been uploaded, use the flUpldLogNo
               if (value.status === STATUS.UPLOADED && value.flUpldLogNo) {
-                value = JSON.stringify([value.flUpldLogNo]);
+                value = JSON.stringify([
+                  value.fileUri + '~' + value.flUpldLogNo,
+                ]);
               } else {
                 value = JSON.stringify([]);
                 needFileUpload.current = true; // Mark that we have a file that needs to be uploaded
@@ -364,43 +401,64 @@ const PreviewScreen = ({ database }) => {
     return payload;
   };
 
-  const handleSubmitValidations = async () => {
-    // First validate location if we have geofence data
-    const LocationValidation = await checkSubmissionAllowed({
-      latitude: 23.670310760991175,
-      longitude: 87.57751464843751,
-    });
-    console.log('Location validation result:', LocationValidation);
+  const toggeleLocationValidation = () => {
+    setCheckSubmitLocationAllowed(prev => !prev);
+  };
 
-    if (!LocationValidation.allowed) {
+  const handleFormSubmission = async () => {
+    setIsSubmitClicked(true);
+
+    if (checkSubmitLocationAllowed) {
+      // Get fresh location using service via hook
+      const currentLocation = await getCurrentLocation();
+      console.log(currentLocation, 'Current Location');
+
+      if (!currentLocation) {
+        Alert.alert('Error', 'Unable to get location');
+        return false;
+      }
+
+      // First validate location if we have geofence data
+      const LocationValidation = await checkSubmissionAllowed(currentLocation);
+      console.log('Location validation result:', LocationValidation);
+
+      if (!LocationValidation.allowed) {
+        Alert.alert(
+          'Location Error',
+          LocationValidation.reason ||
+            'Your current location does not meet the submission criteria.',
+        );
+        return false;
+      }
+    }
+
+    const payload = generatePayload();
+
+    if (payload.hasError) {
+      Alert.alert('Error', payload.errorMessage);
+      return false;
+    }
+
+    if (showSubmitButton) {
+      await uploadFormToServer(payload);
+    } else if (showSaveButton) {
+      await saveToLocalDatabase(payload);
+    } else {
       Alert.alert(
-        'Location Error',
-        LocationValidation.reason ||
-          'Your current location does not meet the submission criteria.',
+        'Error',
+        'Form cannot be submitted. Please check your internet connection or contact support.',
       );
       return false;
     }
 
-    // Add any additional validations here (e.g., required fields)
     return true;
   };
 
   // Save submission to local database (offline mode)
-  const saveToLocalDatabase = async () => {
-    const isLocationValid = await handleLocationValidation();
-    if (!isLocationValid) {
-      return;
-    }
-    return;
+  const saveToLocalDatabase = async payload => {
     setIsSaving(true);
     try {
       const submissionService = new SubmissionService(database);
-      const payload = generatePayload();
-
-      if (payload.hasError) {
-        Alert.alert('Error', payload.errorMessage);
-        return;
-      }
 
       console.log(payload, 'submit data');
 
@@ -450,23 +508,9 @@ const PreviewScreen = ({ database }) => {
     }
   };
 
-  const handleFormSubmit = async () => {
-    const isValid = await handleSubmitValidations();
-
-    if (!isValid) {
-      return;
-    }
-    return;
-
-    const payload = generatePayload();
-
-    if (payload.hasError) {
-      Alert.alert('Error', payload.errorMessage);
-      return;
-    }
-
+  const uploadFormToServer = async payload => {
     try {
-      console.log(payload, 'submit data', needFileUpload.current);
+      console.log(payload, 'submit data');
 
       // Step 1: Submit the form
       const response = await surveyFormSubmit(payload).unwrap();
@@ -521,29 +565,49 @@ const PreviewScreen = ({ database }) => {
     }
   };
 
-  const handleLocationValidation = async () => {
-    const { lat, lng } = getLatLng(fieldValues, formComponents);
-    const validation = await checkSubmissionAllowed({
-      latitude: 23.670310760991175,
-      longitude: 87.57751464843751,
-    });
-    console.log('Location validation result:', validation);
-
-    if (!validation.allowed) {
-      Alert.alert(
-        'Location Error',
-        validation.reason ||
-          'Your current location does not meet the submission criteria.',
+  const getButton = () => {
+    if (showSaveButton && !geoFenceLoading && !currentLocationLoading)
+      return (
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: COLORS.warning }]}
+          onPress={handleFormSubmission}
+          disabled={isLoading}
+        >
+          {isSaving ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <>
+              <Text style={styles.submitButtonText}>Save Offline</Text>
+            </>
+          )}
+        </TouchableOpacity>
       );
-      return false;
-    }
-    return true;
+    else if (showSubmitButton && !geoFenceLoading && !currentLocationLoading)
+      return (
+        <TouchableOpacity
+          style={styles.submitButton}
+          onPress={handleFormSubmission}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={styles.submitButtonText}>Submit</Text>
+          )}
+        </TouchableOpacity>
+      );
+    else
+      return (
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: COLORS.gray[400] }]}
+          disabled={true}
+        >
+          <Text style={styles.submitButtonText}>
+            {showSaveButton ? 'Save Offline' : 'Submit'}
+          </Text>
+        </TouchableOpacity>
+      );
   };
-
-  // Determine if we're in offline mode and should show Save button
-  const showSaveButton = !isOnline && !isViewOnly && surFormGenFlg === 'Y';
-  const showSubmitButton = isOnline && !isViewOnly && surFormGenFlg === 'Y';
-  const isLoading = isFormSubmitLoading || isConfirming || isSaving;
 
   return (
     <View style={styles.container}>
@@ -556,10 +620,21 @@ const PreviewScreen = ({ database }) => {
         totalNumFormComp={formComponents?.length || 0}
         geoFenceLoading={geoFenceLoading}
         retryGeoFence={retryGeoFence}
+        toggeleLocationValidation={toggeleLocationValidation}
+        checkSubmitLocationAllowed={checkSubmitLocationAllowed}
       />
 
       <View style={styles.infoWrapper}>
-        <InfoBar />
+        {currentLocationLoading && (
+          <InfoBar
+            type="warning"
+            title={'Validating current location...'}
+            infoIcon={'loading'}
+            // showAction={true}
+            // actionTitle="Retry"
+            // onAction={retryGeoFence}
+          />
+        )}
       </View>
 
       <ScrollView
@@ -590,50 +665,7 @@ const PreviewScreen = ({ database }) => {
           </Text>
         </TouchableOpacity>
 
-        {showSaveButton && (
-          <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: COLORS.warning }]}
-            onPress={saveToLocalDatabase}
-            disabled={isLoading}
-          >
-            {isSaving ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <>
-                <Text style={styles.submitButtonText}>Save Offline</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-
-        {showSubmitButton && (
-          <TouchableOpacity
-            style={styles.submitButton}
-            onPress={handleFormSubmit}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.submitButtonText}>Submit</Text>
-            )}
-          </TouchableOpacity>
-        )}
-
-        {!showSaveButton &&
-          !showSubmitButton &&
-          !isViewOnly &&
-          surFormGenFlg !== 'Y' && (
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                { backgroundColor: COLORS.gray[400] },
-              ]}
-              disabled={true}
-            >
-              <Text style={styles.submitButtonText}>Submit</Text>
-            </TouchableOpacity>
-          )}
+        <>{getButton()}</>
       </View>
     </View>
   );

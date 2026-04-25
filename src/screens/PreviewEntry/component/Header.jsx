@@ -1,14 +1,14 @@
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { COLORS } from '../../../constants/colors';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const Header = ({
-  navigation,
-  formTitle,
-  totalNumFormComp,
-  geoFenceLoading,
-  retryGeoFence,
-}) => {
+const Header = ({ navigation, formTitle, totalNumFormComp, toggeleLocationValidation, checkSubmitLocationAllowed }) => {
   return (
     <View style={styles.header}>
       <TouchableOpacity
@@ -22,19 +22,17 @@ const Header = ({
         <Text style={styles.formTitle}>
           {totalNumFormComp > 1 ? 'Review Entries' : 'Review Entry'}
         </Text>
-      
+
         <Text style={styles.formSubtitle}>
           Form: {formTitle || 'Untitled Form'}
         </Text>
       </View>
 
-      {geoFenceLoading ? (
-        <ActivityIndicator color={COLORS.primary} />
-      ) : (
-        <TouchableOpacity onPress={retryGeoFence}>
-          <Icon name="refresh" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-      )}
+      {/* <TouchableOpacity 
+      onPress={toggeleLocationValidation}
+      >
+        <Icon name="location-on" size={24} color={checkSubmitLocationAllowed ? COLORS.primary : COLORS.text.secondary} />
+      </TouchableOpacity> */}
     </View>
   );
 };

@@ -1,32 +1,86 @@
 // services/LocationService.js
 import Geolocation from '@react-native-community/geolocation';
+import { Platform, PermissionsAndroid } from 'react-native';
 
 class LocationService {
+  async requestPermissions() {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Location Permission',
+            message: 'This app needs access to your location',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.error('Permission error:', err);
+        return false;
+      }
+    }
+    return true; // iOS permissions are handled in Info.plist
+  }
+
+  // Promisified version - similar to working LocationField approach
   async getCurrentLocation(options = {}) {
     const {
-      enableHighAccuracy = true,
-      timeout = 10000,
-      maximumAge = 5000,
+      enableHighAccuracy = true,  // Changed to true for better accuracy
+      timeout = 25000,            // Match LocationField's timeout
+      maximumAge = 0,             // Match LocationField's maximumAge
     } = options;
 
+    // Request permissions first
+    const hasPermission = await this.requestPermissions();
+    if (!hasPermission) {
+      throw new Error('Location permission denied');
+    }
+
+    // Use promisified approach (same as LocationField.jsx)
+    return this.getCurrentPositionAsync({
+      enableHighAccuracy,
+      timeout,
+      maximumAge,
+    });
+  }
+
+  // Promisified version of Geolocation.getCurrentPosition
+  getCurrentPositionAsync(options) {
     return new Promise((resolve, reject) => {
       Geolocation.getCurrentPosition(
         (position) => {
-          resolve({
+          console.log('Location obtained:', {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
-            timestamp: position.timestamp,
           });
+          resolve(position);
         },
         (error) => {
-          let errorMessage = 'Failed to get location';
-          if (error.code === 1) errorMessage = 'Location permission denied';
-          if (error.code === 2) errorMessage = 'GPS unavailable';
-          if (error.code === 3) errorMessage = 'Location request timed out';
-          reject(new Error(errorMessage));
+          console.error('Geolocation error:', error);
+          
+          let errorMessage;
+          // Handle error codes properly (same as LocationField)
+          switch (error.code) {
+            case 1: // PERMISSION_DENIED
+              errorMessage = 'Location permission denied. Please enable location access in settings.';
+              break;
+            case 2: // POSITION_UNAVAILABLE
+              errorMessage = 'Location information is unavailable.';
+              break;
+            case 3: // TIMEOUT
+              errorMessage = `Location request timed out after ${options.timeout / 1000} seconds.`;
+              break;
+            default:
+              errorMessage = error.message || 'Failed to capture location.';
+          }
+          
+          reject(error);
         },
-        { enableHighAccuracy, timeout, maximumAge }
+        options
       );
     });
   }
@@ -47,4 +101,4 @@ class LocationService {
   }
 }
 
-export default new LocationService(); // Singleton export
+export default new LocationService();

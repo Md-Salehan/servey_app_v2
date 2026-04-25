@@ -193,10 +193,8 @@ class UploadService {
     let list = [];
     confirmations.map(conf => {
       const { keyStr, keyStrVal, tabNm, colNm, value } = conf;
-
       let flUpldLogNoArr = JSON.parse(value);
-      flUpldLogNoArr.map(logUri => {
-        const [fileUri, flUpldLogNo] = logUri.split('~');
+      flUpldLogNoArr.map(flUpldLogNo => {
         list.push({
           colNm,
           flUpldLogNo,

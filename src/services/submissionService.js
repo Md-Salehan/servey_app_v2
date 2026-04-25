@@ -286,15 +286,23 @@ class SubmissionService {
 
               // Get flUpldLogNo values from uploaded files
               const flUpldLogNos = componentFiles
-                .map(file => file.flUpldLogNo)
-                .filter(logNo => logNo);
+                .map(file =>
+                  file.status === STATUS.UPLOADED
+                    ? file.fileUriServer + '~' + file.flUpldLogNo
+                    : null,
+                )
+                .filter(logUri => logUri);
 
               // Also include any existing flUpldLogNo from field values that might already be uploaded
               const existingFlUpldLogNos = value
-                .filter(
-                  img => img.status === STATUS.UPLOADED && img.flUpldLogNo,
+                .filter(file => file.status === STATUS.UPLOADED)
+                .map(file =>
+                  (file.status === STATUS.UPLOADED && file.fileUri && file.flUpldLogNo)
+                    ? file.fileUri + '~' + file.flUpldLogNo
+                    : null,
                 )
-                .map(img => img.flUpldLogNo);
+                .filter(logUri => logUri);
+              console.log({ flUpldLogNos, existingFlUpldLogNos, value });
 
               // Combine and deduplicate
               const allFlUpldLogNos = [
@@ -310,8 +318,10 @@ class SubmissionService {
             // Signature can be an object with upload status
             if (value && typeof value === 'object') {
               // If signature has been uploaded, use the flUpldLogNo
-              if (value.flUpldLogNo && value.status === STATUS.UPLOADED) {
-                value = JSON.stringify([value.flUpldLogNo]);
+              if (value.status === STATUS.UPLOADED) {
+                value = JSON.stringify([
+                  value.fileUri + '~' + value.flUpldLogNo,
+                ]);
               }
               // If uploaded files list contains this signature
               else {
@@ -319,7 +329,11 @@ class SubmissionService {
                   file => file.fcId === component.fcId && file.flUpldLogNo,
                 );
                 if (signatureFile && signatureFile.flUpldLogNo) {
-                  value = JSON.stringify([signatureFile.flUpldLogNo]);
+                  value = JSON.stringify([
+                    signatureFile.fileUriServer +
+                      '~' +
+                      signatureFile.flUpldLogNo,
+                  ]);
                 } else {
                   // If not uploaded, send empty array
                   value = JSON.stringify([]);
@@ -348,7 +362,6 @@ class SubmissionService {
 
     const storePayload = submission.payload || {};
     console.log('xxr storePayload before preparing:', storePayload);
-    
 
     storePayload.mst[0].dtl01[0].dtl02 = dtl02;
 

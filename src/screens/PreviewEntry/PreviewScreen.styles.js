@@ -8,9 +8,8 @@ const styles = StyleSheet.create({
     // paddingBottom: 30,
   },
   infoWrapper: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-
+    marginHorizontal: 16,
+    marginVertical: 8,
   },
   scrollContainer: {
     paddingBottom: 30,

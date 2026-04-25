@@ -195,8 +195,9 @@ class UploadService {
       const { keyStr, keyStrVal, tabNm, colNm, value } = conf;
 
       let flUpldLogNoArr = JSON.parse(value);
-      flUpldLogNoArr.map(logUri => {
-        const [fileUri, flUpldLogNo] = logUri.split('~');
+      flUpldLogNoArr.map(fileUri => {
+        const file = fileUri.split('/').pop(); // Assuming flUpldLogNo is the last part of the URI
+        const flUpldLogNo = file.split('.').shift(); // Remove file extension to get flUpldLogNo
         list.push({
           colNm,
           flUpldLogNo,

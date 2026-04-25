@@ -78,7 +78,7 @@ const LocationSelectionScreen = () => {
 
   // Load states only once after saved data is loaded and if states list is empty
   useEffect(() => {
-    if (!isLoadingSavedData && lists.states.length === 0 && !loading.states) {
+    if (!isLoadingSavedData && lists.states.length === 0 && !loading.states && errors.states === null) {
       dispatch(fetchStates(2011));
     }
   }, [dispatch, isLoadingSavedData, lists.states.length, loading.states]);
@@ -88,7 +88,8 @@ const LocationSelectionScreen = () => {
     if (
       selections.state &&
       lists.districts.length === 0 &&
-      !loading.districts
+      !loading.districts &&
+      errors.districts === null
     ) {
       dispatch(
         fetchDistricts({
@@ -105,7 +106,8 @@ const LocationSelectionScreen = () => {
       selections.state &&
       selections.district &&
       lists.blocks.length === 0 &&
-      !loading.blocks
+      !loading.blocks &&
+      errors.blocks === null
     ) {
       dispatch(
         fetchBlocks({
@@ -130,7 +132,8 @@ const LocationSelectionScreen = () => {
       selections.district &&
       selections.block &&
       lists.panchayats.length === 0 &&
-      !loading.panchayats
+      !loading.panchayats &&
+      errors.panchayats === null
     ) {
       dispatch(
         fetchPanchayats({
@@ -159,7 +162,8 @@ const LocationSelectionScreen = () => {
       selections.district &&
       lists.towns.length === 0 &&
       !loading.towns &&
-      selections.csLocType === 'U'
+      selections.csLocType === 'U' &&
+      errors.towns === null
     ) {
       dispatch(
         fetchTowns({
@@ -186,6 +190,7 @@ const LocationSelectionScreen = () => {
       selections.panchayat &&
       lists.villages.length === 0 &&
       !loading.villages
+        && errors.villages === null
     ) {
       dispatch(
         fetchVillages({
@@ -223,6 +228,7 @@ const LocationSelectionScreen = () => {
       selections.town &&
       lists.wards.length === 0 &&
       !loading.wards
+        && errors.wards === null
     ) {
       dispatch(
         fetchWards({

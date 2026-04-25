@@ -27,7 +27,7 @@ export const geoFenceApi = createApi({
       query: payload => {
         console.log(
           '🔵 API Request - URL:',
-          `${API_BASE_URL}/WGF00101/getLayerGeoJson`,
+          `${API_BASE_URL}/SUF00191/getUserJuridiction`,
           payload
         );
         return {

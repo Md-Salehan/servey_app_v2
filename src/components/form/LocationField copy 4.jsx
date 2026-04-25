@@ -18,21 +18,28 @@ import axios from 'axios';
 import { COLORS } from '../../constants/colors';
 import commonStyles from './FormComponents.styles';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import MapView, {
+  Circle,
+  Polyline,
+  Polygon,
+  UrlTile,
+  PROVIDER_GOOGLE,
+} from 'react-native-maps';
 
-// Conditionally import MapView only if available
-let MapView, UrlTile, Marker, Circle;
-try {
-  // Only import on native platforms
-  if (Platform.OS !== 'web') {
-    const Maps = require('react-native-maps');
-    MapView = Maps.default;
-    UrlTile = Maps.UrlTile;
-    Marker = Maps.Marker;
-    Circle = Maps.Circle;
-  }
-} catch (error) {
-  console.warn('react-native-maps not available:', error);
-}
+// // Conditionally import MapView only if available
+// let MapView, UrlTile, Marker, Circle;
+// try {
+//   // Only import on native platforms
+//   if (Platform.OS !== 'web') {
+//     const Maps = require('react-native-maps');
+//     MapView = Maps.default;
+//     UrlTile = Maps.UrlTile;
+//     Marker = Maps.Marker;
+//     Circle = Maps.Circle;
+//   }
+// } catch (error) {
+//   console.warn('react-native-maps not available:', error);
+// }
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -44,7 +51,8 @@ const requestLocationPermission = async () => {
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         {
           title: 'Location Permission',
-          message: 'This app needs access to your location to capture GPS coordinates.',
+          message:
+            'This app needs access to your location to capture GPS coordinates.',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Cancel',
           buttonPositive: 'OK',
@@ -91,7 +99,8 @@ const createLocationData = (
 const getAccuracyStatus = accuracy => {
   if (accuracy < 20) return { text: 'High Accuracy', color: COLORS.success };
   if (accuracy < 100) return { text: 'Good Accuracy', color: COLORS.info };
-  if (accuracy < 500) return { text: 'Moderate Accuracy', color: COLORS.warning };
+  if (accuracy < 500)
+    return { text: 'Moderate Accuracy', color: COLORS.warning };
   return { text: 'Low Accuracy', color: COLORS.error };
 };
 
@@ -168,10 +177,12 @@ const LocationField = ({
   const [editLongitude, setEditLongitude] = useState('');
   const [manualAddress, setManualAddress] = useState('');
   const [isPressed, setIsPressed] = useState(false);
-  const [fieldValidationError, setFieldValidationError] = useState(errorText || '');
+  const [fieldValidationError, setFieldValidationError] = useState(
+    errorText || '',
+  );
   const [mapRegion, setMapRegion] = useState(null);
   const [mapError, setMapError] = useState(false);
-  
+
   const mapRef = useRef(null);
 
   const handleFieldValidation = (errorMessage, externalErrorMessage) => {
@@ -194,7 +205,8 @@ const LocationField = ({
   useEffect(() => {
     if (value) {
       try {
-        const parsedValue = typeof value === 'string' ? JSON.parse(value) : value;
+        const parsedValue =
+          typeof value === 'string' ? JSON.parse(value) : value;
         setCapturedLocation(parsedValue);
         if (parsedValue.address) {
           setManualAddress(parsedValue.address);
@@ -271,12 +283,12 @@ const LocationField = ({
       }
 
       setCapturedLocation(locationData);
-      
+
       // Only update map if MapView is available
       if (MapView) {
         updateMapLocation(coords.latitude, coords.longitude);
       }
-      
+
       onChange(JSON.stringify(locationData));
       onCaptureComplete?.(locationData, isAccurate);
     },
@@ -311,14 +323,16 @@ const LocationField = ({
 
       const position = await getCurrentPositionAsync(options);
       console.log('Location received:', position.coords);
-      
+
       const { coords } = position;
 
       let isAccurate = true;
 
       if (coords.accuracy > minAccuracy) {
         handleFieldValidation(
-          `Location accuracy (${coords.accuracy.toFixed(0)}m) is below the required threshold (${minAccuracy}m).`,
+          `Location accuracy (${coords.accuracy.toFixed(
+            0,
+          )}m) is below the required threshold (${minAccuracy}m).`,
           `${label} accuracy is too low: ${coords.accuracy.toFixed(0)}m`,
         );
         isAccurate = false;
@@ -332,13 +346,17 @@ const LocationField = ({
       if (error?.code !== undefined) {
         switch (error.code) {
           case 1: // PERMISSION_DENIED
-            errorMessage = 'Location permission denied. Please enable location access in settings.';
+            errorMessage =
+              'Location permission denied. Please enable location access in settings.';
             break;
           case 2: // POSITION_UNAVAILABLE
-            errorMessage = 'Location information is unavailable. Please check your GPS.';
+            errorMessage =
+              'Location information is unavailable. Please check your GPS.';
             break;
           case 3: // TIMEOUT
-            errorMessage = `Location request timed out after ${timeout / 1000} seconds. Please try again.`;
+            errorMessage = `Location request timed out after ${
+              timeout / 1000
+            } seconds. Please try again.`;
             break;
           default:
             errorMessage += error.message;
@@ -348,7 +366,10 @@ const LocationField = ({
       }
 
       Alert.alert('Location Error', errorMessage);
-      handleFieldValidation(errorMessage, `${label} capture failed: ${errorMessage}`);
+      handleFieldValidation(
+        errorMessage,
+        `${label} capture failed: ${errorMessage}`,
+      );
       onCaptureError?.(error);
     } finally {
       setIsCapturing(false);
@@ -385,8 +406,12 @@ const LocationField = ({
   const startEditingCoords = () => {
     if (!isMannualEntryAllowed || disabled || isPreview) return;
     setIsEditingCoords(true);
-    setEditLatitude(capturedLocation ? formatCoordinate(capturedLocation.latitude) : '');
-    setEditLongitude(capturedLocation ? formatCoordinate(capturedLocation.longitude) : '');
+    setEditLatitude(
+      capturedLocation ? formatCoordinate(capturedLocation.latitude) : '',
+    );
+    setEditLongitude(
+      capturedLocation ? formatCoordinate(capturedLocation.longitude) : '',
+    );
   };
 
   const saveEditedCoordinates = async () => {
@@ -409,20 +434,24 @@ const LocationField = ({
     }
 
     setIsEditingCoords(false);
-    
+
     const locationData = createLocationData(
-      { latitude: lat, longitude: lng, accuracy: capturedLocation?.accuracy || 0 },
+      {
+        latitude: lat,
+        longitude: lng,
+        accuracy: capturedLocation?.accuracy || 0,
+      },
       Date.now(),
       manualAddress || null,
       true,
     );
 
     setCapturedLocation(locationData);
-    
+
     if (MapView) {
       updateMapLocation(lat, lng);
     }
-    
+
     onChange(JSON.stringify(locationData));
     setIsPressed(true);
   };
@@ -434,7 +463,7 @@ const LocationField = ({
   };
 
   // Update address
-  const updateAddress = (address) => {
+  const updateAddress = address => {
     setManualAddress(address);
     if (capturedLocation) {
       const updatedLocation = {
@@ -474,13 +503,16 @@ const LocationField = ({
       try {
         return (
           <MapView
+            provider={PROVIDER_GOOGLE}
             ref={mapRef}
             style={styles.map}
             region={mapRegion}
             zoomEnabled={true}
             scrollEnabled={true}
-            
-            onError={(e) => {
+            showsUserLocation={true}
+            showsMyLocationButton={true}
+            followsUserLocation={true}
+            onError={e => {
               console.warn('MapView error:', e);
               setMapError(true);
             }}
@@ -580,7 +612,11 @@ const LocationField = ({
 
               {capturedLocation.accuracy > 0 && (
                 <View style={styles.accuracyContainer}>
-                  <Icon name="gps-fixed" size={14} color={COLORS.text.secondary} />
+                  <Icon
+                    name="gps-fixed"
+                    size={14}
+                    color={COLORS.text.secondary}
+                  />
                   <Text style={styles.accuracyText}>
                     Accuracy: ±{capturedLocation.accuracy.toFixed(0)}m
                   </Text>
@@ -590,7 +626,9 @@ const LocationField = ({
               {capturedLocation.isManualEntry && (
                 <View style={styles.manualEntryIndicator}>
                   <Icon name="edit" size={14} color={COLORS.warning} />
-                  <Text style={[styles.manualEntryText, { color: COLORS.warning }]}>
+                  <Text
+                    style={[styles.manualEntryText, { color: COLORS.warning }]}
+                  >
                     Manually entered
                   </Text>
                 </View>
@@ -628,9 +666,7 @@ const LocationField = ({
       )}
 
       {/* Map View - Safely rendered */}
-      <View style={styles.mapContainer}>
-        {renderMap()}
-      </View>
+      <View style={styles.mapContainer}>{renderMap()}</View>
 
       {/* Coordinates Section */}
       <View style={styles.coordinatesSection}>
@@ -692,13 +728,17 @@ const LocationField = ({
             <View style={styles.coordinateBox}>
               <Text style={styles.coordinateLabel}>Latitude</Text>
               <Text style={styles.coordinateValue}>
-                {capturedLocation ? formatCoordinate(capturedLocation.latitude) : '—'}
+                {capturedLocation
+                  ? formatCoordinate(capturedLocation.latitude)
+                  : '—'}
               </Text>
             </View>
             <View style={styles.coordinateBox}>
               <Text style={styles.coordinateLabel}>Longitude</Text>
               <Text style={styles.coordinateValue}>
-                {capturedLocation ? formatCoordinate(capturedLocation.longitude) : '—'}
+                {capturedLocation
+                  ? formatCoordinate(capturedLocation.longitude)
+                  : '—'}
               </Text>
             </View>
           </View>
@@ -727,7 +767,7 @@ const LocationField = ({
       {capturedLocation && (
         <View style={styles.infoSection}>
           <Text style={styles.sectionTitle}>Location Info</Text>
-          
+
           {capturedLocation.accuracy > 0 && (
             <View style={styles.infoRow}>
               <Icon name="gps-fixed" size={16} color={COLORS.text.secondary} />
@@ -736,8 +776,17 @@ const LocationField = ({
                 {(() => {
                   const status = getAccuracyStatus(capturedLocation.accuracy);
                   return status ? (
-                    <Text style={[styles.accuracyBadge, { backgroundColor: status.color + '20', color: status.color }]}>
-                      {' '}{status.text}
+                    <Text
+                      style={[
+                        styles.accuracyBadge,
+                        {
+                          backgroundColor: status.color + '20',
+                          color: status.color,
+                        },
+                      ]}
+                    >
+                      {' '}
+                      {status.text}
                     </Text>
                   ) : null;
                 })()}
@@ -748,19 +797,25 @@ const LocationField = ({
           {capturedLocation.altitude && (
             <View style={styles.infoRow}>
               <Icon name="terrain" size={16} color={COLORS.text.secondary} />
-              <Text style={styles.infoText}>Altitude: {capturedLocation.altitude.toFixed(1)}m</Text>
+              <Text style={styles.infoText}>
+                Altitude: {capturedLocation.altitude.toFixed(1)}m
+              </Text>
             </View>
           )}
 
           <View style={styles.infoRow}>
             <Icon name="schedule" size={16} color={COLORS.text.secondary} />
-            <Text style={styles.infoText}>Captured: {formatTimestamp(capturedLocation.timestamp)}</Text>
+            <Text style={styles.infoText}>
+              Captured: {formatTimestamp(capturedLocation.timestamp)}
+            </Text>
           </View>
 
           {capturedLocation.isManualEntry && (
             <View style={styles.infoRow}>
               <Icon name="edit" size={16} color={COLORS.warning} />
-              <Text style={[styles.infoText, { color: COLORS.warning }]}>Manually entered location</Text>
+              <Text style={[styles.infoText, { color: COLORS.warning }]}>
+                Manually entered location
+              </Text>
             </View>
           )}
         </View>
@@ -791,7 +846,12 @@ const LocationField = ({
               disabled={disabled || isCapturing}
             >
               <Icon name="refresh" size={18} color={COLORS.text.primary} />
-              <Text style={[styles.actionButtonText, { color: COLORS.text.primary }]}>
+              <Text
+                style={[
+                  styles.actionButtonText,
+                  { color: COLORS.text.primary },
+                ]}
+              >
                 Retry
               </Text>
             </TouchableOpacity>
@@ -826,11 +886,16 @@ const LocationField = ({
           </View>
           {fieldValidationError.includes('permission') && (
             <TouchableOpacity
-              style={[commonStyles.secondaryButton, { alignSelf: 'flex-start', marginTop: 8 }]}
+              style={[
+                commonStyles.secondaryButton,
+                { alignSelf: 'flex-start', marginTop: 8 },
+              ]}
               onPress={openSettings}
             >
               <Icon name="settings" size={16} color={COLORS.text.primary} />
-              <Text style={commonStyles.secondaryButtonText}>Open Settings</Text>
+              <Text style={commonStyles.secondaryButtonText}>
+                Open Settings
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -976,7 +1041,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: (COLORS.primaryLight || '#e3f2fd'),
+    backgroundColor: COLORS.primaryLight || '#e3f2fd',
   },
   editCoordsButtonText: {
     fontSize: 12,
@@ -1106,7 +1171,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border || '#e0e0e0',
   },
   clearButton: {
-    backgroundColor: (COLORS.errorLight || '#ffebee'),
+    backgroundColor: COLORS.errorLight || '#ffebee',
     borderWidth: 1,
     borderColor: COLORS.error || '#f44336',
   },

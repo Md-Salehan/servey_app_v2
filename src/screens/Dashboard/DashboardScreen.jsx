@@ -53,13 +53,10 @@ const DashboardScreen = ({ database }) => {
 
   const [fetchForms] = useGetFormsMutation();
 
-  const {
-      geoFenceData,
-      loading: geofenceLoading,
-      error: geofenceError,
-      isFromCache,
-      retry: retryGeoFence,
-    } = useGeoFenceData(database, 'AP000001');
+  const { error: geoFenceError, retry: retryGeoFence } = useGeoFenceData(
+    database,
+    'AP000001',
+  );
 
   useEffect(() => {
     if (!isInitialized) {
@@ -458,7 +455,8 @@ const DashboardScreen = ({ database }) => {
             <InfoBar
               type={'warning'}
               title={
-                error || 'Some forms may not be up to date due to a network error.'
+                error ||
+                'Some forms may not be up to date due to a network error.'
               }
               showAction={isOnline}
               actionTitle="Retry"
@@ -507,19 +505,17 @@ const DashboardScreen = ({ database }) => {
       </View>
 
       {/* Geofence InfoBar */}
-      {
-      geofenceError && (
+      {geoFenceError && (
         <View style={styles.infoBarWrapper}>
           <InfoBar
             type="warning"
-            title={geofenceError}
+            title={geoFenceError}
             showAction={true}
             actionTitle="Retry"
             onAction={retryGeoFence}
           />
         </View>
-      )
-      }
+      )}
 
       {/* Filter Component */}
       <FormFilter

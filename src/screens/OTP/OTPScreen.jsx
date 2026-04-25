@@ -18,8 +18,7 @@ import { useValidateLoginOTPMutation } from '../../features/auth/authApi';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
 import { setUser } from '../../features/auth/authSlice';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Screen from '../../Layout/Screen';
+
 
 const { width } = Dimensions.get('window');
 

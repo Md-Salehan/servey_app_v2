@@ -479,7 +479,8 @@ const LocationField = ({
             region={mapRegion}
             zoomEnabled={true}
             scrollEnabled={true}
-            
+            mapType="none"
+            provider={undefined} 
             onError={(e) => {
               console.warn('MapView error:', e);
               setMapError(true);

@@ -20,15 +20,15 @@ import commonStyles from './FormComponents.styles';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 // Conditionally import MapView only if available
-let MapView, UrlTile, Marker, Circle;
+let MapView, UrlTile, Marker, Circle, ProviderPropType;
 try {
-  // Only import on native platforms
   if (Platform.OS !== 'web') {
     const Maps = require('react-native-maps');
     MapView = Maps.default;
     UrlTile = Maps.UrlTile;
     Marker = Maps.Marker;
     Circle = Maps.Circle;
+    ProviderPropType = Maps.ProviderPropType;
   }
 } catch (error) {
   console.warn('react-native-maps not available:', error);
@@ -56,7 +56,6 @@ const requestLocationPermission = async () => {
       return false;
     }
   } else {
-    // iOS handles permissions through info.plist
     return true;
   }
 };
@@ -171,6 +170,7 @@ const LocationField = ({
   const [fieldValidationError, setFieldValidationError] = useState(errorText || '');
   const [mapRegion, setMapRegion] = useState(null);
   const [mapError, setMapError] = useState(false);
+  const [tileError, setTileError] = useState(false);
   
   const mapRef = useRef(null);
 
@@ -201,16 +201,26 @@ const LocationField = ({
         }
         // Set map region based on captured location
         if (parsedValue.latitude && parsedValue.longitude) {
-          setMapRegion({
+          const region = {
             latitude: parsedValue.latitude,
             longitude: parsedValue.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          });
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          };
+          setMapRegion(region);
         }
       } catch (e) {
         console.error('Error parsing location value:', e);
       }
+    } else {
+      // Set default region (e.g., center of the world or a default location)
+      const defaultRegion = {
+        latitude: 20.5937,
+        longitude: 78.9629,
+        latitudeDelta: 50,
+        longitudeDelta: 50,
+      };
+      setMapRegion(defaultRegion);
     }
   }, [value]);
 
@@ -226,19 +236,15 @@ const LocationField = ({
   // Update location on map
   const updateMapLocation = useCallback((latitude, longitude) => {
     try {
-      setMapRegion({
+      const newRegion = {
         latitude,
         longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
-      });
+      };
+      setMapRegion(newRegion);
       if (mapRef.current && mapRef.current.animateToRegion) {
-        mapRef.current.animateToRegion({
-          latitude,
-          longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
+        mapRef.current.animateToRegion(newRegion, 1000);
       }
     } catch (err) {
       console.warn('Error updating map location:', err);
@@ -331,13 +337,13 @@ const LocationField = ({
 
       if (error?.code !== undefined) {
         switch (error.code) {
-          case 1: // PERMISSION_DENIED
+          case 1:
             errorMessage = 'Location permission denied. Please enable location access in settings.';
             break;
-          case 2: // POSITION_UNAVAILABLE
+          case 2:
             errorMessage = 'Location information is unavailable. Please check your GPS.';
             break;
-          case 3: // TIMEOUT
+          case 3:
             errorMessage = `Location request timed out after ${timeout / 1000} seconds. Please try again.`;
             break;
           default:
@@ -369,10 +375,15 @@ const LocationField = ({
     setIsEditingCoords(false);
     handleFieldValidation('');
     onChange('');
-    setMapRegion(null);
+    // Reset map to default view
+    setMapRegion({
+      latitude: 20.5937,
+      longitude: 78.9629,
+      latitudeDelta: 50,
+      longitudeDelta: 50,
+    });
   };
 
-  // Open app settings for permission issues
   const openSettings = () => {
     if (Platform.OS === 'ios') {
       Linking.openURL('app-settings:');
@@ -381,7 +392,6 @@ const LocationField = ({
     }
   };
 
-  // Edit coordinates manually
   const startEditingCoords = () => {
     if (!isMannualEntryAllowed || disabled || isPreview) return;
     setIsEditingCoords(true);
@@ -433,7 +443,6 @@ const LocationField = ({
     setEditLongitude('');
   };
 
-  // Update address
   const updateAddress = (address) => {
     setManualAddress(address);
     if (capturedLocation) {
@@ -472,6 +481,11 @@ const LocationField = ({
 
     if (mapRegion) {
       try {
+        // Use multiple tile URLs as fallbacks
+        const tileUrl = tileError 
+          ? "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+        
         return (
           <MapView
             ref={mapRef}
@@ -479,15 +493,30 @@ const LocationField = ({
             region={mapRegion}
             zoomEnabled={true}
             scrollEnabled={true}
-            
+            zoomControlEnabled={true}
+            showsUserLocation={true}
+            showsMyLocationButton={true}
+            loadingEnabled={true}
+            loadingIndicatorColor={COLORS.primary}
+            loadingBackgroundColor={COLORS.surface}
+            onMapReady={() => console.log('Map ready')}
             onError={(e) => {
               console.warn('MapView error:', e);
               setMapError(true);
             }}
           >
             <UrlTile
-              urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              urlTemplate={tileUrl}
               maximumZ={19}
+              minimumZ={0}
+              shouldReplaceMapContent={true}
+              flipY={false}
+              onError={() => {
+                console.log('Tile load error, trying fallback');
+                if (!tileError) {
+                  setTileError(true);
+                }
+              }}
             />
             <Marker
               coordinate={{
@@ -495,8 +524,24 @@ const LocationField = ({
                 longitude: mapRegion.longitude,
               }}
               title="Selected Location"
+              description={capturedLocation?.address || "Current location"}
+              draggable={isMannualEntryAllowed && !disabled}
+              onDragEnd={(e) => {
+                if (isMannualEntryAllowed && !disabled) {
+                  const { latitude, longitude } = e.nativeEvent.coordinate;
+                  const locationData = createLocationData(
+                    { latitude, longitude, accuracy: 10 },
+                    Date.now(),
+                    manualAddress || null,
+                    true,
+                  );
+                  setCapturedLocation(locationData);
+                  onChange(JSON.stringify(locationData));
+                  updateMapLocation(latitude, longitude);
+                }
+              }}
             />
-            {capturedLocation?.accuracy > 0 && (
+            {capturedLocation?.accuracy > 0 && capturedLocation?.accuracy < 500 && (
               <Circle
                 center={{
                   latitude: mapRegion.latitude,
@@ -505,6 +550,7 @@ const LocationField = ({
                 radius={capturedLocation.accuracy}
                 strokeColor={`${COLORS.primary}80`}
                 fillColor={`${COLORS.primary}20`}
+                strokeWidth={2}
               />
             )}
           </MapView>
@@ -527,7 +573,7 @@ const LocationField = ({
       <View style={styles.mapPlaceholder}>
         <Icon name="map" size={48} color={COLORS.text.secondary} />
         <Text style={styles.mapPlaceholderText}>
-          Capture or edit location to see map
+          Loading map...
         </Text>
       </View>
     );
@@ -886,7 +932,6 @@ LocationField.defaultProps = {
 export default LocationField;
 
 const styles = StyleSheet.create({
-  // Map Container
   mapContainer: {
     height: 250,
     marginBottom: 16,
@@ -914,8 +959,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
   },
-
-  // Sections
   coordinatesSection: {
     marginBottom: 16,
   },
@@ -936,8 +979,6 @@ const styles = StyleSheet.create({
     color: COLORS.text?.primary || '#000',
     marginBottom: 8,
   },
-
-  // Coordinates Display
   coordinatesContainer: {
     flexDirection: 'row',
     gap: 12,
@@ -962,8 +1003,6 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     fontWeight: '600',
   },
-
-  // Coordinates Header with Edit Button
   coordinatesHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -976,7 +1015,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: (COLORS.primaryLight || '#e3f2fd'),
+    backgroundColor: COLORS.primaryLight || '#e3f2fd',
   },
   editCoordsButtonText: {
     fontSize: 12,
@@ -984,8 +1023,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 4,
   },
-
-  // Edit Coordinates Mode
   editCoordsContainer: {
     backgroundColor: COLORS.surface || '#fff',
     borderWidth: 1,
@@ -1045,8 +1082,6 @@ const styles = StyleSheet.create({
     color: COLORS.text?.inverse || '#fff',
     fontWeight: '600',
   },
-
-  // Address Input
   addressInput: {
     backgroundColor: COLORS.gray?.[50] || '#fafafa',
     borderWidth: 1,
@@ -1059,8 +1094,6 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
   },
-
-  // Info Row
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1081,8 +1114,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 6,
   },
-
-  // Action Buttons
   actionButtonsContainer: {
     flexDirection: 'row',
     gap: 12,
@@ -1106,7 +1137,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border || '#e0e0e0',
   },
   clearButton: {
-    backgroundColor: (COLORS.errorLight || '#ffebee'),
+    backgroundColor: COLORS.errorLight || '#ffebee',
     borderWidth: 1,
     borderColor: COLORS.error || '#f44336',
   },
@@ -1115,8 +1146,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text?.inverse || '#fff',
   },
-
-  // Manual Entry Indicator (for preview compatibility)
   manualEntryIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1127,16 +1156,12 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontWeight: '500',
   },
-
-  // Timestamp (for preview compatibility)
   timestampText: {
     fontSize: 12,
     color: COLORS.text?.secondary || '#666',
     fontStyle: 'italic',
     marginTop: 4,
   },
-
-  // Address container (for preview compatibility)
   addressContainer: {
     backgroundColor: COLORS.surface || '#fff',
     borderWidth: 1,
@@ -1156,8 +1181,6 @@ const styles = StyleSheet.create({
     color: COLORS.text?.primary || '#000',
     lineHeight: 20,
   },
-
-  // Accuracy container (for preview compatibility)
   accuracyContainer: {
     flexDirection: 'row',
     alignItems: 'center',
