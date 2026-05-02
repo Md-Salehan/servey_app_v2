@@ -31,7 +31,7 @@ import {
 } from '../../components';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGetFormComponentsMutation } from '../../features/form/formsApi';
-
+import useGeoFenceData from '../../hook/useGeoFenceData';
 
 const RecordEntryScreen = ({ database }) => {
   const route = useRoute();
@@ -57,8 +57,6 @@ const RecordEntryScreen = ({ database }) => {
   const [getFormComponents, { isLoading: isApiLoading }] =
     useGetFormComponentsMutation();
 
-
-
   useEffect(() => {
     if (appId && formId) {
       initializeData();
@@ -75,6 +73,16 @@ const RecordEntryScreen = ({ database }) => {
       );
     }
   }, [appId, formId]);
+
+  const {
+    geoFenceData,
+    loading: geoFenceLoading,
+    error: geoFenceError,
+  } = useGeoFenceData(
+    database,
+    appId,
+    true, // use local DB
+  );
 
   // To handle reset flag from navigation
   useFocusEffect(
@@ -277,6 +285,11 @@ const RecordEntryScreen = ({ database }) => {
   };
 
   const handleNext = async () => {
+    console.log(
+      { submissionError, formComponents, fieldValues },
+      '--- Form State on Next ---',
+    );
+
     const hasErrors =
       Object.keys(submissionError).filter(key => submissionError[key]).length >
       0;
@@ -485,12 +498,10 @@ const RecordEntryScreen = ({ database }) => {
             showAddress={true}
             showMapPreview={props?.showMapPreview === 'true'}
             onCaptureStart={() => console.log('Location capture started')}
-            onCaptureComplete={(location, isAccurate) =>
-              console.log('Location captured:', location)
-            }
-            onCaptureError={error =>
-              console.log('Location capture error:', error)
-            }
+            onCaptureComplete={(location, isAccurate) => {}}
+            onCaptureError={error => {}}
+            geoFenceData={geoFenceData}
+            onSave={location => {}}
             errorText={''}
             onError={error => handleError(fcId, error)}
           />
@@ -599,7 +610,6 @@ const RecordEntryScreen = ({ database }) => {
         fieldValues={fieldValues}
         totalNumFormComp={formComponents.length}
       />
-
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}

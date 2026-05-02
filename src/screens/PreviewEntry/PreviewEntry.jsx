@@ -83,19 +83,8 @@ const PreviewScreen = ({ database }) => {
     maximumAge: 0,
   });
 
-  console.log('Current Location:', {
-    currentLocation,
-    currentLocationLoading,
-    currentLocationError,
-  });
 
-  console.log('Geofence data:', {
-    geoFenceData,
-    geoFenceLoading,
-    geoFenceError,
-    isFromCache,
-    validationResult,
-  });
+
 
   // Determine if we're in offline mode and should show Save button
   const showSaveButton = !isOnline && !isViewOnly && surFormGenFlg === 'Y';
@@ -112,9 +101,6 @@ const PreviewScreen = ({ database }) => {
       surFormGenFlg,
       isViewOnly,
       isOfflineSave, // Flag to indicate this is from offline save
-      selections,
-      geoFenceLoading,
-      currentLocationLoading,
     },
     'preview data',
   );
@@ -408,29 +394,29 @@ const PreviewScreen = ({ database }) => {
   const handleFormSubmission = async () => {
     setIsSubmitClicked(true);
 
-    if (checkSubmitLocationAllowed) {
-      // Get fresh location using service via hook
-      const currentLocation = await getCurrentLocation();
-      console.log(currentLocation, 'Current Location');
+    // if (checkSubmitLocationAllowed) {
+    //   // Get fresh location using service via hook
+    //   const currentLocation = await getCurrentLocation();
+    //   console.log(currentLocation, 'Current Location');
 
-      if (!currentLocation) {
-        Alert.alert('Error', 'Unable to get location');
-        return false;
-      }
+    //   if (!currentLocation) {
+    //     Alert.alert('Error', 'Unable to get location');
+    //     return false;
+    //   }
 
-      // First validate location if we have geofence data
-      const LocationValidation = await checkSubmissionAllowed(currentLocation);
-      console.log('Location validation result:', LocationValidation);
+    //   // First validate location if we have geofence data
+    //   const LocationValidation = await checkSubmissionAllowed(currentLocation);
+    //   console.log('Location validation result:', LocationValidation);
 
-      if (!LocationValidation.allowed) {
-        Alert.alert(
-          'Location Error',
-          LocationValidation.reason ||
-            'Your current location does not meet the submission criteria.',
-        );
-        return false;
-      }
-    }
+    //   if (!LocationValidation.allowed) {
+    //     Alert.alert(
+    //       'Location Error',
+    //       LocationValidation.reason ||
+    //         'Your current location does not meet the submission criteria.',
+    //     );
+    //     return false;
+    //   }
+    // }
 
     const payload = generatePayload();
 
