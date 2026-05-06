@@ -416,7 +416,7 @@ const LocationSelectionScreen = () => {
       await dispatch(saveLocationSelections(selections)).unwrap();
 
       // Navigate to Record Entry Screen with location data
-      navigation.replace(ROUTES.RECORD_ENTRY, {
+      navigation.navigate(ROUTES.RECORD_ENTRY, {
         appId,
         formId,
         formTitle,

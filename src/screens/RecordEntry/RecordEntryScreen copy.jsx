@@ -53,7 +53,6 @@ const RecordEntryScreen = ({ database }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isOnline, isChecking } = useInternetStatus();
-  const [resetKey, setResetKey] = useState(0); // Add a reset key to force re-renders
 
   const [getFormComponents, { isLoading: isApiLoading }] =
     useGetFormComponentsMutation();
@@ -98,7 +97,7 @@ const RecordEntryScreen = ({ database }) => {
           resetTimestamp: undefined,
         });
       }
-    }, [shouldReset, resetTimestamp, navigation, resetForm]),
+    }, [shouldReset, resetTimestamp, resetForm, navigation]),
   );
 
   const initializeData = async () => {
@@ -218,52 +217,13 @@ const RecordEntryScreen = ({ database }) => {
     }
   };
 
-  const initializeFieldValues = useCallback(components => {
+  const initializeFieldValues = components => {
     const initialValues = {};
     const fieldErrors = {};
 
     components.forEach(component => {
-      let initialValue;
-
-      switch (component.compTyp) {
-        case '03': // Dropdown
-          initialValue =
-            component.props?.value ||
-            (component.props?.multiple === 'Y' ? [] : '');
-          break;
-
-        case '05': // Checkbox
-          initialValue = component.props?.value === 'Y';
-          break;
-
-        case '07': // Image Upload
-          initialValue = component.props?.value || [];
-          break;
-
-        case '08': // Location
-          initialValue = component.props?.value || null;
-          break;
-
-        case '09': // Signature
-          initialValue = component.props?.value || null;
-          break;
-
-        case '02': // Date Picker
-        case '01': // Text Input
-        default:
-          initialValue = component.props?.value || '';
-          break;
-      }
-
-      initialValues[component.fcId] = initialValue;
-
-      const isEmpty =
-        initialValue === '' ||
-        initialValue === null ||
-        initialValue === undefined ||
-        (Array.isArray(initialValue) && initialValue.length === 0);
-
-      if (component.props?.required === 'Y' && isEmpty) {
+      initialValues[component.fcId] = component.props?.value || '';
+      if (component.props?.required === 'Y' && !component.props?.value) {
         fieldErrors[component.fcId] = `${
           component.props?.label || 'Field'
         } is required`;
@@ -272,23 +232,17 @@ const RecordEntryScreen = ({ database }) => {
 
     setFieldValues(initialValues);
     setSubmissionError(fieldErrors);
-  }, []);
+  };
 
-  // Fixed resetForm function
+  //resetForm function
   const resetForm = useCallback(() => {
-    console.log('Resetting form fields...', formComponents.length);
-
-    if (formComponents.length === 0) {
-      console.log('No form components to reset');
-      return;
+    console.log('Resetting form fields...');
+    setFieldValues({});
+    setSubmissionError({});
+    if (formComponents.length > 0) {
+      initializeFieldValues(formComponents);
     }
-    // Increment reset key to force all field components to re-mount
-    setResetKey(prev => prev + 1);
-    // Reuse initializeFieldValues to avoid code duplication
-    initializeFieldValues(formComponents);
-
-    console.log('Form reset complete');
-  }, [formComponents, initializeFieldValues]);
+  }, [formComponents]);
 
   const handleFieldChange = (fcId, value) => {
     console.log('Field changed:', fcId, value);
@@ -319,23 +273,7 @@ const RecordEntryScreen = ({ database }) => {
     let hasErrors = false;
 
     formComponents.forEach(component => {
-      const value = fieldValues[component.fcId];
-      const isRequired = component.props?.required === 'Y';
-
-      // Check if field is empty based on its type
-      let isEmpty = false;
-
-      if (value === undefined || value === null) {
-        isEmpty = true;
-      } else if (typeof value === 'string') {
-        isEmpty = value.trim() === '';
-      } else if (Array.isArray(value)) {
-        isEmpty = value.length === 0;
-      } else if (typeof value === 'boolean') {
-        isEmpty = !value;
-      }
-
-      if (isRequired && isEmpty) {
+      if (component.props?.required === 'Y' && !fieldValues[component.fcId]) {
         errors[component.fcId] = `${
           component.props?.label || 'Field'
         } is required`;
@@ -348,9 +286,15 @@ const RecordEntryScreen = ({ database }) => {
   };
 
   const handleNext = async () => {
-    const isValid = validateForm();
+    console.log(
+      { submissionError, formComponents, fieldValues },
+      '--- Form State on Next ---',
+    );
 
-    if (!isValid) {
+    const hasErrors =
+      Object.keys(submissionError).filter(key => submissionError[key]).length >
+      0;
+    if (hasErrors) {
       Alert.alert(
         'Validation Error',
         Object.values(submissionError)
@@ -371,6 +315,7 @@ const RecordEntryScreen = ({ database }) => {
         formComponents,
         surFormGenFlg,
         isViewOnly: false,
+        // geoFenceData, // Pass geofence data to preview
       });
     } else {
       // If offline, show confirmation before saving
@@ -392,6 +337,7 @@ const RecordEntryScreen = ({ database }) => {
                 surFormGenFlg,
                 isViewOnly: false,
                 isOfflineSave: true,
+                // geoFenceData, // Pass geofence data to preview
               });
             },
           },
@@ -402,13 +348,12 @@ const RecordEntryScreen = ({ database }) => {
 
   const renderFieldComponent = component => {
     const { fcId, compTyp, compTypTxt, props } = component;
-    //key prop with resetKey to force re-render on reset
-    const componentKey = `${fcId}-${resetKey}`;
+
     switch (compTyp) {
       case '01': // Text Input
         return (
           <TextInputField
-            key={componentKey}
+            key={fcId}
             fcId={fcId}
             label={props?.label || ''}
             placeholder={props?.placeholder || ''}
@@ -444,7 +389,7 @@ const RecordEntryScreen = ({ database }) => {
 
         return (
           <DatePickerField
-            key={componentKey}
+            key={fcId}
             fcId={fcId}
             label={props?.label || ''}
             placeholder={props?.placeholder}
@@ -473,7 +418,7 @@ const RecordEntryScreen = ({ database }) => {
       case '07': // Image Upload
         return (
           <ImageUploadField
-            key={componentKey}
+            key={fcId}
             fcId={fcId}
             formId={formId}
             label={props?.label || 'Upload Image'}
@@ -499,7 +444,7 @@ const RecordEntryScreen = ({ database }) => {
       case '03': // Dropdown
         return (
           <DropdownField
-            key={componentKey}
+            key={fcId}
             fcId={fcId}
             label={props?.label || ''}
             placeholder={props?.placeholder || 'Select option'}
@@ -521,7 +466,7 @@ const RecordEntryScreen = ({ database }) => {
       case '05': // Check Box
         return (
           <CheckboxField
-            key={componentKey}
+            key={fcId}
             fcId={fcId}
             label={props?.label || ''}
             value={fieldValues[fcId]}
@@ -538,7 +483,7 @@ const RecordEntryScreen = ({ database }) => {
       case '08': // Location
         return (
           <LocationField
-            key={componentKey}
+            key={fcId}
             fcId={fcId}
             label={props?.label || 'Location'}
             value={fieldValues[fcId]}
@@ -567,7 +512,7 @@ const RecordEntryScreen = ({ database }) => {
       case '09': // Signature
         return (
           <SignatureField
-            key={componentKey}
+            key={fcId}
             formId={formId}
             fcId={fcId}
             label={props?.label || 'Signature'}

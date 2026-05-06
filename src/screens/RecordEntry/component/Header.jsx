@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../../../constants/colors';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const Header = ({ navigation, formTitle, appId, formId, fieldValues={}, totalNumFormComp }) => {
   return (
@@ -16,6 +17,14 @@ const Header = ({ navigation, formTitle, appId, formId, fieldValues={}, totalNum
           Fields completed: {Object.values(fieldValues).filter(v => v).length} /{' '}
           {totalNumFormComp}
         </Text>
+      </View>
+      <View  style={{ justifyContent: 'center', }} > 
+        {/* Placeholder for potential future action buttons */}
+        <TouchableOpacity style={{    }} onPress={()=>{
+          navigation.goBack()
+        }}>
+          <Icon name="location-on" size={24} color={COLORS.primary} />
+        </TouchableOpacity>
       </View>
     </View>
   );

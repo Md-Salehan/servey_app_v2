@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: COLORS.gray[100],
+    backgroundColor: COLORS.errorLight,
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text.secondary,
+    color: COLORS.error,
     fontFamily: 'System',
   },
   submitButton: {

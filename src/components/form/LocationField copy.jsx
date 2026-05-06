@@ -19,6 +19,7 @@ import { COLORS } from '../../constants/colors';
 import commonStyles from './FormComponents.styles';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { localeData } from 'moment';
+import { on } from '@nozbe/watermelondb/QueryDescription';
 
 // Conditionally import MapView only if available
 let MapView, UrlTile, Marker, Circle;
@@ -265,17 +266,17 @@ const LocationField = ({
   useEffect(() => {
     console.log('Initializing location field with value:', value);
     
-    if (value) {
+    if (1) {
       try {
         const parsedValue =
           typeof value === 'string' ? JSON.parse(value) : value;
         setCapturedLocation(parsedValue);
         setOriginalCapturedLocation(parsedValue);
-        if (parsedValue.address) {
+        if (parsedValue && parsedValue?.address) {
           setManualAddress(parsedValue.address);
         }
         // Set map region based on captured location
-        if (parsedValue.latitude && parsedValue.longitude) {
+        if (parsedValue && parsedValue.latitude && parsedValue.longitude) {
           setMapRegion({
             latitude: parsedValue.latitude,
             longitude: parsedValue.longitude,
@@ -285,7 +286,7 @@ const LocationField = ({
           setShowActionButtons(true);
         }
       } catch (e) {
-        console.error('Error parsing location value:', e);
+        console.log('Error parsing location value:', e, value);
       }
     }
   }, [value]);
@@ -478,7 +479,7 @@ const LocationField = ({
         } else {
           console.warn('validateLocation function not provided');
         }
-        // isInside = true; // For testing purposes, assume it's inside. Replace with actual validation logic.
+        isInside = true; // For testing purposes, assume it's inside. Replace with actual validation logic.
       } catch (err) {
         console.error('GeoFence validation error:', err);
         return { isValid: false, error: 'Geofence validation failed' };
@@ -672,7 +673,7 @@ const LocationField = ({
       //   updateMapLocation(coords.latitude, coords.longitude);
       // }
 
-      // onChange(JSON.stringify(locationData));
+      onChange(JSON.stringify(locationData));
       onCaptureComplete?.(locationData, isAccurate);
     },
     [onChange, showAddress, onCaptureComplete, updateMapLocation],
@@ -774,7 +775,7 @@ const LocationField = ({
     setShowActionButtons(false);
     handleFieldValidation('');
     setIsSave(false);
-    onChange('');
+    onChange(null);
     if (currentUserLocation) {
       updateMapLocation(
         currentUserLocation.latitude,
@@ -860,6 +861,7 @@ const LocationField = ({
 
     setCapturedLocation(locationData);
     setOriginalCapturedLocation(locationData);
+    onChange(JSON.stringify(locationData));
     // handleSave();
   };
 
@@ -879,7 +881,8 @@ const LocationField = ({
         address: address || null,
       };
       setCapturedLocation(updatedLocation);
-      // onChange(JSON.stringify(updatedLocation));
+      setOriginalCapturedLocation(updatedLocation);
+      onChange(JSON.stringify(updatedLocation));
     }
   };
 

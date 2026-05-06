@@ -8,7 +8,7 @@ import {
 import { COLORS } from '../../../constants/colors';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const Header = ({ navigation, formTitle, totalNumFormComp, toggeleLocationValidation, checkSubmitLocationAllowed }) => {
+const Header = ({ navigation, formTitle, totalNumFormComp }) => {
   return (
     <View style={styles.header}>
       <TouchableOpacity
@@ -28,11 +28,7 @@ const Header = ({ navigation, formTitle, totalNumFormComp, toggeleLocationValida
         </Text>
       </View>
 
-      {/* <TouchableOpacity 
-      onPress={toggeleLocationValidation}
-      >
-        <Icon name="location-on" size={24} color={checkSubmitLocationAllowed ? COLORS.primary : COLORS.text.secondary} />
-      </TouchableOpacity> */}
+     
     </View>
   );
 };

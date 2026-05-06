@@ -30,8 +30,6 @@ import uploadService from '../../services/uploadService';
 import SubmissionService from '../../services/submissionService';
 import useInternetStatus from '../../hook/useInternetStatus';
 import { STATUS } from '../../constants/enums';
-import useGeoFenceData from '../../hook/useGeoFenceData';
-import useCurrentLocation from '../../hook/useCurrentLocation';
 
 const PreviewScreen = ({ database }) => {
   const navigation = useNavigation();
@@ -54,56 +52,14 @@ const PreviewScreen = ({ database }) => {
     useSurveyFormSubmitMutation();
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isSubmitClicked, setIsSubmitClicked] = useState(false);
-  const [checkSubmitLocationAllowed, setCheckSubmitLocationAllowed] =
-    useState(false);
+
   const { selections } = useSelector(state => state.location);
   const needFileUpload = useRef(false); // Track if any file uploads are present in the form
-
-  const {
-    geoFenceData,
-    loading: geoFenceLoading,
-    error: geoFenceError,
-    isFromCache,
-    validationResult,
-    validateLocation,
-    checkSubmissionAllowed,
-    retry: retryGeoFence,
-  } = useGeoFenceData(database, appId, true);
-
-  const {
-    location: currentLocation,
-    loading: currentLocationLoading,
-    error: currentLocationError,
-    getLocation: getCurrentLocation,
-    retry: retryCurrentLocation,
-  } = useCurrentLocation({
-    enableHighAccuracy: true,
-    timeout: 30000,
-    maximumAge: 0,
-  });
-
-
-
 
   // Determine if we're in offline mode and should show Save button
   const showSaveButton = !isOnline && !isViewOnly && surFormGenFlg === 'Y';
   const showSubmitButton = isOnline && !isViewOnly && surFormGenFlg === 'Y';
   const isLoading = isFormSubmitLoading || isConfirming || isSaving;
-
-  console.log(
-    {
-      formTitle,
-      appId,
-      formId,
-      fieldValues,
-      formComponents,
-      surFormGenFlg,
-      isViewOnly,
-      isOfflineSave, // Flag to indicate this is from offline save
-    },
-    'preview data',
-  );
 
   // Preview mode render function
   const renderPreviewFieldComponent = component => {
@@ -288,9 +244,9 @@ const PreviewScreen = ({ database }) => {
               // Extract serverUrl from each image object and filter out any invalid URLs
               value = value
                 .map(image =>
-                (image.status === STATUS.UPLOADED)
+                  image.status === STATUS.UPLOADED
                     ? image.fileUri + '~' + image.flUpldLogNo
-                    : null
+                    : null,
                 )
                 .filter(logUri => logUri);
 
@@ -387,37 +343,7 @@ const PreviewScreen = ({ database }) => {
     return payload;
   };
 
-  const toggeleLocationValidation = () => {
-    setCheckSubmitLocationAllowed(prev => !prev);
-  };
-
   const handleFormSubmission = async () => {
-    setIsSubmitClicked(true);
-
-    // if (checkSubmitLocationAllowed) {
-    //   // Get fresh location using service via hook
-    //   const currentLocation = await getCurrentLocation();
-    //   console.log(currentLocation, 'Current Location');
-
-    //   if (!currentLocation) {
-    //     Alert.alert('Error', 'Unable to get location');
-    //     return false;
-    //   }
-
-    //   // First validate location if we have geofence data
-    //   const LocationValidation = await checkSubmissionAllowed(currentLocation);
-    //   console.log('Location validation result:', LocationValidation);
-
-    //   if (!LocationValidation.allowed) {
-    //     Alert.alert(
-    //       'Location Error',
-    //       LocationValidation.reason ||
-    //         'Your current location does not meet the submission criteria.',
-    //     );
-    //     return false;
-    //   }
-    // }
-
     const payload = generatePayload();
 
     if (payload.hasError) {
@@ -467,6 +393,10 @@ const PreviewScreen = ({ database }) => {
                 index: 1,
                 routes: [
                   { name: ROUTES.DASHBOARD },
+                  {
+                    name: ROUTES.LOCATION_SELECTION,
+                    params: { appId, formId, formTitle, surFormGenFlg },
+                  },
                   {
                     name: ROUTES.RECORD_ENTRY,
                     params: {
@@ -532,6 +462,10 @@ const PreviewScreen = ({ database }) => {
               routes: [
                 { name: ROUTES.DASHBOARD },
                 {
+                  name: ROUTES.LOCATION_SELECTION,
+                  params: { appId, formId, formTitle, surFormGenFlg },
+                },
+                {
                   name: ROUTES.RECORD_ENTRY,
                   params: {
                     appId,
@@ -552,7 +486,7 @@ const PreviewScreen = ({ database }) => {
   };
 
   const getButton = () => {
-    if (showSaveButton && !geoFenceLoading && !currentLocationLoading)
+    if (showSaveButton)
       return (
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: COLORS.warning }]}
@@ -568,7 +502,7 @@ const PreviewScreen = ({ database }) => {
           )}
         </TouchableOpacity>
       );
-    else if (showSubmitButton && !geoFenceLoading && !currentLocationLoading)
+    else if (showSubmitButton)
       return (
         <TouchableOpacity
           style={styles.submitButton}
@@ -604,24 +538,7 @@ const PreviewScreen = ({ database }) => {
         formId={formId}
         fieldValues={fieldValues}
         totalNumFormComp={formComponents?.length || 0}
-        geoFenceLoading={geoFenceLoading}
-        retryGeoFence={retryGeoFence}
-        toggeleLocationValidation={toggeleLocationValidation}
-        checkSubmitLocationAllowed={checkSubmitLocationAllowed}
       />
-
-      <View style={styles.infoWrapper}>
-        {currentLocationLoading && (
-          <InfoBar
-            type="warning"
-            title={'Validating current location...'}
-            infoIcon={'loading'}
-            // showAction={true}
-            // actionTitle="Retry"
-            // onAction={retryGeoFence}
-          />
-        )}
-      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
