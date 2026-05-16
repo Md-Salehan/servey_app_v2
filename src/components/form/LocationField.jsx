@@ -253,11 +253,13 @@ const LocationField = ({
       if (required && !capturedLocation) {
         handleFieldValidation('This field is required', `${label} is required`);
         return;
-      } else if (!isSave) {
+      } 
+      if (!isSave) {
         handleFieldValidation('', `${label} need to be validated`);
-      } else {
-        handleFieldValidation('', '');
-      }
+        return;
+      } 
+      handleFieldValidation('', '');
+      
     }
   }, [capturedLocation, required, isPressed, isSave]);
 
@@ -458,44 +460,75 @@ const LocationField = ({
     setCapturedLocation(locationData);
   }, [editLatitude, editLongitude]);
 
-  // Validate location against geofence
-  const validateAgainstGeoFence = useCallback(
-    (latitude, longitude) => {
-      if (!geoFenceData) {
-        return { isValid: true, error: null };
-      }
-
-      let isInside = false;
-      try {
-        // Placeholder for actual geofence validation
-        if (validateLocation) {
-          const result = validateLocation({ latitude, longitude });
-          if (result?.isValid) {
-            isInside = true;
-          } else {
-            console.warn('Geofence validation failed:', result?.error);
-          }
-        } else {
-          console.warn('validateLocation function not provided');
-        }
-        // isInside = true; // For testing purposes, assume it's inside. Replace with actual validation logic.
-      } catch (err) {
-        console.error('GeoFence validation error:', err);
-        return { isValid: false, error: 'Geofence validation failed' };
-      }
-
-      if (!isInside) {
-        return {
-          isValid: false,
-          error:
-            'Location is outside the permitted survey area. Please capture location within the designated geofence.',
-        };
-      }
-
+  // Validate location against all geofences (valid if inside ANY)
+const validateAgainstGeoFence = useCallback(
+  (latitude, longitude) => {
+    if (!geoFenceData) {
       return { isValid: true, error: null };
-    },
-    [geoFenceData],
-  );
+    }
+
+    try {
+      // If validateLocation function is provided, use it
+      if (validateLocation) {
+        const result = validateLocation({ latitude, longitude });
+        
+        // Check if location is inside ANY geofence
+        if (result?.isValid && result?.isInside) {
+          // Success - inside at least one geofence
+          const matchMsg = result.matchedGeofenceName 
+            ? ` (within ${result.matchedGeofenceName})` 
+            : result.matchedGeofenceId
+            ? ` (within geofence ${result.matchedGeofenceId})`
+            : '';
+          console.log(`✅ Location validated successfully${matchMsg}`);
+          
+          onGeoFenceValidation?.({
+            isValid: true,
+            isInside: true,
+            matchedGeofenceIndex: result.matchedGeofenceIndex,
+            matchedGeofenceName: result.matchedGeofenceName,
+            matchedGeofenceId: result.matchedGeofenceId,
+            error: null
+          });
+          
+          return { isValid: true, error: null };
+        } else {
+          // Not inside any geofence
+          const totalGeofences = result.totalGeofences || geoFenceData?.geofences?.length || 1;
+          const errorMsg = result.error || 
+            `Location is outside all permitted survey areas (${totalGeofences} geofence${totalGeofences !== 1 ? 's' : ''} assigned).`;
+          
+          console.warn('Geofence validation failed:', errorMsg);
+          
+          onGeoFenceValidation?.({
+            isValid: false,
+            isInside: false,
+            error: errorMsg
+          });
+          
+          return { isValid: false, error: errorMsg };
+        }
+      }
+      
+      // Fallback if no validateLocation function
+      console.warn('validateLocation function not provided');
+      return { isValid: true, error: null };
+      
+    } catch (err) {
+      console.error('GeoFence validation error:', err);
+      const errorMsg = 'Geofence validation failed';
+      
+      onGeoFenceValidation?.({
+        isValid: false,
+        isInside: false,
+        error: errorMsg
+      });
+      
+      return { isValid: false, error: errorMsg };
+    }
+  },
+  [geoFenceData, validateLocation, onGeoFenceValidation]
+);
 
   // Check if captured location is within 15m of user's current location
   const isWithin15mRadius = useCallback(() => {

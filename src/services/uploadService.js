@@ -1,5 +1,5 @@
 // services/uploadService.js
-import { API_BASE_URL } from '../constants/api';
+import { API_BASE_URL, APP_ID } from '../constants/api';
 import TokenService from './storage/tokenService';
 
 class UploadService {
@@ -8,9 +8,9 @@ class UploadService {
     FORM_SUBMIT: 'SUA01031',
     UPLOAD: 'SUA01032',
     CONFIRM: 'SUA00487',
-    APP_ID: 'AP000001',
+    APP_ID: APP_ID,
     FILE_CAT_CD: 'C0020',
-    MOB_REG_NO: 'AP0000016290017920',
+    MOB_REG_NO: TokenService?.getUserData()?.mobRegNo || '',
   };
 
   static TABLE_NAMES = {

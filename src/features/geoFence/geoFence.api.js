@@ -39,8 +39,10 @@ export const geoFenceApi = createApi({
       providesTags: ['GeoFence'],
       transformResponse: response => {
         let data = response || {};
-        if (data?.appMsgList?.errorStatus === false) {
-          return data.content?.qryRsltSet?.geojson || null;
+        if (data?.appMsgList?.errorStatus === false && data.content?.mst?.length ) {
+          return data.content.mst.map(item => ({
+            ...item?.geoJson,
+          })) || [] ;
         }
         return null;
       },

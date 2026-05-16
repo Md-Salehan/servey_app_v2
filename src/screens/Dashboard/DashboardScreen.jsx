@@ -20,7 +20,7 @@ import TokenService from '../../services/storage/tokenService';
 import { logout } from '../../features/auth/authSlice';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
-import { API_BASE_URL } from '../../constants/api';
+import { API_BASE_URL, APP_ID } from '../../constants/api';
 import useInternetStatus from '../../hook/useInternetStatus';
 
 import { FormCard } from './components/FormCard/FormCard';
@@ -55,7 +55,7 @@ const DashboardScreen = ({ database }) => {
 
   const { error: geoFenceError, retry: retryGeoFence } = useGeoFenceData(
     database,
-    'AP000001',
+    APP_ID,
   );
 
   useEffect(() => {
@@ -138,7 +138,7 @@ const DashboardScreen = ({ database }) => {
       const payload = {
         apiId: 'SUA01048',
         criteria: {
-          appId: 'AP000001',
+          appId: APP_ID,
           userId: user?.userId || '',
         },
       };
@@ -203,7 +203,7 @@ const DashboardScreen = ({ database }) => {
               await existingForm.update(record => {
                 record.formName = serverForm.formNm;
                 record.formSchema = serverForm;
-                record.appId = 'AP000001';
+                record.appId = APP_ID;
                 record.description =
                   serverForm.formDesc || 'No description available';
                 record.status = serverForm.status || 'active';
@@ -221,7 +221,7 @@ const DashboardScreen = ({ database }) => {
                 record.formId = serverForm.formId;
                 record.formName = serverForm.formNm;
                 record.formSchema = serverForm;
-                record.appId = 'AP000001';
+                record.appId = APP_ID;
                 record.description =
                   serverForm.formDesc || 'No description available';
                 record.status = serverForm.status || 'active';
@@ -342,7 +342,7 @@ const DashboardScreen = ({ database }) => {
   // Handle form press
   const handleFormPress = form => {
     navigation.navigate(ROUTES.LOCATION_SELECTION, {
-      appId: 'AP000001',
+      appId: APP_ID,
       formId: form.formId,
       formTitle: form.formName,
       surFormGenFlg: form.surFormGenFlg,

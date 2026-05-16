@@ -13,12 +13,15 @@ class GeoFenceService {
 
   /**
    * Save geofence data to local database
+   * @param {string} appId - Application ID
+   * @param {string} userId - User ID
+   * @param {Array} geoJSONsArray - Array of FeatureCollection objects
    */
-  async saveGeoFenceData(appId, userId, geojson) {
-    console.log({ appId, userId, hasGeojson: !!geojson }, 'saveGeoFenceData');
+  async saveGeoFenceData(appId, userId, geoJSONsArray) {
+    console.log({ appId, userId, arrayLength: geoJSONsArray?.length }, 'saveGeoFenceData');
 
-    if (!geojson) {
-      console.error('❌ Cannot save geofence: geojson is null or undefined');
+    if (!geoJSONsArray || !Array.isArray(geoJSONsArray)) {
+      console.error('❌ Cannot save geofence: geoJSONsArray is not an array');
       return false;
     }
 
@@ -30,21 +33,29 @@ class GeoFenceService {
         .query(Q.where('app_id', appId), Q.where('user_id', userId))
         .fetch();
 
+      // Store the entire array of FeatureCollections
+      const dataToStore = {
+        type: 'GeofenceCollection',
+        geofences: geoJSONsArray,
+        totalGeofences: geoJSONsArray.length,
+        lastUpdated: Date.now()
+      };
+
       await this.database.write(async () => {
         if (existing.length > 0) {
           // Update existing geofence
           await existing[0].update(record => {
-            record.geojson = geojson;
+            record.geojson = dataToStore;
           });
-          console.log('✅ Geofence data updated in local DB');
+          console.log(`✅ Geofence data updated in local DB (${geoJSONsArray.length} geofence(s))`);
         } else {
           // Create new geofence
           await geoFencesCollection.create(record => {
             record.appId = appId;
             record.userId = userId;
-            record.geojson = geojson;
+            record.geojson = dataToStore;
           });
-          console.log('✅ Geofence data saved to local DB');
+          console.log(`✅ Geofence data saved to local DB (${geoJSONsArray.length} geofence(s))`);
         }
       });
 
@@ -55,8 +66,10 @@ class GeoFenceService {
     }
   }
 
+
   /**
    * Get geofence data from local database
+   * @returns {Object|null} Object containing geofences array or null
    */
   async getGeoFenceData(appId, userId) {
     try {
@@ -67,13 +80,70 @@ class GeoFenceService {
 
       if (geofences.length > 0) {
         console.log('📦 Geofence data loaded from local DB');
-        return geofences[0].geojson;
+        const storedData = geofences[0].geojson;
+        
+        // Handle both old and new format for backward compatibility
+        if (storedData && storedData.type === 'GeofenceCollection') {
+          return storedData;
+        }
+        
+        // If old format (direct array), convert to new format
+        if (Array.isArray(storedData)) {
+          return {
+            type: 'GeofenceCollection',
+            geofences: storedData,
+            totalGeofences: storedData.length,
+            lastUpdated: Date.now()
+          };
+        }
+        
+        return storedData;
       }
       return null;
     } catch (error) {
       console.error('Error loading geofence from DB:', error);
       return null;
     }
+  }
+
+
+  /**
+   * Get count of geofences
+   */
+  async getGeofenceCount(appId, userId) {
+    const geofenceData = await this.getGeoFenceData(appId, userId);
+    if (geofenceData && geofenceData.geofences) {
+      return geofenceData.geofences.length;
+    }
+    return 0;
+  }
+
+  /**
+   * Get summary of all geofences (names, IDs, etc.)
+   */
+  async getGeofenceSummary(appId, userId) {
+    const geofenceData = await this.getGeoFenceData(appId, userId);
+    if (!geofenceData || !geofenceData.geofences) {
+      return [];
+    }
+    
+    const summary = [];
+    for (let i = 0; i < geofenceData.geofences.length; i++) {
+      const geofence = geofenceData.geofences[i];
+      const firstFeature = geofence.features?.[0];
+      summary.push({
+        index: i,
+        name: firstFeature?.properties?.blk_nm || 
+              firstFeature?.properties?.name || 
+              `Geofence ${i + 1}`,
+        id: firstFeature?.properties?.gid ||
+             firstFeature?.properties?.blk_cd ||
+             `geofence_${i}`,
+        featureCount: geofence.features?.length || 0
+      });
+    }
+    
+    return summary;
   }
 
   /**
@@ -100,17 +170,20 @@ class GeoFenceService {
   }
 
   /**
-   * Validate if a location is inside the geofence
-   * @param {Object} geojson - The GeoJSON object representing the geofence
+   * Validate if a location is inside ANY of the geofences assigned to the user
+   * @param {Object} geofenceData - The stored geofence data with geofences array
    * @param {Object} location - Location object with latitude and longitude
-   * @returns {Object} Validation result
+   * @returns {Object} Validation result with which geofence matched (if any)
    */
-  validateLocationInGeofence(geojson, location) {
-    if (!geojson) {
+  validateLocationInGeofence(geofenceData, location) {
+    if (!geofenceData || !geofenceData.geofences || !Array.isArray(geofenceData.geofences)) {
       return {
         isValid: false,
         error: 'Geofence data not available',
         isInside: false,
+        matchedGeofenceIndex: -1,
+        matchedGeofenceName: null,
+        matchedGeofenceId: null
       };
     }
 
@@ -119,40 +192,69 @@ class GeoFenceService {
         isValid: false,
         error: 'Location data not available',
         isInside: false,
+        matchedGeofenceIndex: -1,
+        matchedGeofenceName: null,
+        matchedGeofenceId: null
       };
     }
 
     try {
       const point = turf.point([location.longitude, location.latitude]);
-
       let isInside = false;
+      let matchedGeofenceIndex = -1;
+      let matchedFeature = null;
+      let matchedGeofenceName = null;
+      let matchedGeofenceId = null;
 
-      // Check if it's a FeatureCollection
-      if (geojson.type === 'FeatureCollection') {
-        isInside = geojson.features.some(feature =>
-          turf.booleanPointInPolygon(point, feature),
-        );
-      }
-      // Check if it's a single Feature
-      else if (geojson.type === 'Feature') {
-        isInside = turf.booleanPointInPolygon(point, geojson);
-      }
-      // Check if it's a Polygon or MultiPolygon directly
-      else if (geojson.type === 'Polygon' || geojson.type === 'MultiPolygon') {
-        isInside = turf.booleanPointInPolygon(point, geojson);
-      } else {
-        return {
-          isValid: false,
-          error: 'Invalid GeoJSON format',
-          isInside: false,
-        };
+      // Iterate through each geofence (FeatureCollection) in the array
+      for (let i = 0; i < geofenceData.geofences.length; i++) {
+        const featureCollection = geofenceData.geofences[i];
+        
+        // Skip if not a valid FeatureCollection
+        if (!featureCollection || featureCollection.type !== 'FeatureCollection') {
+          continue;
+        }
+        
+        // Get features array
+        const features = featureCollection.features || [];
+        
+        // Check each feature in this geofence
+        for (let j = 0; j < features.length; j++) {
+          const feature = features[j];
+          try {
+            // Check if point is inside this feature's geometry
+            if (turf.booleanPointInPolygon(point, feature)) {
+              isInside = true;
+              matchedGeofenceIndex = i;
+              matchedFeature = feature;
+              matchedGeofenceName = feature.properties?.blk_nm || 
+                                     feature.properties?.subd_nm ||
+                                     feature.properties?.name ||
+                                     `Geofence ${i + 1}`;
+              matchedGeofenceId = feature.properties?.gid?.toString() ||
+                                  feature.properties?.blk_cd ||
+                                  feature.properties?.blk_nm ||
+                                  `geofence_${i}`;
+              break;
+            }
+          } catch (e) {
+            console.warn(`Error checking feature at geofence ${i}, feature ${j}:`, e);
+            continue;
+          }
+        }
+        
+        if (isInside) break;
       }
 
       return {
-        isValid: true, // Validation successful
+        isValid: true,
         isInside,
         location,
-        error: null,
+        matchedGeofenceIndex: matchedGeofenceIndex,
+        matchedGeofenceName: matchedGeofenceName,
+        matchedGeofenceId: matchedGeofenceId,
+        totalGeofences: geofenceData.geofences.length,
+        error: isInside ? null : 'Location is outside all permitted survey areas'
       };
     } catch (error) {
       console.error('Error validating location:', error);
@@ -160,79 +262,41 @@ class GeoFenceService {
         isValid: false,
         error: `Geofence validation error: ${error.message}`,
         isInside: false,
+        matchedGeofenceIndex: -1,
+        matchedGeofenceName: null,
+        matchedGeofenceId: null
       };
     }
   }
 
-  /**
-   * Check if submission is allowed based on geofence
-   */
-  async isSubmissionAllowed(appId, userId, location) {
-    try {
-      // Get geofence data from local DB
-      const geojson = await this.getGeoFenceData(appId, userId);
-
-      if (!geojson) {
-        return {
-          allowed: false,
-          reason: 'Geofence data not available. Please sync with server.',
-        };
-      }
-
-      const validation = this.validateLocationInGeofence(geojson, location);
-
-      if (!validation.isValid) {
-        return {
-          allowed: false,
-          reason: validation.error || 'Unable to validate location',
-        };
-      }
-
-      if (!validation.isInside) {
-        return {
-          allowed: false,
-          reason:
-            'You are outside the permitted survey area. Submission is only allowed within the designated geofence.',
-        };
-      }
-
-      return {
-        allowed: true,
-        reason: null,
-      };
-    } catch (error) {
-      console.error('Error checking submission allowance:', error);
-      return {
-        allowed: false,
-        reason: 'Error validating geofence. Please try again.',
-      };
-    }
-  }
+  
 
   /**
-   * Process geofence data with buffer
+   * Process all geofences with buffer
    */
-  processGeofenceWithBuffer(geojson, bufferMeters = 0) {
-    if (!geojson) return null;
+  processGeofenceWithBuffer(geofenceData, bufferMeters = 0) {
+    if (!geofenceData || !geofenceData.geofences) return null;
 
-    if (bufferMeters <= 0) return geojson;
+    if (bufferMeters <= 0) return geofenceData;
 
     const bufferKm = bufferMeters / 1000;
-
-    // FeatureCollection case
-    if (geojson.type === 'FeatureCollection') {
-      return {
-        ...geojson,
-        features: geojson.features.map(feature =>
-          turf.buffer(feature, bufferKm, { units: 'kilometers' }),
-        ),
-      };
-    }
-
-    // Single geometry
-    return turf.buffer(geojson, bufferKm, {
-      units: 'kilometers',
+    
+    const bufferedGeofences = geofenceData.geofences.map(featureCollection => {
+      if (featureCollection.type === 'FeatureCollection') {
+        return {
+          ...featureCollection,
+          features: featureCollection.features.map(feature =>
+            turf.buffer(feature, bufferKm, { units: 'kilometers' })
+          ),
+        };
+      }
+      return turf.buffer(featureCollection, bufferKm, { units: 'kilometers' });
     });
+
+    return {
+      ...geofenceData,
+      geofences: bufferedGeofences,
+    };
   }
 }
 
