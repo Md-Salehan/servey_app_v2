@@ -18,7 +18,7 @@ import axios from 'axios';
 import { COLORS } from '../../constants/colors';
 import commonStyles from './FormComponents.styles';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { localeData, max } from 'moment';
+import { localeData } from 'moment';
 
 // Conditionally import MapView only if available
 let MapView, UrlTile, Marker, Circle;
@@ -248,25 +248,25 @@ const LocationField = ({
 
   // Validation effect for required fields
   useEffect(() => {
-    console.log('xxww:', {isPressed, isSave, });
-    
+   
     if (isPressed) {
       if (required && !capturedLocation) {
         handleFieldValidation('This field is required', `${label} is required`);
         return;
-      }
+      } 
       if (!isSave) {
         handleFieldValidation('', `${label} need to be validated`);
         return;
-      }
+      } 
       handleFieldValidation('', '');
+      
     }
   }, [capturedLocation, required, isPressed, isSave]);
 
   // Initialize with existing value
   useEffect(() => {
     console.log('Initializing location field with value:', value);
-
+    
     if (value) {
       try {
         const parsedValue =
@@ -306,8 +306,8 @@ const LocationField = ({
 
       const options = {
         enableHighAccuracy,
-        timeout: timeout,
-        maximumAge: maximumAge,
+        timeout: 10000,
+        maximumAge: 5000,
       };
 
       const position = await getCurrentPositionAsync(options);
@@ -453,46 +453,82 @@ const LocationField = ({
       manualAddress || null,
       true,
     );
+    console.log(locationData, 'dddc');
 
     setEditLatitude(locationData.latitude.toString());
     setEditLongitude(locationData.longitude.toString());
     setCapturedLocation(locationData);
   }, [editLatitude, editLongitude]);
 
-  // Validate location against geofence (valid if inside ANY assigned geofence)
-  const validateAgainstGeoFence = useCallback(
-    (latitude, longitude) => {
-      if (!geoFenceData) {
-        return { isValid: true, error: null };
-      }
+  // Validate location against all geofences (valid if inside ANY)
+const validateAgainstGeoFence = useCallback(
+  (latitude, longitude) => {
+    if (!geoFenceData) {
+      return { isValid: true, error: null };
+    }
 
+    try {
       // If validateLocation function is provided, use it
       if (validateLocation) {
-        const result = validateLocation(geoFenceData, { latitude, longitude });
-        // const result = await validateLocation({ latitude: 23.670576, longitude: 87.768446 });
-
+        const result = validateLocation({ latitude, longitude });
+        
         // Check if location is inside ANY geofence
         if (result?.isValid && result?.isInside) {
-          console.log('✅ Location validated successfully - inside geofence');
-          onGeoFenceValidation?.({ isValid: true, error: null });
+          // Success - inside at least one geofence
+          const matchMsg = result.matchedGeofenceName 
+            ? ` (within ${result.matchedGeofenceName})` 
+            : result.matchedGeofenceId
+            ? ` (within geofence ${result.matchedGeofenceId})`
+            : '';
+          console.log(`✅ Location validated successfully${matchMsg}`);
+          
+          onGeoFenceValidation?.({
+            isValid: true,
+            isInside: true,
+            matchedGeofenceIndex: result.matchedGeofenceIndex,
+            matchedGeofenceName: result.matchedGeofenceName,
+            matchedGeofenceId: result.matchedGeofenceId,
+            error: null
+          });
+          
           return { isValid: true, error: null };
         } else {
-          console.warn('Geofence validation failed:', result?.error);
-          onGeoFenceValidation?.({ isValid: false, error: result?.error });
-          return {
+          // Not inside any geofence
+          const totalGeofences = result.totalGeofences || geoFenceData?.geofences?.length || 1;
+          const errorMsg = result.error || 
+            `Location is outside all permitted survey areas (${totalGeofences} geofence${totalGeofences !== 1 ? 's' : ''} assigned).`;
+          
+          console.warn('Geofence validation failed:', errorMsg);
+          
+          onGeoFenceValidation?.({
             isValid: false,
-            error:
-              result?.error || 'Location is outside the permitted survey area.',
-          };
+            isInside: false,
+            error: errorMsg
+          });
+          
+          return { isValid: false, error: errorMsg };
         }
       }
-
+      
       // Fallback if no validateLocation function
       console.warn('validateLocation function not provided');
       return { isValid: true, error: null };
-    },
-    [geoFenceData, validateLocation, onGeoFenceValidation],
-  );
+      
+    } catch (err) {
+      console.error('GeoFence validation error:', err);
+      const errorMsg = 'Geofence validation failed';
+      
+      onGeoFenceValidation?.({
+        isValid: false,
+        isInside: false,
+        error: errorMsg
+      });
+      
+      return { isValid: false, error: errorMsg };
+    }
+  },
+  [geoFenceData, validateLocation, onGeoFenceValidation]
+);
 
   // Check if captured location is within 15m of user's current location
   const isWithin15mRadius = useCallback(() => {
@@ -587,7 +623,7 @@ const LocationField = ({
     console.log('Validation effect triggered:');
 
     // Validate against geofence
-    const geoFenceCheck = await validateAgainstGeoFence(
+    const geoFenceCheck = validateAgainstGeoFence(
       capturedLocation.latitude,
       capturedLocation.longitude,
     );
@@ -599,11 +635,12 @@ const LocationField = ({
           'Location is outside the permitted area. Please retry.',
         [{ text: 'Retry', onPress: () => retryLocation() }],
       );
+      onGeoFenceValidation?.({ isValid: false, error: geoFenceCheck.error });
       return;
     }
-
     setIsSave(true);
     onChange(JSON.stringify(capturedLocation));
+    onGeoFenceValidation?.({ isValid: true, error: null });
     Alert.alert('Success', 'Location captured successfully.');
   };
 

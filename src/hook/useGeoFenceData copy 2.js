@@ -5,8 +5,13 @@ import { useGetFenceDataMutation } from '../features/geoFence/geoFence.api';
 import GeoFenceService from '../services/geoFenceService';
 import useInternetStatus from './useInternetStatus';
 
+//this time your implementation sound correct , just make it simpler just stick to the essential requirements but no comporomiseation 
+
 const useGeoFenceData = (database, appId, useLocalDB = false) => {
   const [geoFenceData, setGeoFenceData] = useState(null);
+  const [geofenceList, setGeofenceList] = useState([]); // Array of FeatureCollections
+  const [geofenceSummary, setGeofenceSummary] = useState([]); // Summary of all geofences
+  const [geofenceCount, setGeofenceCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFromCache, setIsFromCache] = useState(false);
@@ -22,16 +27,29 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
   const loadFromLocalDB = useCallback(async () => {
     try {
       const data = await geoFenceService.getGeoFenceData(appId, user?.userId);
-      if (data) {
+      if (data && data.geofences && Array.isArray(data.geofences)) {
         setGeoFenceData(data);
+        setGeofenceList(data.geofences);
+        setGeofenceCount(data.geofences.length);
+        
+        // Get summary of all geofences
+        const summary = await geoFenceService.getGeofenceSummary(appId, user?.userId);
+        setGeofenceSummary(summary);
+        
         setIsFromCache(true);
         setError(null);
-        console.log('✅ GeoFence loaded from local DB');
+        console.log(`✅ GeoFence loaded from local DB (${data.geofences.length} geofence(s))`);
         return true;
       }
+      setGeofenceList([]);
+      setGeofenceCount(0);
+      setGeofenceSummary([]);
       return false;
     } catch (err) {
       console.error('Error loading from local DB:', err);
+      setGeofenceList([]);
+      setGeofenceCount(0);
+      setGeofenceSummary([]);
       return false;
     }
   }, [appId, user?.userId]);
@@ -53,10 +71,24 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
         // Save to local database
         await geoFenceService.saveGeoFenceData(appId, user?.userId, geoJSONsArray);
 
-        setGeoFenceData(geoJSONsArray);
+        const data = {
+          type: 'GeofenceCollection',
+          geofences: geoJSONsArray,
+          totalGeofences: geoJSONsArray.length,
+          lastUpdated: Date.now()
+        };
+        
+        setGeoFenceData(data);
+        setGeofenceList(geoJSONsArray);
+        setGeofenceCount(geoJSONsArray.length);
+        
+        // Get summary of all geofences
+        const summary = await geoFenceService.getGeofenceSummary(appId, user?.userId);
+        setGeofenceSummary(summary);
+        
         setIsFromCache(false);
         setError(null);
-        console.log('✅ GeoFence fetched from server and saved to local DB');
+        console.log(`✅ GeoFence fetched from server and saved to local DB (${geoJSONsArray.length} geofence(s))`);
         return true;
       }
       return false;
@@ -97,31 +129,52 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
     }
   }, [isOnline, loadFromLocalDB, fetchFromServer]);
 
-  // Validate current location against geofence
+  // Validate current location against ALL geofences (returns true if inside ANY)
   const validateLocation = useCallback(
-    (givenGeoFenceData,location )=> {
-      if (!givenGeoFenceData) {
+    async location => {
+      if (!geoFenceData) {
         return {
           isValid: false,
           error: 'Geofence data not loaded yet',
           isInside: false,
+          matchedGeofenceIndex: -1,
+          matchedGeofenceName: null,
+          matchedGeofenceId: null,
         };
       }
-      
-      const result = geoFenceService.validateLocationInGeoFence(
-        givenGeoFenceData,
+
+      const result = geoFenceService.validateLocationInGeofence(
+        geoFenceData,
         location,
       );
-
       setValidationResult(result);
       return result;
     },
-    [],
+    [geoFenceData],
   );
 
+  // Get specific geofence by index
+  const getGeofenceByIndex = useCallback(
+    index => {
+      if (geofenceList && geofenceList[index]) {
+        return geofenceList[index];
+      }
+      return null;
+    },
+    [geofenceList],
+  );
 
+  // Get geofence by name or ID
+  const getGeofenceById = useCallback(
+    id => {
+      return geofenceSummary.find(
+        summary => summary.id === id || summary.name === id
+      );
+    },
+    [geofenceSummary],
+  );
 
-  // Process geofence with buffer
+  // Process all geofences with buffer
   const getProcessedGeofence = useCallback(
     (bufferMeters = 0) => {
       return geoFenceService.processGeofenceWithBuffer(
@@ -170,12 +223,17 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
 
   return {
     geoFenceData,
+    geofenceList,           // Array of FeatureCollections
+    geofenceSummary,        // Summary of all geofences (names, IDs)
+    geofenceCount,          // Total number of geofences assigned to user
     loading: loading || isApiLoading,
     error,
     isFromCache,
     validationResult,
-    validateLocation,
+    validateLocation,       // Returns true if inside ANY geofence
     getProcessedGeofence,
+    getGeofenceByIndex,     // Get specific geofence by index
+    getGeofenceById,        // Get geofence by ID or name
     retry,
     refresh: fetchFromServer,
     clearValidation,

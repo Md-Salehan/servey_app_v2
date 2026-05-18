@@ -41,7 +41,7 @@ export const geoFenceApi = createApi({
         let data = response || {};
         if (data?.appMsgList?.errorStatus === false && data.content?.mst?.length ) {
           return data.content.mst.map(item => ({
-            ...item?.geoJson,
+            ...item?.geojson,
           })) || [] ;
         }
         return null;
