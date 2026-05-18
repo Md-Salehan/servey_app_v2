@@ -761,6 +761,7 @@ const LocationField = ({
 
   const clearLocation = () => {
     if (disabled || isPreview) return;
+    setIsPressed(false);
     setCapturedLocation(null);
     setOriginalCapturedLocation(null);
     setManualAddress('');
@@ -768,7 +769,7 @@ const LocationField = ({
     setEditLongitude('');
     setIsEditingCoords(false);
     setShowActionButtons(false);
-    handleFieldValidation('');
+    handleFieldValidation('', '');
     setIsSave(false);
     onChange('');
     if (currentUserLocation) {
@@ -1135,7 +1136,7 @@ const LocationField = ({
                 </View>
               )}
 
-              {capturedLocation.accuracy > 0 && (
+              {/* {capturedLocation.accuracy > 0 && (
                 <View style={styles.accuracyContainer}>
                   <Icon
                     name="gps-fixed"
@@ -1146,9 +1147,9 @@ const LocationField = ({
                     Accuracy: ±{capturedLocation.accuracy.toFixed(0)}m
                   </Text>
                 </View>
-              )}
+              )} */}
 
-              {capturedLocation.isManualEntry && (
+              {/* {capturedLocation.isManualEntry && (
                 <View style={styles.manualEntryIndicator}>
                   <Icon name="edit" size={14} color={COLORS.warning} />
                   <Text
@@ -1157,11 +1158,11 @@ const LocationField = ({
                     Manually entered
                   </Text>
                 </View>
-              )}
+              )} */}
 
-              <Text style={styles.timestampText}>
+              {/* <Text style={styles.timestampText}>
                 {formatTimestamp(capturedLocation.timestamp)}
-              </Text>
+              </Text> */}
             </View>
           ) : (
             <Text

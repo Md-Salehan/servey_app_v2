@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
 
   formContainer: {
     paddingHorizontal: 20,
-    // paddingTop: 16,
+    paddingTop: 16,
   },
   emptyContainer: {
     alignItems: 'center',

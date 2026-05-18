@@ -343,7 +343,12 @@ const RecordEntryScreen = ({ database }) => {
       }
     });
 
-    setSubmissionError(prev => ({ ...prev, ...errors }));
+    setSubmissionError(prev => {
+      if (Object.values(submissionError).filter(error => error).length > 0)
+        hasErrors = true; // If there are existing errors, we want to keep them until the user fixes them
+      return { ...prev, ...errors };
+    });
+
     return !hasErrors;
   };
 
