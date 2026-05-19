@@ -14,7 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { useValidateLoginOTPMutation } from '../../features/auth/authApi';
+import { useValidateLoginOTPMutation } from '../../api';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
 import { setUser } from '../../features/auth/authSlice';

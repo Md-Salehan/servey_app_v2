@@ -23,7 +23,7 @@ import {
 } from '../../components';
 import styles from './PreviewScreen.styles';
 import { Header } from './component';
-import { useSurveyFormSubmitMutation } from '../../features/form/formsApi';
+import { useSurveyFormSubmitMutation } from '../../api';
 import { getLatLng } from './Functions';
 import { useDispatch, useSelector } from 'react-redux';
 import uploadService from '../../services/uploadService';

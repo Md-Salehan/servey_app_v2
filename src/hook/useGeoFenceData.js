@@ -1,7 +1,8 @@
 // hook/useGeoFenceData.js
 import { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
-import { useGetFenceDataMutation } from '../features/geoFence/geoFence.api';
+// import { useGetFenceDataMutation } from '../features/geoFence/geoFence.api';
+import { useGetFenceDataMutation } from '../api';
 import GeoFenceService from '../services/geoFenceService';
 import useInternetStatus from './useInternetStatus';
 

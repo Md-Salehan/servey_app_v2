@@ -1,0 +1,103 @@
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { API_BASE_URL } from '../constants/api';
+import { TokenService } from '../services';
+
+// Add mock data for testing
+// const testToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkZW1vMX4yMDI2MDMzMTAwMDAwMDAwMDAwMX5OIiwiaXNzIjoiU2ltYXBob3JlIiwiaWF0IjoxNzc0OTQ1MTc4LCJleHAiOjE3NzQ5NjMxNzh9.MtuD-GunIsL_JD9RaZCG_yVTXNhuj8HsMzCLKfunmDo'
+const baseQuery = fetchBaseQuery({
+  baseUrl: API_BASE_URL,
+  prepareHeaders: async headers => {
+    // ✅ FIX: Make this async and await the token
+    const token = await TokenService.getAccessToken();
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    headers.set('Content-Type', 'application/json');
+    return headers;
+  },
+});
+
+export const formsApi = createApi({
+  reducerPath: 'formsApi',
+  baseQuery,
+  tagTypes: ['Forms'],
+  endpoints: builder => ({
+    getForms: builder.mutation({
+      query: formData => {
+        console.log(
+          '🔵 API Request - URL:',
+          `${API_BASE_URL}/SUF00191/getAllAppUserFormInfo`,
+        );
+        console.log('🔵 API Request - Payload:', formData);
+        return {
+          url: '/SUF00191/getAllAppUserFormInfo',
+          method: 'POST',
+          body: formData,
+        };
+      },
+      providesTags: ['Forms'],
+      transformResponse: response => {
+        let data = response || {};
+        if (data?.appMsgList?.errorStatus === false) {
+          data.content.qryRsltSet = data.content?.qryRsltSet?.map(item => ({
+            id: item.formId,
+            title: item.formNm,
+            formId: item.formId,
+            formNm: item.formNm,
+            description:
+              "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s",
+            status: item.surFormGenFlg === 'Y' ? 'active' : 'inActive',
+            priority: '', // item.priority || 'medium' || 'low' || 'high', 
+            totalFields: 18,
+            estimatedTime: 15,
+            completionRate: 85,
+            deadline: Date.now(),
+            surFormGenFlg: item.surFormGenFlg,
+            createdAt: '2024-01-12T11:45:00Z',
+          }));
+        }
+        return data;
+      },
+    }),
+    getFormComponents: builder.mutation({
+      query: formData => {
+        console.log(
+          '🔵 Form Components API Request - URL:',
+          `${API_BASE_URL}/SUF00191/getAllFormComponents`,
+        );
+        console.log('🔵 Form Components API Request - Payload:', formData);
+
+        return {
+          url: '/SUF00191/getAllFormComponents',
+          method: 'POST',
+          body: formData,
+        };
+      },
+      transformResponse: response => {
+        console.log('🟢 Form Components API Response:', response);
+        let data = [];
+        if (response?.appMsgList?.errorStatus === false) {
+          data = response.content?.mst?.dtl01 || [];
+        }
+        return response;
+      },
+      transformErrorResponse: response => {
+        console.error('🔴 Form Components API Error:', response);
+        return response;
+      },
+    }),
+    surveyFormSubmit: builder.mutation({
+      query: formData => ({
+        url: '/SUF00191/surveyFormSubmit',
+        method: 'POST',
+        body: formData,
+      }),
+    }),
+  }),
+});
+
+export const { 
+  useGetFormsMutation,
+  useGetFormComponentsMutation,
+  useSurveyFormSubmitMutation,
+ } = formsApi;

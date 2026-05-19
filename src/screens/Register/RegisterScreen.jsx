@@ -10,7 +10,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { useRegisterMutation } from '../../features/auth/authApi';
+import { useRegisterMutation } from '../../api';
 import { styles } from './Register.styles';
 import { ROUTES } from '../../constants/routes';
 

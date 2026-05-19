@@ -30,7 +30,7 @@ import {
   TextInputField,
 } from '../../components';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useGetFormComponentsMutation } from '../../features/form/formsApi';
+import { useGetFormComponentsMutation } from '../../api';
 import useGeoFenceData from '../../hook/useGeoFenceData';
 
 const RecordEntryScreen = ({ database }) => {

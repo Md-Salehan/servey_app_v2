@@ -29,7 +29,7 @@ import { EmptyState } from './components/EmptyState/EmptyState';
 import { ErrorState } from './components/ErrorState/ErrorState';
 import InfoBar from '../../components/UI/InfoBar';
 
-import { useGetFormsMutation } from '../../features/form/formsApi';
+import { useGetFormsMutation } from '../../api';
 
 import { styles } from './Dashboard.styles';
 import Screen from '../../Layout/Screen';

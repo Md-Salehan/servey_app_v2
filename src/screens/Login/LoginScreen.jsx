@@ -17,7 +17,7 @@ import {
   useGetOtpConfigQuery,
   useGetOtpLogNoMutation,
   useGenerateLoginOTPMutation,
-} from '../../features/auth/authApi';
+} from '../../api';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
 
