@@ -248,7 +248,6 @@ const LocationField = ({
 
   // Validation effect for required fields
   useEffect(() => {
-    console.log('xxww:', {isPressed, isSave, });
     
     if (isPressed) {
       if (required && !capturedLocation) {

@@ -6,7 +6,6 @@ import RecordEntryScreen from '../screens/RecordEntry/RecordEntryScreen';
 import PreviewEntryScreen from '../screens/PreviewEntry/PreviewEntry';
 import DataInspectorScreen from '../screens/DataInspector/DataInspectorScreen';
 import PendingSubmissionsScreen from '../screens/PendingSubmissions/PendingSubmissionsScreen';
-import SelectLocationScreen from '../screens/SelectLocation/SelectLocationScreen';
 import LocationSelectionScreen from '../screens/LocationSelection/LocationSelectionScreen';
 import { ROUTES } from '../constants/routes';
 import SubmissionService from '../services/submissionService';
@@ -85,11 +84,6 @@ const MainNavigator = () => {
         name={ROUTES.PENDING_SUBMISSIONS} // Add this route
         component={PendingSubmissionsScreen}
         options={{ title: 'Pending Submissions' }}
-      />
-      <Stack.Screen
-        name={ROUTES.SELECT_LOCATION} // Add this route
-        component={SelectLocationScreen}
-        options={{ title: 'Select Location' }}
       />
       <Stack.Screen
         name={ROUTES.LOCATION_SELECTION} // Add this route

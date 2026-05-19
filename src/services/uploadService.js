@@ -13,6 +13,12 @@ class UploadService {
     MOB_REG_NO: TokenService?.getUserData()?.mobRegNo || '',
   };
 
+  async _getMobRegNo() {
+    const userData = await TokenService.getUserData();
+    console.log("xxw userData:", userData);
+    return userData?.mobRegno || '';
+  }
+
   static TABLE_NAMES = {
     SURVEY_FORM: 'FAT_M_SURVEY_FORM',
     SURVEY_FORM_DTL: 'FAT_M_SURVEY_FORM_DTL',
@@ -59,8 +65,9 @@ class UploadService {
   }
 
   // Generic form data creator for any file type
-  _createUploadFormData(file) {
+  async _createUploadFormData(file) {
     const formData = new FormData();
+    const mobRegNo = await this._getMobRegNo();
 
     // Determine file type and name
     const fileType = file.type || this._getMimeType(file);
@@ -75,11 +82,14 @@ class UploadService {
       name: finalFileName,
     });
 
+    console.log("xxw:", mobRegNo);
+    
+
     formData.append('refApiId', UploadService.API_IDS.FORM_SUBMIT);
     formData.append('fileCatCd', UploadService.API_IDS.FILE_CAT_CD);
     formData.append('apiId', UploadService.API_IDS.UPLOAD);
     formData.append('appId', UploadService.API_IDS.APP_ID);
-    formData.append('mobRegNo', UploadService.API_IDS.MOB_REG_NO);
+    formData.append('mobRegNo', mobRegNo);
 
     return formData;
   }
@@ -129,7 +139,7 @@ class UploadService {
   async uploadFile(file, formId, fcId) {
     try {
       const headers = await this._getHeaders('multipart/form-data');
-      const formData = this._createUploadFormData(file);
+      const formData = await this._createUploadFormData(file);
 
       const response = await fetch(`${API_BASE_URL}/SUF00134/fileUpload`, {
         method: 'POST',

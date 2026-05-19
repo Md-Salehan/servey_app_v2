@@ -351,7 +351,7 @@ const ImageUploadField = ({
       );
 
       // Use uploadAndConfirmFile from uploadService
-      const result = await uploadService.uploadAndConfirmFile(
+      const result = await uploadService.uploadFile(
         image, 
         formId, 
         fcId
@@ -660,7 +660,7 @@ const ImageUploadField = ({
             </TouchableOpacity>
             
             {/* Show retry all button if there are failed uploads */}
-            {images.some(img => img.status === STATUS.FAILED) && (
+            {/* {images.some(img => img.status === STATUS.FAILED) && (
               <TouchableOpacity
                 style={[styles.actionButton, styles.retryAllButton]}
                 onPress={retryAllFailedUploads}
@@ -669,7 +669,7 @@ const ImageUploadField = ({
                 <Icon name="refresh" size={20} color={COLORS.error} />
                 <Text style={styles.retryAllButtonText}>Retry Failed</Text>
               </TouchableOpacity>
-            )}
+            )} */}
           </>
         )}
       </View>
@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
     marginTop: 8,
   },
   actionButton: {
@@ -917,6 +917,7 @@ const styles = StyleSheet.create({
   uploadButton: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
+    paddingHorizontal: 16,
   },
   uploadButtonText: {
     color: COLORS.text.inverse,

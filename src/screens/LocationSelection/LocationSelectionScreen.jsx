@@ -155,7 +155,6 @@ const LocationSelectionScreen = () => {
 
   // Auto-fetch towns only when block changes AND towns list is empty
   useEffect(() => {
-    console.log('fetchTowns-', lists.towns.length, selections.csLocType);
 
     if (
       selections.state &&
@@ -214,14 +213,7 @@ const LocationSelectionScreen = () => {
 
   // Auto-fetch Wards only when town changes AND wards list is empty
   useEffect(() => {
-    console.log(
-      'fetchWards-',
-      selections.state,
-      selections.district,
-      selections.town,
-      lists.wards.length,
-      loading.wards,
-    );
+
     if (
       selections.state &&
       selections.district &&
@@ -286,7 +278,6 @@ const LocationSelectionScreen = () => {
   ];
 
   const handleLocationTypeChange = value => {
-    console.log('Location type changed to:', value);
     if (!value) {
       dispatch(setCsLocType(''));
     } else {
@@ -355,7 +346,6 @@ const LocationSelectionScreen = () => {
       dispatch(setTown(selectedTown));
     }
   };
-  console.log('towns--', lists.towns, selections.csLocType, selections.town);
 
   // Handle village selection
   const handleVillageChange = value => {
