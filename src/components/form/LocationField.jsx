@@ -10,7 +10,6 @@ import {
   Linking,
   PermissionsAndroid,
   StyleSheet,
-  Dimensions,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Geolocation from '@react-native-community/geolocation';
@@ -18,24 +17,10 @@ import axios from 'axios';
 import { COLORS } from '../../constants/colors';
 import commonStyles from './FormComponents.styles';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { localeData, max } from 'moment';
+import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
-// Conditionally import MapView only if available
-let MapView, UrlTile, Marker, Circle;
-try {
-  // Only import on native platforms
-  if (Platform.OS !== 'web') {
-    const Maps = require('react-native-maps');
-    MapView = Maps.default;
-    UrlTile = Maps.UrlTile;
-    Marker = Maps.Marker;
-    Circle = Maps.Circle;
-  }
-} catch (error) {
-  console.warn('react-native-maps not available:', error);
-}
 
-const { width: screenWidth } = Dimensions.get('window');
+
 
 // Permission checking helper for Android
 const requestLocationPermission = async () => {
@@ -218,6 +203,7 @@ const LocationField = ({
   onGeoFenceValidation = null,
   validateLocation = null,
 }) => {
+  const [mapType, setMapType] = useState('standard');
   const [capturedLocation, setCapturedLocation] = useState(null);
   const [originalCapturedLocation, setOriginalCapturedLocation] =
     useState(null);
@@ -246,9 +232,14 @@ const LocationField = ({
     onError && onError(externalErrorMessage || errorMessage || '');
   };
 
+  const toggleMapType = () => {
+    setMapType(prevType =>
+      prevType === 'standard' ? 'satellite' : 'standard',
+    );
+  };
+
   // Validation effect for required fields
   useEffect(() => {
-    
     if (isPressed) {
       if (required && !capturedLocation) {
         handleFieldValidation('This field is required', `${label} is required`);
@@ -662,12 +653,6 @@ const LocationField = ({
       setOriginalCapturedLocation(locationData);
       setShowActionButtons(true);
 
-      // Only update map if MapView is available xx
-      // if (MapView) {
-      //   updateMapLocation(coords.latitude, coords.longitude);
-      // }
-
-      // onChange(JSON.stringify(locationData));
       onCaptureComplete?.(locationData, isAccurate);
     },
     [onChange, showAddress, onCaptureComplete, updateMapLocation],
@@ -880,7 +865,7 @@ const LocationField = ({
   };
 
   // Render map component safely
-  const renderMap = () => {
+  const renderMap = useCallback(() => {
     if (!MapView) {
       return (
         <View style={styles.mapPlaceholder}>
@@ -906,70 +891,75 @@ const LocationField = ({
     if (mapRegion) {
       try {
         return (
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            region={mapRegion}
-            zoomEnabled={true}
-            scrollEnabled={true}
-            showsUserLocation={false} // Don't show default user location, we'll use custom marker
-            showsMyLocationButton={false} // Show button to center on user location
-            followsUserLocation={false} // Center map on user location when it changes
-            onError={e => {
-              console.warn('MapView error:', e);
-              setMapError(true);
-            }}
-          >
-            <UrlTile
-              urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maximumZ={19}
-            />
+          <>
+            <MapView
+              ref={mapRef}
+              style={styles.map}
+              provider={PROVIDER_GOOGLE}
+              mapType={mapType}
+              region={mapRegion}
+              zoomEnabled={true}
+              scrollEnabled={true}
+              showsUserLocation={false} // Don't show default user location, we'll use custom marker
+              showsMyLocationButton={false} // Show button to center on user location
+              followsUserLocation={false} // Center map on user location when it changes
+              onError={e => {
+                console.warn('MapView error:', e);
+                setMapError(true);
+              }}
+            >
+              {/* 15m Radius Circle centered on User's Current Location */}
+              {currentUserLocation && (
+                <Circle
+                  center={{
+                    latitude: currentUserLocation.latitude,
+                    longitude: currentUserLocation.longitude,
+                  }}
+                  radius={15}
+                  strokeColor={`${COLORS.error || '#f44336'}80`}
+                  fillColor={`${COLORS.error || '#f44336'}20`}
+                  strokeWidth={2}
+                />
+              )}
 
-            {/* 15m Radius Circle centered on User's Current Location */}
-            {currentUserLocation && (
-              <Circle
-                center={{
-                  latitude: currentUserLocation.latitude,
-                  longitude: currentUserLocation.longitude,
-                }}
-                radius={15}
-                strokeColor={`${COLORS.error || '#f44336'}80`}
-                fillColor={`${COLORS.error || '#f44336'}20`}
-                strokeWidth={2}
-              />
-            )}
+              {/* User's Current Location Marker (Blue) */}
+              {currentUserLocation && (
+                <Marker
+                  coordinate={{
+                    latitude: currentUserLocation.latitude,
+                    longitude: currentUserLocation.longitude,
+                  }}
+                  title="Your Current Location"
+                  pinColor="#2196F3"
+                >
+                  <View style={styles.currentLocationMarker}>
+                    <View style={styles.currentLocationDot} />
+                  </View>
+                </Marker>
+              )}
 
-            {/* User's Current Location Marker (Blue) */}
-            {currentUserLocation && (
-              <Marker
-                coordinate={{
-                  latitude: currentUserLocation.latitude,
-                  longitude: currentUserLocation.longitude,
-                }}
-                title="Your Current Location"
-                pinColor="#2196F3"
-              >
-                <View style={styles.currentLocationMarker}>
-                  <View style={styles.currentLocationDot} />
-                </View>
-              </Marker>
-            )}
-
-            {/* Captured Location Marker (Red/Draggable) */}
-            {capturedLocation && (
-              <Marker
-                coordinate={{
-                  latitude: capturedLocation.latitude,
-                  longitude: capturedLocation.longitude,
-                }}
-                title="Captured Location"
-                description={`Accuracy: ±${capturedLocation.accuracy.toFixed(
-                  0,
-                )}m`}
-                pinColor="#f44336"
-              />
-            )}
-          </MapView>
+              {/* Captured Location Marker (Red/Draggable) */}
+              {capturedLocation && (
+                <Marker
+                  coordinate={{
+                    latitude: capturedLocation.latitude,
+                    longitude: capturedLocation.longitude,
+                  }}
+                  title="Captured Location"
+                  description={`Accuracy: ±${capturedLocation.accuracy.toFixed(
+                    0,
+                  )}m`}
+                  pinColor="#f44336"
+                />
+              )}
+            </MapView>
+            <TouchableOpacity
+              style={styles.buttonContainer}
+              onPress={toggleMapType}
+            >
+              <Icon name="map" size={18} color={COLORS.text} />
+            </TouchableOpacity>
+          </>
         );
       } catch (err) {
         console.warn('Error rendering MapView:', err);
@@ -1002,7 +992,15 @@ const LocationField = ({
         )}
       </View>
     );
-  };
+  }, [
+    mapRegion,
+    mapType,
+    currentUserLocation,
+    capturedLocation,
+    mapError,
+    isGettingCurrentLocation,
+
+  ]);
 
   // Render edit coordinates with directional controls
   const renderEditCoordinates = () => {
@@ -1134,34 +1132,6 @@ const LocationField = ({
                   </Text>
                 </View>
               )}
-
-              {/* {capturedLocation.accuracy > 0 && (
-                <View style={styles.accuracyContainer}>
-                  <Icon
-                    name="gps-fixed"
-                    size={14}
-                    color={COLORS.text.secondary}
-                  />
-                  <Text style={styles.accuracyText}>
-                    Accuracy: ±{capturedLocation.accuracy.toFixed(0)}m
-                  </Text>
-                </View>
-              )} */}
-
-              {/* {capturedLocation.isManualEntry && (
-                <View style={styles.manualEntryIndicator}>
-                  <Icon name="edit" size={14} color={COLORS.warning} />
-                  <Text
-                    style={[styles.manualEntryText, { color: COLORS.warning }]}
-                  >
-                    Manually entered
-                  </Text>
-                </View>
-              )} */}
-
-              {/* <Text style={styles.timestampText}>
-                {formatTimestamp(capturedLocation.timestamp)}
-              </Text> */}
             </View>
           ) : (
             <Text
@@ -1250,84 +1220,6 @@ const LocationField = ({
           />
         </View>
       )}
-
-      {/* Info Section */}
-      {/* {capturedLocation && (
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Location Info</Text>
-          
-          {capturedLocation.accuracy > 0 && (
-            <View style={styles.infoRow}>
-              <Icon name="gps-fixed" size={16} color={COLORS.text.secondary} />
-              <Text style={styles.infoText}>
-                Accuracy: ±{capturedLocation.accuracy.toFixed(0)}m
-                {(() => {
-                  const status = getAccuracyStatus(capturedLocation.accuracy);
-                  return status ? (
-                    <Text style={[styles.accuracyBadge, { backgroundColor: status.color + '20', color: status.color }]}>
-                      {' '}{status.text}
-                    </Text>
-                  ) : null;
-                })()}
-              </Text>
-            </View>
-          )}
-
-          {currentUserLocation && (
-            <View style={styles.infoRow}>
-              <Icon name="circle" size={16} color={COLORS.error} />
-              <Text style={styles.infoText}>
-                Must be within 15m of your current location
-              </Text>
-            </View>
-          )}
-
-          {currentUserLocation && capturedLocation && (() => {
-            const distance = calculateDistanceInMeters(
-              currentUserLocation.latitude,
-              currentUserLocation.longitude,
-              capturedLocation.latitude,
-              capturedLocation.longitude
-            );
-            return (
-              <View style={styles.infoRow}>
-                <Icon name="straighten" size={16} color={distance <= 15 ? COLORS.success : COLORS.error} />
-                <Text style={[styles.infoText, { color: distance <= 15 ? COLORS.success : COLORS.error }]}>
-                  Distance from you: {distance.toFixed(1)}m {distance > 15 ? '(Too far)' : '(OK)'}
-                </Text>
-              </View>
-            );
-          })()}
-
-          {capturedLocation.altitude && (
-            <View style={styles.infoRow}>
-              <Icon name="terrain" size={16} color={COLORS.text.secondary} />
-              <Text style={styles.infoText}>Altitude: {capturedLocation.altitude.toFixed(1)}m</Text>
-            </View>
-          )}
-
-          <View style={styles.infoRow}>
-            <Icon name="schedule" size={16} color={COLORS.text.secondary} />
-            <Text style={styles.infoText}>Captured: {formatTimestamp(capturedLocation.timestamp)}</Text>
-          </View>
-
-          {capturedLocation.isManualEntry && (
-            <View style={styles.infoRow}>
-              <Icon name="edit" size={16} color={COLORS.warning} />
-              <Text style={[styles.infoText, { color: COLORS.warning }]}>Manually entered location</Text>
-            </View>
-          )}
-
-          {geoFenceValidation && !geoFenceValidation.isValid && (
-            <View style={styles.infoRow}>
-              <Icon name="warning" size={16} color={COLORS.error} />
-              <Text style={[styles.infoText, { color: COLORS.error }]}>
-                {geoFenceValidation.error}
-              </Text>
-            </View>
-          )}
-        </View>
-      )} */}
 
       {/* Action Buttons - Show Capture button initially, then Save/Retry/Cancel after capture */}
       <View style={styles.actionButtonsContainer}>
@@ -1518,6 +1410,15 @@ const styles = StyleSheet.create({
   map: {
     width: '100%',
     height: '100%',
+  },
+  buttonContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: COLORS.surface || '#fff',
+    padding: 6,
+    borderRadius: 6,
+    alignSelf: 'center',
   },
   mapPlaceholder: {
     flex: 1,

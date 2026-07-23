@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import OfflineBanner from '../components/UI/OfflineBanner';
 import React from 'react';
-import useInternetStatus from '../hook/useInternetStatus';
+import { useInternetStatus } from '../hook';
 
 const Screen = ({ children }) => {
   const { isOnline, isChecking } = useInternetStatus();

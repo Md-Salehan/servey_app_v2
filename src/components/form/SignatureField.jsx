@@ -42,7 +42,7 @@ import {
 
 // Import upload service for consistent handling
 import uploadService from '../../services/uploadService';
-import useInternetStatus from '../../hook/useInternetStatus';
+import { useInternetStatus } from '../../hook';
 
 const SignatureField = ({
   formId,
@@ -568,9 +568,11 @@ const SignatureField = ({
   // Validate on mount and when value changes
   useEffect(() => {
     if (isTapped) {
-      if (required && !isSigned() && !fieldValidationError && !isPreview) {
-        handleFieldValidation('Signature is required');
-      } else if (isSigned() && fieldValidationError) {
+      if (required && !isSigned() && !isPreview) {
+        handleFieldValidation('Signature is required', `${label} is required.`);
+      } else if (!isSigned()) {
+        handleFieldValidation('', `Please click 'Capture' to add signature for ${label}.`);
+      }else {
         handleFieldValidation('');
       }
     }
@@ -636,6 +638,7 @@ const SignatureField = ({
           </Text>
           {required && <Text style={commonStyles.requiredStar}> *</Text>}
         </View>
+
 
         <View
           style={[

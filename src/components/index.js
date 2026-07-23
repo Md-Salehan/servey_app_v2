@@ -12,6 +12,7 @@ export { default as ImageUploadField } from './form/ImageUploadField';
 export { default as CheckboxField } from './form/CheckboxField';
 export { default as SignatureField } from './form/SignatureField';
 export { default as LOVField } from './form/LOVField';
+export { default as LOVMaster } from './form/LOVMaster';
 
 export { default as ErrorState } from './ErrorState/ErrorState';
 

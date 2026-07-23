@@ -12,6 +12,7 @@ import PendingSubmission from './models/PendingSubmission';
 import PendingFile from './models/PendingFile';
 import SubmissionAttempt from './models/SubmissionAttempt';
 import GeoFence from './models/GeoFence';
+import LovCache from './models/LovCache'; // Import the LOV cache model
 
 // Create adapter
 const adapter = new SQLiteAdapter({
@@ -35,6 +36,7 @@ export const database = new Database({
     PendingFile,
     SubmissionAttempt,
     GeoFence,
+    LovCache, // Add the LOV cache model
   ],
   actionsEnabled: true, // Enable actions for better performance
 });

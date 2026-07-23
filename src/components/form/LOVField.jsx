@@ -22,6 +22,7 @@ import {
   Animated,
   StatusBar,
   Easing,
+  ScrollView,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -38,8 +39,8 @@ const LOVField = ({
   fcId,
   label,
   placeholder = 'Select value',
-  data = [],
-  columns = [],
+  data = [], // eg: [{ id: 1, name: 'Option 1' }, { id: 2, name: 'Option 2' }]
+  columns = [], // eg: ['id', 'name']
   value,
   onChange,
   multiple = false,
@@ -75,11 +76,48 @@ const LOVField = ({
   const [selectedItems, setSelectedItems] = useState([]);
   const [fieldValidationError, setFieldValidationError] = useState('');
   const [isModelOpened, setIsModelOpened] = useState(false);
-
+  console.log("logg LOVField:", {
+    fcId,
+  label,
+  placeholder : 'Select value',
+  data , // eg: [{ id: 1, name: 'Option 1' }, { id: 2, name: 'Option 2' }]
+  columns , // eg: ['id', 'name']
+  value,
+  onChange,
+  multiple ,
+  required ,
+  disabled ,
+  searchable ,
+  searchPlaceholder,
+  maxSelections,
+  loading ,
+  errorText ,
+  emptyMessage ,
+  searchKeys ,
+  displayKey ,
+  primaryKey ,
+  showSelectAll,
+  showClearAll ,
+  modalTitle,
+  renderRowItem,
+  onSearch,
+  onLoadMore,
+  hasMore ,
+  onError,
+  isPreview ,
+  showSelectionCount ,
+  animationType,
+  closeOnSelect ,
+  showFooter ,
+  dependencyValues ,
+  });
+  
   // Animation refs
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const modalScaleAnim = useRef(new Animated.Value(0)).current;
   const modalOpacityAnim = useRef(new Animated.Value(0)).current;
+
+  // Refs for debouncing and lifecycle management
   const searchInputRef = useRef(null);
   const debounceTimeoutRef = useRef(null);
   const isMountedRef = useRef(true);
@@ -87,23 +125,23 @@ const LOVField = ({
 
   // clear selected items if dependency values change
   useEffect(() => {
-    if (dependencyValues && dependencyValues.length > 0 && isDependencySettled.current) {
-      
+    console.log('Dependency values changed: xxex',fcId, dependencyValues);
+    if (
+      dependencyValues &&
+      isDependencySettled.current
+    ) {
       setSelectedItems([]);
       onChange && onChange(multiple ? [] : '');
-      console.log('xxt gfgfg', label);
-
       setSearchText('');
     }
     isDependencySettled.current = true;
-  }, dependencyValues);
+  }, [JSON.stringify(dependencyValues)]);
 
   // Cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      console.log('gggg');
 
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
@@ -138,6 +176,11 @@ const LOVField = ({
     setSearchText('');
   }, [data]);
 
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
   // Animation for dropdown arrow
   useEffect(() => {
     Animated.timing(rotateAnim, {
@@ -164,18 +207,14 @@ const LOVField = ({
     }
   }, [value, required, isModelOpened, multiple, label]);
 
+  // Handle field validation
   const handleFieldValidation = (errorMessage, externalErrorMessage) => {
     if (!isMountedRef.current) return;
     setFieldValidationError(errorMessage || '');
     onError && onError(externalErrorMessage || errorMessage || '');
   };
 
-  const rotate = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-
-  // FIXED: Improved search filtering with proper null/undefined handling
+  // Filter data based on search text
   const filteredData = useMemo(() => {
     // If no search text or search is disabled, return all data
     if (!searchText.trim() || !searchable) {
@@ -211,7 +250,36 @@ const LOVField = ({
     return filtered;
   }, [localData, searchText, searchable, searchKeys, columns]);
 
-  console.log(filteredData, 'filteredData');
+  // helper function to calculate column widths based on content
+  const calculateColumnWidths = useCallback(() => {
+    if (!columns.length) return {};
+
+    // Calculate max width for each column
+    const widths = {};
+    columns.forEach((col, index) => {
+      // Start with header width
+      let maxWidth = col.title.length * 10; // Approximate width per character
+
+      // Check all rows for this column
+      filteredData.forEach(item => {
+        if (!item) return;
+        const cellValue = typeof item === 'object' ? item[col.key] : item;
+        const cellText = cellValue != null ? String(cellValue) : '-';
+        const textWidth = cellText.length * 10; // Approximate width per character
+        maxWidth = Math.max(maxWidth, textWidth);
+      });
+
+      maxWidth = Math.min(maxWidth, SCREEN_WIDTH*0.5); // Limit to half screen width
+
+      // Add padding (24px for horizontal padding + some extra)
+      widths[col.key] = maxWidth + 32;
+    });
+
+    return widths;
+  }, [columns, filteredData]);
+
+  // Use the calculated widths
+  const columnWidths = calculateColumnWidths();
 
   // Check if all items are selected
   const isAllSelected = useMemo(() => {
@@ -251,7 +319,7 @@ const LOVField = ({
     isAllSelected,
   ]);
 
-  // FIXED: Get display text for trigger button - Properly handle missing items
+  // Get display text for the field
   const getDisplayText = useCallback(() => {
     if (!value || (multiple && value.length === 0)) {
       return placeholder;
@@ -261,7 +329,7 @@ const LOVField = ({
       if (value.length === 0) return placeholder;
       if (value.length > 2) {
         return `${value.length} selected`;
-      }
+      }      
 
       const selectedLabels = value.map(selected => {
         const item = localData.find(d => {
@@ -314,9 +382,12 @@ const LOVField = ({
         setSelectedItems(newSelectedItems);
       } else {
         setSelectedItems([itemVal]);
+        setTimeout(() => {
+          handleDone([itemVal]); // Auto-close modal on single select
+        }, 100);
       }
     },
-    [multiple, selectedItems, maxSelections, disabled, primaryKey],
+    [multiple, selectedItems, maxSelections, disabled, primaryKey, handleDone],
   );
 
   // Handle select all
@@ -369,23 +440,31 @@ const LOVField = ({
     if (!multiple) closeModal();
   }, [disabled, multiple, onChange]);
 
-  const handleDone = useCallback(() => {
-    if (required && selectedItems.length === 0) {
-      handleFieldValidation('This field is required', `${label} is required.`);
-    } else {
-      handleFieldValidation('');
-    }
+  // Handle done action
+  const handleDone = useCallback(
+    (selectedValues) => {
+      if (required && selectedItems.length === 0) {
+        handleFieldValidation(
+          'This field is required',
+          `${label} is required.`,
+        );
+      } else {
+        handleFieldValidation('');
+      }
 
-    if (multiple) {
-      onChange(selectedItems);
-    } else {
-      onChange(selectedItems[0] || '');
-    }
+      if (multiple) {
+        onChange(selectedValues || selectedItems);
+      } else {
+        selectedValues
+          ? onChange(selectedValues[0] || '')
+          : onChange(selectedItems[0] || '');
+      }
 
-    closeModal();
-  }, [required, selectedItems, onChange, closeModal, label]);
+      closeModal();
+    },
+    [required, selectedItems, onChange, closeModal, label],
+  );
 
-  // FIXED: Enhanced search with debounce - Properly handle search clearing
   const handleSearchChange = useCallback(
     text => {
       setSearchText(text);
@@ -405,7 +484,7 @@ const LOVField = ({
     [onSearch],
   );
 
-  // FIXED: Clear search function
+  // Clear search function
   const handleClearSearch = useCallback(() => {
     setSearchText('');
     // If there's an external search handler, call it with empty string
@@ -433,7 +512,7 @@ const LOVField = ({
 
     setModalVisible(true);
     setIsModelOpened(true);
-    Keyboard.dismiss();
+    Keyboard.dismiss(); // Dismiss keyboard when opening modal
 
     // Reset animations
     modalScaleAnim.setValue(0);
@@ -453,37 +532,17 @@ const LOVField = ({
         useNativeDriver: true,
       }),
     ]).start();
-
-    // Auto-focus search input after modal opens
-    setTimeout(() => {
-      if (searchInputRef.current && isMountedRef.current) {
-        searchInputRef.current.focus();
-      }
-    }, 300);
   }, [disabled, isPreview, modalScaleAnim, modalOpacityAnim]);
 
   // Enhanced modal close with animations
   const closeModal = useCallback(() => {
     if (!isMountedRef.current) return;
 
-    Animated.parallel([
-      Animated.timing(modalScaleAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(modalOpacityAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      if (isMountedRef.current) {
-        setSearchText('');
-        setModalVisible(false);
-        Keyboard.dismiss();
-      }
-    });
+    if (isMountedRef.current) {
+      setSearchText('');
+      setModalVisible(false);
+      Keyboard.dismiss();
+    }
   }, [modalScaleAnim, modalOpacityAnim]);
 
   // FIXED: Render column headers with proper keys
@@ -497,6 +556,7 @@ const LOVField = ({
                 styles.checkbox,
                 isAllSelected && styles.checkboxChecked,
                 isSelectAllDisabled && styles.checkboxDisabled,
+                { width: 24 },
               ]}
               onPress={handleSelectAll}
               disabled={isSelectAllDisabled}
@@ -513,7 +573,7 @@ const LOVField = ({
             key={`header-${column.key}`}
             style={[
               styles.headerCell,
-              column.width && { width: column.width },
+              { width: column?.width || columnWidths[column?.key] || 100 },
               index === columns.length - 1 && styles.lastHeaderCell,
             ]}
           >
@@ -527,7 +587,7 @@ const LOVField = ({
   }, [columns, multiple, isAllSelected, isSelectAllDisabled, handleSelectAll]);
 
   // FIXED: Default row renderer with stable keys and proper null checking
-  const defaultRenderRow = useCallback(
+  const renderRow = useCallback(
     ({ item, index }) => {
       if (!item) return null;
 
@@ -574,7 +634,7 @@ const LOVField = ({
                 key={`${stableKey}-${column.key}`}
                 style={[
                   styles.cell,
-                  column.width && { width: column.width },
+                  { width: column?.width || columnWidths[column?.key] || 100 },
                   colIndex === columns.length - 1 && styles.lastCell,
                 ]}
               >
@@ -616,7 +676,7 @@ const LOVField = ({
 
         <TouchableOpacity
           style={styles.doneButton}
-          onPress={handleDone}
+          onPress={()=>handleDone(selectedItems)}
           disabled={disabled}
           activeOpacity={0.6}
         >
@@ -874,46 +934,42 @@ const LOVField = ({
                     </View>
                   )}
 
-                  {/* {renderFooter()} */}
                   <View style={styles.tableContainer}>
-                    {filteredData.length > 0 && renderColumnHeaders()}
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={true}
+                    >
+                      <View style={{ minWidth: SCREEN_WIDTH }}>
+                        {filteredData.length > 0 && renderColumnHeaders()}
 
-                    <FlatList
-                      data={filteredData}
-                      keyExtractor={getItemKey}
-                      renderItem={defaultRenderRow}
-                      // ListHeaderComponent={
-                      //   filteredData.length > 0 ? renderColumnHeaders : null
-                      // }
-                      ListEmptyComponent={
-                        loading ? renderLoadingState : renderEmptyState
-                      }
-                      // ListFooterComponent={renderFooter}
-                      // stickyHeaderIndices={filteredData.length > 0 ? [0] : []}
-                      onEndReached={handleLoadMore}
-                      onEndReachedThreshold={0.3}
-                      showsVerticalScrollIndicator={true}
-                      initialNumToRender={20}
-                      maxToRenderPerBatch={15}
-                      windowSize={21}
-                      contentContainerStyle={styles.listContent}
-                      keyboardShouldPersistTaps="handled"
-                      removeClippedSubviews={Platform.OS === 'android'}
-                      // FIXED: Add extra data to force re-render when selections change
-                      extraData={selectedItems}
-                    />
+                        <FlatList
+                          data={filteredData}
+                          keyExtractor={getItemKey}
+                          renderItem={renderRow}
+                          // ListHeaderComponent={
+                          //   filteredData.length > 0 ? renderColumnHeaders : null
+                          // }
+                          ListEmptyComponent={
+                            loading ? renderLoadingState : renderEmptyState
+                          }
+                          // ListFooterComponent={renderFooter}
+                          // stickyHeaderIndices={filteredData.length > 0 ? [0] : []}
+                          onEndReached={handleLoadMore}
+                          onEndReachedThreshold={0.3}
+                          showsVerticalScrollIndicator={true}
+                          initialNumToRender={20}
+                          maxToRenderPerBatch={15}
+                          windowSize={21}
+                          contentContainerStyle={styles.listContent}
+                          keyboardShouldPersistTaps="handled"
+                          removeClippedSubviews={Platform.OS === 'android'}
+                          // FIXED: Add extra data to force re-render when selections change
+                          extraData={selectedItems}
+                        />
+                      </View>
+                    </ScrollView>
                   </View>
-
-                  <View style={styles.modalFooter}>
-                    {renderFooter()}
-                    {/* <TouchableOpacity
-                        style={styles.doneButton}
-                        onPress={closeModal}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.doneButtonText}>Done</Text>
-                      </TouchableOpacity> */}
-                  </View>
+                  {multiple && renderFooter()}
                 </Animated.View>
               </TouchableWithoutFeedback>
             </View>
@@ -1206,7 +1262,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
     backgroundColor: COLORS.surface,
-    
   },
   rowSelected: {
     backgroundColor: COLORS.primaryLight + '08',
@@ -1238,9 +1293,7 @@ const styles = StyleSheet.create({
 
   // Checkbox styles
   checkboxColumn: {
-    width: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 50,
   },
   checkbox: {
     width: 22,

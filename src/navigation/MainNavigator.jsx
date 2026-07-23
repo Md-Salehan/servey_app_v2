@@ -7,6 +7,7 @@ import PreviewEntryScreen from '../screens/PreviewEntry/PreviewEntry';
 import DataInspectorScreen from '../screens/DataInspector/DataInspectorScreen';
 import PendingSubmissionsScreen from '../screens/PendingSubmissions/PendingSubmissionsScreen';
 import LocationSelectionScreen from '../screens/LocationSelection/LocationSelectionScreen';
+import DummyScreen from '../screens/Dummy/DummyScreen';
 import { ROUTES } from '../constants/routes';
 import SubmissionService from '../services/submissionService';
 import { database } from '../database';
@@ -55,6 +56,11 @@ const MainNavigator = () => {
         }),
       }}
     >
+      {/* <Stack.Screen
+        name={ROUTES.DUMMY_SCREEN} // Add this route
+        component={DummyScreen}
+        options={{ title: 'Dummy Screen', headerShown: false }}
+      /> */}
       <Stack.Screen
         name={ROUTES.DASHBOARD}
         component={DashboardScreen}
@@ -90,6 +96,7 @@ const MainNavigator = () => {
         component={LocationSelectionScreen}
         options={{ title: 'Select Location', headerShown: false }}
       />
+      
     </Stack.Navigator>
   );
 };

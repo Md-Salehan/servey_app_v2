@@ -17,11 +17,10 @@ import { withDatabase } from '@nozbe/watermelondb/DatabaseProvider';
 import { Q } from '@nozbe/watermelondb';
 
 import TokenService from '../../services/storage/tokenService';
-import { logout } from '../../features/auth/authSlice';
+import { logout } from '../../slice';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
 import { API_BASE_URL, APP_ID } from '../../constants/api';
-import useInternetStatus from '../../hook/useInternetStatus';
 
 import { FormCard } from './components/FormCard/FormCard';
 import { FormFilter } from './components/FormFilter/FormFilter';
@@ -34,6 +33,7 @@ import { useGetFormsMutation } from '../../api';
 import { styles } from './Dashboard.styles';
 import Screen from '../../Layout/Screen';
 import useGeoFenceData from '../../hook/useGeoFenceData';
+import { useInternetStatus } from '../../hook';
 
 const DashboardScreen = ({ database }) => {
   const navigation = useNavigation();
@@ -275,10 +275,6 @@ const DashboardScreen = ({ database }) => {
           onPress: async () => {
             await TokenService.clearTokens();
             dispatch(logout());
-            navigation.reset({
-              index: 0,
-              routes: [{ name: ROUTES.LOGIN }],
-            });
           },
         },
       ],
@@ -364,10 +360,6 @@ const DashboardScreen = ({ database }) => {
         onPress: async () => {
           await TokenService.clearTokens();
           dispatch(logout());
-          navigation.reset({
-            index: 0,
-            routes: [{ name: ROUTES.LOGIN }],
-          });
         },
       },
     ]);

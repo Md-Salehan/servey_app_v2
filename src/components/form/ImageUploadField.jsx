@@ -35,6 +35,7 @@ const ImageUploadField = ({
   errorText = '',
   onError = null,
   formId, // Add formId prop
+  sourceType = 'B', // Add sourceType prop with default value 'B'
 }) => {
   const [images, setImages] = useState(initialImages || []);
   const [uploading, setUploading] = useState(false);
@@ -45,8 +46,6 @@ const ImageUploadField = ({
     style: styles.validationText,
   });
   const scrollViewRef = useRef(null);
-
-  
 
   useEffect(() => {
     if (isPress) {
@@ -222,7 +221,9 @@ const ImageUploadField = ({
 
         const imageObj = {
           // id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          id: `${formId}-${fcId}-${images.length}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `${formId}-${fcId}-${images.length}-${Date.now()}-${Math.random()
+            .toString(36)
+            .substr(2, 9)}`,
           uri: asset.uri,
           type: asset.type || 'image/jpeg',
           fileNm: asset.fileName || `image_${Date.now()}.jpg`,
@@ -264,7 +265,7 @@ const ImageUploadField = ({
     if (images.length === 0 || isPreview || !formId) return;
 
     setUploading(true);
-    
+
     const imagesToUpload = images.filter(img => img.status !== STATUS.UPLOADED);
     if (imagesToUpload.length === 0) {
       setUploading(false);
@@ -286,7 +287,7 @@ const ImageUploadField = ({
               [fileData.id]: Math.round((current / total) * 100),
             }));
           }
-        }
+        },
       );
 
       // Update images with upload results
@@ -319,16 +320,19 @@ const ImageUploadField = ({
       // Show summary
       const successful = results.filter(r => r.success).length;
       const failed = results.filter(r => !r.success).length;
-      
+
       if (failed === 0) {
         Alert.alert('Success', `${successful} image(s) uploaded successfully`);
       } else if (successful > 0) {
         Alert.alert(
           'Partial Success',
-          `${successful} uploaded, ${failed} failed. You can retry failed images.`
+          `${successful} uploaded, ${failed} failed. You can retry failed images.`,
         );
       } else {
-        Alert.alert('Upload Failed', 'All images failed to upload. Please try again.');
+        Alert.alert(
+          'Upload Failed',
+          'All images failed to upload. Please try again.',
+        );
       }
     } catch (error) {
       console.error('Bulk upload error:', error);
@@ -339,23 +343,19 @@ const ImageUploadField = ({
   };
 
   // Upload single image (for retry)
-  const uploadSingleImage = async (image) => {
+  const uploadSingleImage = async image => {
     if (!formId) return;
 
     try {
       // Mark as uploading
       setImages(prev =>
         prev.map(img =>
-          img.id === image.id ? { ...img, uploading: true, error: null } : img
-        )
+          img.id === image.id ? { ...img, uploading: true, error: null } : img,
+        ),
       );
 
       // Use uploadAndConfirmFile from uploadService
-      const result = await uploadService.uploadFile(
-        image, 
-        formId, 
-        fcId
-      );
+      const result = await uploadService.uploadFile(image, formId, fcId);
 
       const updatedImages = images.map(img => {
         if (img.id === image.id) {
@@ -388,15 +388,15 @@ const ImageUploadField = ({
       }
     } catch (error) {
       console.error('Single upload error:', error);
-      
+
       setImages(prev =>
         prev.map(img =>
           img.id === image.id
             ? { ...img, uploading: false, error: 'Upload failed' }
-            : img
-        )
+            : img,
+        ),
       );
-      
+
       Alert.alert('Error', 'Failed to upload image');
     }
   };
@@ -429,19 +429,21 @@ const ImageUploadField = ({
 
   // Retry all failed uploads
   const retryAllFailedUploads = async () => {
-    const failedImages = images.filter(img => img.error || img.status === STATUS.FAILED);
-    
+    const failedImages = images.filter(
+      img => img.error || img.status === STATUS.FAILED,
+    );
+
     if (failedImages.length === 0) {
       Alert.alert('Info', 'No failed uploads to retry');
       return;
     }
 
     setUploading(true);
-    
+
     for (const image of failedImages) {
       await uploadSingleImage(image);
     }
-    
+
     setUploading(false);
   };
 
@@ -450,14 +452,13 @@ const ImageUploadField = ({
     Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
   };
 
-
   // Render image item
   const renderImageItem = image => {
     const progress = uploadProgress[image.id] || 0;
     const isUploading = image.uploading;
     const hasError = image.error;
     const isUploaded = image.status === STATUS.UPLOADED;
-    
+
     return (
       <View key={image.id} style={styles.imageItem}>
         <View style={styles.imageContainer}>
@@ -504,13 +505,13 @@ const ImageUploadField = ({
           <Text style={styles.fileSize}>
             {(image.fileSize / (1024 * 1024)).toFixed(2)} MB
           </Text>
-          
+
           {isUploaded && image.fileUri && (
             <Text style={styles.uploadedUri} numberOfLines={1}>
               ✓ Uploaded
             </Text>
           )}
-          
+
           {hasError && !isPreview && (
             <TouchableOpacity
               style={styles.retryButton}
@@ -545,7 +546,12 @@ const ImageUploadField = ({
           )}
         </View>
 
-        <View style={[styles.previewValueContainer, !hasImages && styles.previewEmptyValue]}>
+        <View
+          style={[
+            styles.previewValueContainer,
+            !hasImages && styles.previewEmptyValue,
+          ]}
+        >
           {hasImages ? (
             <ScrollView
               horizontal
@@ -559,16 +565,25 @@ const ImageUploadField = ({
                     style={styles.previewImage}
                     resizeMode="cover"
                   />
-                  {image.status === STATUS.UPLOADED && !image.error &&
+                  {image.status === STATUS.UPLOADED && !image.error && (
                     <View style={styles.previewSuccessBadge}>
-                    <Icon name="check-circle" size={16} color={COLORS.success} />
-                  </View>}
+                      <Icon
+                        name="check-circle"
+                        size={16}
+                        color={COLORS.success}
+                      />
+                    </View>
+                  )}
                 </View>
               ))}
             </ScrollView>
           ) : (
             <View style={styles.previewEmptyState}>
-              <Icon name="photo-library" size={32} color={COLORS.text.disabled} />
+              <Icon
+                name="photo-library"
+                size={32}
+                color={COLORS.text.disabled}
+              />
               <Text style={styles.previewPlaceholderText}>
                 No images uploaded
               </Text>
@@ -622,23 +637,26 @@ const ImageUploadField = ({
 
       {/* Action Buttons */}
       <View style={styles.actionsContainer}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleImageSelection('camera')}
-          disabled={images.length >= maxImages && !multiple}
-        >
-          <Icon name="photo-camera" size={20} color={COLORS.primary} />
-          <Text style={styles.actionButtonText}>Camera</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleImageSelection('gallery')}
-          disabled={images.length >= maxImages && !multiple}
-        >
-          <Icon name="photo-library" size={20} color={COLORS.primary} />
-          <Text style={styles.actionButtonText}>Gallery</Text>
-        </TouchableOpacity>
+        {(sourceType === 'B' || sourceType === 'C') && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleImageSelection('camera')}
+            disabled={images.length >= maxImages && !multiple}
+          >
+            <Icon name="photo-camera" size={20} color={COLORS.primary} />
+            <Text style={styles.actionButtonText}>Camera</Text>
+          </TouchableOpacity>
+        )}
+        {(sourceType === 'B' || sourceType === 'G') && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleImageSelection('gallery')}
+            disabled={images.length >= maxImages && !multiple}
+          >
+            <Icon name="photo-library" size={20} color={COLORS.primary} />
+            <Text style={styles.actionButtonText}>Gallery</Text>
+          </TouchableOpacity>
+        )}
 
         {images.length > 0 && (
           <>
@@ -651,14 +669,20 @@ const ImageUploadField = ({
                 <ActivityIndicator size="small" color={COLORS.text.inverse} />
               ) : (
                 <>
-                  <Icon name="cloud-upload" size={20} color={COLORS.text.inverse} />
-                  <Text style={[styles.actionButtonText, styles.uploadButtonText]}>
+                  <Icon
+                    name="cloud-upload"
+                    size={20}
+                    color={COLORS.text.inverse}
+                  />
+                  <Text
+                    style={[styles.actionButtonText, styles.uploadButtonText]}
+                  >
                     Upload All
                   </Text>
                 </>
               )}
             </TouchableOpacity>
-            
+
             {/* Show retry all button if there are failed uploads */}
             {/* {images.some(img => img.status === STATUS.FAILED) && (
               <TouchableOpacity
@@ -995,7 +1019,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
   },
-   retryAllButton: {
+  retryAllButton: {
     backgroundColor: COLORS.errorLight,
     borderColor: COLORS.error,
   },

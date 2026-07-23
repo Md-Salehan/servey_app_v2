@@ -361,7 +361,6 @@ class SubmissionService {
     // );
 
     const storePayload = submission.payload || {};
-    console.log('xxr storePayload before preparing:', storePayload);
 
     storePayload.mst[0].dtl01[0].dtl02 = dtl02;
 

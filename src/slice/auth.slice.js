@@ -1,6 +1,6 @@
-// src/features/auth/authSlice.js
+// src/slice/auth.slice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import TokenService from '../../services/storage/tokenService';
+import { TokenService } from '../services'; 
 
 // Async thunk for initializing auth state
 export const initializeAuth = createAsyncThunk(

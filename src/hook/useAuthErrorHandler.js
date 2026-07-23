@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { logout } from '../features/auth/authSlice';
+import { logout } from '../slice';
 import TokenService from '../services/storage/tokenService';
 
 export const useAuthErrorHandler = () => {

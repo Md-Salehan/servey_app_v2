@@ -370,7 +370,8 @@ const DataInspectorScreen = ({ navigation }) => {
       'pending_submissions',
       'pending_files',
       'submission_attempts',
-      'geo_fences'
+      'geo_fences',
+      'lov_cache',
     ];
     
     return collections;

@@ -2,6 +2,88 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL } from '../constants/api';
 import { TokenService } from '../services';
 
+const res = {
+  msg: 'Successful operation',
+  code: 0,
+  appMsgList: {
+    errorStatus: false,
+    list: [
+      {
+        errCd: 'CMAI000008',
+        errDesc: 'Record/Records Found',
+        errType: 'AI',
+      },
+    ],
+  },
+  content: {
+    mst: {
+      appId: 'AP000001',
+      appDesc: 'SCPL Generic Mobile APP',
+      formId: 'F0000025',
+      formNm: 'TESTING...',
+      dtl01: [
+        {
+          fcId: 'C0001',
+          compSlNo: 1,
+          compTyp: '07',
+          compTypTxt: 'Image',
+          colTyp: 'T',
+          colSize: '1000',
+          props: {
+            allowedTypes: '',
+            needLocation: 'Y',
+            sourceType: 'G',
+            multiple: 'Y',
+            label: 'Image Upload',
+            maxFileSize: '5',
+            maxImages: '5',
+            imageQuality: '',
+            required: 'N',
+          },
+        },
+        {
+          fcId: 'C0002',
+          compSlNo: 1,
+          compTyp: '07',
+          compTypTxt: 'Image',
+          colTyp: 'T',
+          colSize: '1000',
+          props: {
+            allowedTypes: '',
+            needLocation: 'Y',
+            sourceType: 'C',
+            multiple: 'N',
+            label: 'Image Upload 2',
+            maxFileSize: '5',
+            maxImages: '1',
+            imageQuality: '',
+            required: 'N',
+          },
+        },
+        {
+          fcId: 'C0003',
+          compSlNo: 2,
+          compTyp: '07',
+          compTypTxt: 'Image',
+          colTyp: 'T',
+          colSize: '1000',
+          props: {
+            allowedTypes: '',
+            needLocation: 'Y',
+            sourceType: 'B',
+            multiple: '5',
+            label: 'Image Upload 3',
+            maxFileSize: '5',
+            maxImages: '8',
+            imageQuality: '',
+            required: 'Y',
+          },
+        },
+      ],
+      dtl02: [],
+    },
+  },
+};
 
 // Add mock data for testing
 // const testToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkZW1vMX4yMDI2MDMzMTAwMDAwMDAwMDAwMX5OIiwiaXNzIjoiU2ltYXBob3JlIiwiaWF0IjoxNzc0OTQ1MTc4LCJleHAiOjE3NzQ5NjMxNzh9.MtuD-GunIsL_JD9RaZCG_yVTXNhuj8HsMzCLKfunmDo'
@@ -85,11 +167,11 @@ export const formsApi = createApi({
             compTyp: '11',
             compTypTxt: 'Lov',
             props: {
-              label: 'All Departments',
+              label: 'Module Group',
               query: 'string',
               disabled: 'N',
               required: 'Y',
-              parId: 'all_departments',
+              parId: 'mod_grp_id',
               isDependent: 'N',
               depParId: '',
               multiple: 'N',
@@ -98,7 +180,7 @@ export const formsApi = createApi({
               searchable: 'Y',
               searchPlaceholder: '',
               value: null,
-
+              
               payload: {
                 apiId: 'SUA00827',
                 mst: {
@@ -112,7 +194,6 @@ export const formsApi = createApi({
                   ],
                 },
               },
-              sampleDataType: "departmentData"
             },
           },
           {
@@ -121,50 +202,13 @@ export const formsApi = createApi({
             compTyp: '11',
             compTypTxt: 'Lov',
             props: {
-              label: 'All Employees',
+              label: 'Dependent Module Group',
               query: 'string',
               disabled: 'N',
               required: 'Y',
-              parId: 'all_employees',
+              parId: 'dependent_module_group',
               isDependent: 'Y',
-              depParId: 'all_departments',
-              multiple: 'N',
-              maxSelections: '1',
-              placeholder: '',
-              searchable: 'Y',
-              searchPlaceholder: 'Search Value',
-              value: null,
-
-              payload: {
-                apiId: 'SUA00827',
-                mst: {
-                  parId: 'mod_id',
-                  qryId: 'QRY/000017',
-                  qryParam: [
-                    {
-                      parId: 'mod_grp_id',
-                      parVal: 'MG001',
-                    },
-                  ],
-                },
-              },
-
-              sampleDataType: "allEmployees"
-            },
-          },
-          {
-            fcId: 'C0009',
-            compSlNo: 101,
-            compTyp: '11',
-            compTypTxt: 'Lov',
-            props: {
-              label: 'Select Project',
-              query: 'string',
-              disabled: 'N',
-              required: 'Y',
-              parId: 'all_projects',
-              isDependent: 'Y',
-              depParId: 'all_employees',
+              depParId: 'mod_grp_id',
               multiple: 'Y',
               maxSelections: '2',
               placeholder: '',
@@ -185,8 +229,6 @@ export const formsApi = createApi({
                   ],
                 },
               },
-
-              sampleDataType: "allProjects"
             },
           },
         ];

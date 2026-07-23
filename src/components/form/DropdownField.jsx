@@ -124,25 +124,6 @@ const DropdownField = ({
 
   const selectAllDisabled = useMemo(() => {
     let state = false;
-    console.log({
-      label,
-      multiple,
-      disabled,
-      isPreview,
-      parsedOptions,
-      value,
-      maxSelections,
-    });
-    console.log(
-      label,
-      !multiple,
-      disabled,
-      isPreview,
-      parsedOptions?.length === 0,
-      Array.isArray(value) && value.length === parsedOptions?.length,
-      maxSelections && Array.isArray(value) && value.length >= maxSelections,
-      maxSelections && maxSelections < parsedOptions?.length,
-    );
 
     if (
       !multiple ||

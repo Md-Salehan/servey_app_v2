@@ -16,7 +16,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
-import { logout, updateUserField } from '../../features/auth/authSlice';
+import { logout, updateUserField } from '../../slice';
 import TokenService from '../../services/storage/tokenService';
 import styles from './Profile.styles';
 
@@ -188,10 +188,7 @@ const ProfileScreen = ({ navigation }) => {
         style: 'destructive',
         onPress: async () => {
           await dispatch(logout());
-          navigation.reset({
-            index: 0,
-            routes: [{ name: ROUTES.LOGIN }],
-          });
+          
         },
       },
     ]);

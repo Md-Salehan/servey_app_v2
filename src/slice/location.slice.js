@@ -1,8 +1,8 @@
-// features/location/locationSlice.js
+// src/slice/location.slice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../../constants/api';
-import TokenService from '../../services/storage/tokenService';
+import { API_BASE_URL } from '../constants/api';
+import { TokenService } from '../services';
 
 const LOCATION_STORAGE_KEY = '@location_data';
 

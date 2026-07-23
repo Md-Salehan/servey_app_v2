@@ -4,9 +4,8 @@ import { authApi } from '../api';
 import { formsApi } from '../api';
 import { geoFenceApi } from '../api';
 
-import authReducer from '../features/auth/authSlice';
-import locationReducer from '../features/location/locationSlice';
-
+import { authReducer, locationReducer } from '../slice';
+import { lovDataApi } from '../api/lovData.api';
 
 export const store = configureStore({
   reducer: {
@@ -15,12 +14,13 @@ export const store = configureStore({
     [authApi.reducerPath]: authApi.reducer,
     [formsApi.reducerPath]: formsApi.reducer,
     [geoFenceApi.reducerPath]: geoFenceApi.reducer,
+    [lovDataApi.reducerPath]: lovDataApi.reducer,
   },
-  middleware: (getDefaultMiddleware) =>
+  middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: false,
     })
-    .concat(authApi.middleware)
-    .concat(formsApi.middleware)
-    .concat(geoFenceApi.middleware),
+      .concat(authApi.middleware)
+      .concat(formsApi.middleware)
+      .concat(geoFenceApi.middleware),
 });

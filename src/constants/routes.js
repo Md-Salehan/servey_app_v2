@@ -11,6 +11,7 @@ export const ROUTES = {
   PENDING_SUBMISSIONS: 'PendingSubmissions',
   SELECT_LOCATION: 'SelectLocation',
   LOCATION_SELECTION: 'LocationSelection',
+  DUMMY_SCREEN: 'DummyScreen',
 };
 
 export const STORAGE_KEYS = {

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import useInternetStatus from '../../hook/useInternetStatus';
+import { useInternetStatus } from '../../hook';
 
 export default function OfflineBanner() {
   const { isOnline, isChecking } = useInternetStatus();

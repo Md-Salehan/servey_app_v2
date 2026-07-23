@@ -18,6 +18,7 @@ import {
   ImageUploadField,
   InfoBar,
   LocationField,
+  LOVMaster,
   SignatureField,
   TextInputField,
 } from '../../components';
@@ -28,8 +29,8 @@ import { getLatLng } from './Functions';
 import { useDispatch, useSelector } from 'react-redux';
 import uploadService from '../../services/uploadService';
 import SubmissionService from '../../services/submissionService';
-import useInternetStatus from '../../hook/useInternetStatus';
 import { STATUS } from '../../constants/enums';
+import { useInternetStatus } from '../../hook';
 
 const PreviewScreen = ({ database }) => {
   const navigation = useNavigation();
@@ -44,7 +45,7 @@ const PreviewScreen = ({ database }) => {
     isViewOnly = false,
     isOfflineSave = false, // Flag to indicate this is from offline save
   } = route.params || {};
-
+  console.log('PreviewScreen route params:', route.params);
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   const { isOnline } = useInternetStatus();
@@ -201,6 +202,35 @@ const PreviewScreen = ({ database }) => {
           />
         );
 
+      case '11': // LOV - Preview mode
+        return (
+          <LOVMaster
+            key={fcId}
+            fcId={fcId}
+            label={props?.label || 'Select Value'}
+            value={fieldValues[fcId]}
+            required={props?.required === 'Y'}
+            disabled={props?.disabled === 'Y'}
+            placeholder={props?.placeholder || 'Select value'}
+            multiple={props?.multiple === 'Y'}
+            maxSelections={
+              props?.maxSelections ? parseInt(props.maxSelections) : 1
+            }
+            searchable={false}
+            query={props?.query || ''}
+            parId={props?.parId || ''}
+            isDependent={props?.isDependent === 'Y'}
+            depParId={props?.depParId || ''}
+            appId={appId}
+            formId={formId}
+            isPreview={true}
+            // onError={(fcId, error) => console.warn('Preview LOV error:', error)}
+            database={database} // Pass the database instance for caching
+            payload={props?.payload || null}
+            sampleDataType={props?.sampleDataType || ''}
+          />
+        );
+
       default:
         return (
           <View key={fcId} style={styles.unsupportedContainer}>
@@ -236,13 +266,12 @@ const PreviewScreen = ({ database }) => {
       formComponents
         ?.map(component => {
           let value = fieldValues[component.fcId];
-          console.log(value, 'pld value');
 
           // Handle image upload field (compTyp '07')
           if (component.compTyp === '07' && value) {
             if (Array.isArray(value)) {
               // Extract serverUrl from each image object and filter out any invalid URLs
-              value = value
+              let newValue = value
                 .map(image =>
                   image.status === STATUS.UPLOADED
                     ? image.fileUri + '~' + image.flUpldLogNo
@@ -250,10 +279,13 @@ const PreviewScreen = ({ database }) => {
                 )
                 .filter(logUri => logUri);
 
-              if (value.length === 0) {
+              if (
+                value.length &&
+                (newValue.length === 0 || newValue.length !== value.length)
+              ) {
                 needFileUpload.current = true; // Mark that we have files that need to be uploaded
               }
-              value = JSON.stringify(value);
+              value = JSON.stringify(newValue);
             }
           }
 
@@ -295,7 +327,7 @@ const PreviewScreen = ({ database }) => {
     if (needFileUpload.current && !isOfflineSave) {
       return {
         hasError: true,
-        errorMessage: 'Please upload all required files before submitting.',
+        errorMessage: 'Please upload all selected files before submitting.',
       };
     }
 
@@ -372,7 +404,7 @@ const PreviewScreen = ({ database }) => {
     try {
       const submissionService = new SubmissionService(database);
 
-      console.log(payload, 'submit data');
+      console.log(payload, 'submit data save to local db');
 
       // Create pending submission
       await submissionService.createPendingSubmission(
@@ -417,7 +449,8 @@ const PreviewScreen = ({ database }) => {
       console.error('Error saving offline submission:', error);
       Alert.alert(
         'Error',
-        'Failed to save submission offline. Please try again.',
+        error?.message ||
+          'Failed to save submission offline. Please try again.',
       );
     } finally {
       setIsSaving(false);
@@ -426,7 +459,7 @@ const PreviewScreen = ({ database }) => {
 
   const uploadFormToServer = async payload => {
     try {
-      console.log(payload, 'submit data');
+      console.log(payload, 'submit data to server');
 
       // Step 1: Submit the form
       const response = await surveyFormSubmit(payload).unwrap();
@@ -435,7 +468,7 @@ const PreviewScreen = ({ database }) => {
       if (response?.appMsgList?.errorStatus === true) {
         Alert.alert(
           'Error',
-          response?.appMsgList?.errorMsg ||
+          response?.appMsgList?.list[0]?.errDesc ||
             'Failed to submit form. Please try again.',
         );
         return;

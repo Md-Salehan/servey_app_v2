@@ -1,0 +1,17 @@
+# Initialize Prisma (creates prisma folder)
+npx prisma init
+
+# Generate Prisma client /  Generate Prisma client after schema changes
+npx prisma generate
+
+# Reset database (destroys data)
+npx prisma migrate reset
+
+# Create and apply migration
+npx prisma migrate dev --name description_of_change
+
+# Apply migrations without creating new ones
+npx prisma migrate deploy
+
+# Explore your data with Prisma Studio
+npx prisma studio

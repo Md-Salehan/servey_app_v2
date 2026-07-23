@@ -3,7 +3,12 @@ import { COLORS } from '../../constants/colors';
 
 const styles = StyleSheet.create({
   fieldContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
+    // backgroundColor: COLORS.surface,
+    // borderRadius: 12,
+    // padding: 8,
+    // borderWidth: 1,
+    // borderColor: COLORS.border,
   },
   labelContainer: {
     flexDirection: 'row',
@@ -12,7 +17,7 @@ const styles = StyleSheet.create({
   },
   labelText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 600,
     color: COLORS.text.primary,
     fontFamily: 'System',
   },
@@ -86,6 +91,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.text.secondary,
     marginTop: 4,
+    marginBottom: 4,
     fontFamily: 'System',
     lineHeight: 18,
   },
@@ -147,12 +153,12 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: 500,
     marginLeft: 6,
   },
   primaryButtonText: {
     color: COLORS.surface,
-    fontWeight: '600',
+    fontWeight: 600,
   },
   secondaryButtonText: {
     color: COLORS.text.primary,
@@ -237,7 +243,7 @@ const styles = StyleSheet.create({
   locationDisplayLabel: {
     fontSize: 14,
     color: COLORS.text.secondary,
-    fontWeight: '500',
+    fontWeight: 500,
     width: 100,
   },
   locationDisplayValue: {
@@ -256,7 +262,7 @@ const styles = StyleSheet.create({
   locationAccuracyText: {
     fontSize: 12,
     color: COLORS.success,
-    fontWeight: '500',
+    fontWeight: 500,
   },
   locationTimestamp: {
     fontSize: 12,

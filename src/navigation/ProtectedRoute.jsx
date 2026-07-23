@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { initializeAuth } from '../features/auth/authSlice';
+import { initializeAuth } from '../slice';
 import { COLORS } from '../constants/colors';
 
 const ProtectedRoute = ({ children }) => {

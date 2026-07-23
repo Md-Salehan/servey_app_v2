@@ -17,7 +17,7 @@ import { useDispatch } from 'react-redux';
 import { useValidateLoginOTPMutation } from '../../api';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
-import { setUser } from '../../features/auth/authSlice';
+import { setUser } from '../../slice';
 
 
 const { width } = Dimensions.get('window');

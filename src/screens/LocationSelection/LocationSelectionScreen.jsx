@@ -41,7 +41,7 @@ import {
   resetLocationState,
   fetchTowns,
   fetchWards,
-} from '../../features/location/locationSlice';
+} from '../../slice';
 
 import styles from './LocationSelection.styles';
 
@@ -87,8 +87,6 @@ const LocationSelectionScreen = () => {
   useEffect(() => {
     if (
       selections.state &&
-      lists.districts.length === 0 &&
-      !loading.districts &&
       errors.districts === null
     ) {
       dispatch(
@@ -98,15 +96,13 @@ const LocationSelectionScreen = () => {
         }),
       );
     }
-  }, [selections.state, dispatch, lists.districts.length, loading.districts]);
+  }, [selections.state, dispatch, errors.districts]);
 
   // Auto-fetch blocks only when district changes AND blocks list is empty
   useEffect(() => {
     if (
       selections.state &&
       selections.district &&
-      lists.blocks.length === 0 &&
-      !loading.blocks &&
       errors.blocks === null
     ) {
       dispatch(
@@ -121,8 +117,7 @@ const LocationSelectionScreen = () => {
     selections.district,
     selections.state,
     dispatch,
-    lists.blocks.length,
-    loading.blocks,
+    errors.blocks,
   ]);
 
   // Auto-fetch panchayats only when block changes AND panchayats list is empty
@@ -131,8 +126,6 @@ const LocationSelectionScreen = () => {
       selections.state &&
       selections.district &&
       selections.block &&
-      lists.panchayats.length === 0 &&
-      !loading.panchayats &&
       errors.panchayats === null
     ) {
       dispatch(
@@ -149,8 +142,7 @@ const LocationSelectionScreen = () => {
     selections.district,
     selections.state,
     dispatch,
-    lists.panchayats.length,
-    loading.panchayats,
+    errors.panchayats,
   ]);
 
   // Auto-fetch towns only when block changes AND towns list is empty
@@ -159,8 +151,6 @@ const LocationSelectionScreen = () => {
     if (
       selections.state &&
       selections.district &&
-      lists.towns.length === 0 &&
-      !loading.towns &&
       selections.csLocType === 'U' &&
       errors.towns === null
     ) {
@@ -176,8 +166,8 @@ const LocationSelectionScreen = () => {
     selections.district,
     selections.state,
     dispatch,
-    lists.towns.length,
-    loading.towns,
+    selections.csLocType,
+    errors.towns,
   ]);
 
   // Auto-fetch villages only when panchayat changes AND villages list is empty
@@ -187,9 +177,7 @@ const LocationSelectionScreen = () => {
       selections.district &&
       selections.block &&
       selections.panchayat &&
-      lists.villages.length === 0 &&
-      !loading.villages
-        && errors.villages === null
+      errors.villages === null
     ) {
       dispatch(
         fetchVillages({
@@ -207,8 +195,7 @@ const LocationSelectionScreen = () => {
     selections.district,
     selections.state,
     dispatch,
-    lists.villages.length,
-    loading.villages,
+    errors.villages,
   ]);
 
   // Auto-fetch Wards only when town changes AND wards list is empty
@@ -218,9 +205,7 @@ const LocationSelectionScreen = () => {
       selections.state &&
       selections.district &&
       selections.town &&
-      lists.wards.length === 0 &&
-      !loading.wards
-        && errors.wards === null
+      errors.wards === null
     ) {
       dispatch(
         fetchWards({
@@ -236,8 +221,7 @@ const LocationSelectionScreen = () => {
     selections.district,
     selections.state,
     dispatch,
-    lists.wards.length,
-    loading.wards,
+    errors.wards,
   ]);
 
   // Save selections to AsyncStorage whenever they change (but not on first load)
@@ -298,6 +282,8 @@ const LocationSelectionScreen = () => {
 
   // Handle state selection
   const handleStateChange = value => {
+    console.log('xxw: ', value);
+    
     if (!value) {
       dispatch(setState(null));
     } else {

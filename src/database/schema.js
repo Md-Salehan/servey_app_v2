@@ -35,6 +35,24 @@ export default appSchema({
       ],
     }),
 
+    tableSchema({
+      name: 'lov_cache',
+      columns: [
+        { name: 'app_id', type: 'string', isIndexed: true },
+        { name: 'form_id', type: 'string', isIndexed: true },
+        { name: 'fc_id', type: 'string', isIndexed: true },
+        { name: 'par_id', type: 'string' },
+        { name: 'query', type: 'string' },
+        // { name: 'parent_value', type: 'string', isIndexed: true },
+        { name: 'data', type: 'string' },
+        { name: 'columns', type: 'string' },
+        { name: 'primary_key', type: 'string' },
+        { name: 'display_key', type: 'string' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+
     // Table for pending submissions
     tableSchema({
       name: 'pending_submissions',
