@@ -647,7 +647,7 @@ const RecordEntryScreen = ({ database }) => {
             errorText={''}
             onError={error => handleError(fcId, error)}
             database={database} // Pass the database instance for caching
-
+            depColNm={props?.depColNm || ''}
             payload={props?.payload || null}
             sampleDataType={props?.sampleDataType || ''}
           />

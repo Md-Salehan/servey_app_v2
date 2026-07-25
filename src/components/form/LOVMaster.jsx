@@ -255,6 +255,7 @@ const LOVMaster = ({
   payload = null,
   sampleDataType = 'allProjects', // Default to 'allProjects' if not provided
   database = null, // Database instance for caching
+  depColNm = '', // New prop for dependent column name
 }) => {
   // Internal state for LOV data
 
@@ -394,6 +395,8 @@ const LOVMaster = ({
           fcId,
           parId,
           query,
+          depColNm,
+          parentParId: isDependent ? depParId : null,
         },
       };
 
