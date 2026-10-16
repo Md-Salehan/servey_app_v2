@@ -48,17 +48,20 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
         },
       };
 
-      const geoJSONsArray = await getFenceData(payload).unwrap();
+      const result = await getFenceData(payload).unwrap();
 
-      if (geoJSONsArray && Array.isArray(geoJSONsArray)) {
+      if (result?.success) {
         // Save to local database
-        await geoFenceService.saveGeoFenceData(appId, user?.userId, geoJSONsArray);
+        await geoFenceService.saveGeoFenceData(appId, user?.userId, result.geoJSONsArray);
 
-        setGeoFenceData(geoJSONsArray);
+        setGeoFenceData(result.geoJSONsArray);
         setIsFromCache(false);
         setError(null);
         console.log('✅ GeoFence fetched from server and saved to local DB');
         return true;
+      }
+      else{
+        
       }
       return false;
     } catch (err) {
@@ -138,22 +141,23 @@ const useGeoFenceData = (database, appId, useLocalDB = false) => {
     setLoading(true);
     setError(null);
 
-    if (isOnline) {
-      const success = await fetchFromServer();
-      if (!success) {
-        const hasLocalData = await loadFromLocalDB();
-        if (!hasLocalData) {
-          setError('Failed to load geoFence data. Please try again.');
-        }
-      }
-    } else {
-      const hasLocalData = await loadFromLocalDB();
-      if (!hasLocalData) {
-        setError(
-          'No geoFence data available offline. Please connect to the internet.',
-        );
-      }
-    }
+    // if (isOnline) {
+    //   const success = await fetchFromServer();
+    //   if (!success) {
+    //     const hasLocalData = await loadFromLocalDB();
+    //     if (!hasLocalData) {
+    //       setError('Failed to load geoFence data. Please try again.');
+    //     }
+    //   }
+    // } else {
+    //   const hasLocalData = await loadFromLocalDB();
+    //   if (!hasLocalData) {
+    //     setError(
+    //       'No geoFence data available offline. Please connect to the internet.',
+    //     );
+    //   }
+    // }
+    await initializeGeoFence();
 
     setLoading(false);
   }, [isOnline, fetchFromServer, loadFromLocalDB]);

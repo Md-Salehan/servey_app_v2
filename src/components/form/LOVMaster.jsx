@@ -387,29 +387,26 @@ const LOVMaster = ({
     };
 
     try {
-      const load = payload || {
-        apiId: 'SUA00827',
+      const load = {
+        apiId: 'SUA01050',
         mst: {
           appId,
-          formId,
           fcId,
+          formId,
           parId,
           query,
-          depColNm,
-          parentParId: isDependent ? depParId : null,
         },
       };
-
-      let result = response[sampleDataType] ||
-        (await getLovData(load).unwrap()) || {
-          success: false,
-          error: 'No data found',
-          data: [],
-          keys: [],
-          primaryKey: '',
-          displayKey: '',
-          columns: [],
-        };
+      //response[sampleDataType] ||
+      let result = (await getLovData(load).unwrap()) || {
+        success: false,
+        error: 'No data found',
+        data: [],
+        keys: [],
+        primaryKey: '',
+        displayKey: '',
+        columns: [],
+      };
 
       if (result.success) {
         // Store in cache

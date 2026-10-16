@@ -77,119 +77,119 @@ export const formsApi = createApi({
       transformResponse: response => {
         console.log('🟢 Form Components API Response:', response);
         let list = response?.content?.mst?.dtl01 || [];
-        list = [
-          ...list,
-          {
-            fcId: 'C0006',
-            compSlNo: 100,
-            compTyp: '11',
-            compTypTxt: 'Lov',
-            props: {
-              label: 'All Departments',
-              query: 'string',
-              disabled: 'N',
-              required: 'Y',
-              parId: 'all_departments',
-              isDependent: 'N',
-              depParId: '',
-              multiple: 'N',
-              maxSelections: '1',
-              placeholder: '',
-              searchable: 'Y',
-              searchPlaceholder: '',
-              value: null,
+        // list = [
+        //   ...list,
+        //   {
+        //     fcId: 'C0006',
+        //     compSlNo: 100,
+        //     compTyp: '11',
+        //     compTypTxt: 'Lov',
+        //     props: {
+        //       label: 'All Departments',
+        //       query: 'string',
+        //       disabled: 'N',
+        //       required: 'Y',
+        //       parId: 'all_departments',
+        //       isDependent: 'N',
+        //       depParId: '',
+        //       multiple: 'N',
+        //       maxSelections: '1',
+        //       placeholder: '',
+        //       searchable: 'Y',
+        //       searchPlaceholder: '',
+        //       value: null,
 
-              payload: {
-                apiId: 'SUA00827',
-                mst: {
-                  parId: 'mod_grp_id',
-                  qryId: 'QRY/000017',
-                  qryParam: [
-                    {
-                      parId: '',
-                      parVal: '',
-                    },
-                  ],
-                },
-              },
-              sampleDataType: "departmentData"
-            },
-          },
-          {
-            fcId: 'C0007',
-            compSlNo: 101,
-            compTyp: '11',
-            compTypTxt: 'Lov',
-            props: {
-              label: 'All Employees',
-              query: 'string',
-              disabled: 'N',
-              required: 'Y',
-              parId: 'all_employees',
-              isDependent: 'Y',
-              depParId: 'all_departments',
-              multiple: 'N',
-              maxSelections: '1',
-              placeholder: '',
-              searchable: 'Y',
-              searchPlaceholder: 'Search Value',
-              value: null,
+        //       payload: {
+        //         apiId: 'SUA00827',
+        //         mst: {
+        //           parId: 'mod_grp_id',
+        //           qryId: 'QRY/000017',
+        //           qryParam: [
+        //             {
+        //               parId: '',
+        //               parVal: '',
+        //             },
+        //           ],
+        //         },
+        //       },
+        //       sampleDataType: "departmentData"
+        //     },
+        //   },
+        //   {
+        //     fcId: 'C0007',
+        //     compSlNo: 101,
+        //     compTyp: '11',
+        //     compTypTxt: 'Lov',
+        //     props: {
+        //       label: 'All Employees',
+        //       query: 'string',
+        //       disabled: 'N',
+        //       required: 'Y',
+        //       parId: 'all_employees',
+        //       isDependent: 'Y',
+        //       depParId: 'all_departments',
+        //       multiple: 'N',
+        //       maxSelections: '1',
+        //       placeholder: '',
+        //       searchable: 'Y',
+        //       searchPlaceholder: 'Search Value',
+        //       value: null,
 
-              payload: {
-                apiId: 'SUA00827',
-                mst: {
-                  parId: 'mod_id',
-                  qryId: 'QRY/000017',
-                  qryParam: [
-                    {
-                      parId: 'mod_grp_id',
-                      parVal: 'MG001',
-                    },
-                  ],
-                },
-              },
+        //       payload: {
+        //         apiId: 'SUA00827',
+        //         mst: {
+        //           parId: 'mod_id',
+        //           qryId: 'QRY/000017',
+        //           qryParam: [
+        //             {
+        //               parId: 'mod_grp_id',
+        //               parVal: 'MG001',
+        //             },
+        //           ],
+        //         },
+        //       },
 
-              sampleDataType: "allEmployees"
-            },
-          },
-          {
-            fcId: 'C0009',
-            compSlNo: 101,
-            compTyp: '11',
-            compTypTxt: 'Lov',
-            props: {
-              label: 'Select Project',
-              query: 'string',
-              disabled: 'N',
-              required: 'Y',
-              parId: 'all_projects',
-              isDependent: 'Y',
-              depParId: 'all_employees',
-              multiple: 'Y',
-              maxSelections: '2',
-              placeholder: '',
-              searchable: 'Y',
-              searchPlaceholder: 'Search Value',
-              value: null,
+        //       sampleDataType: "allEmployees"
+        //     },
+        //   },
+        //   {
+        //     fcId: 'C0009',
+        //     compSlNo: 101,
+        //     compTyp: '11',
+        //     compTypTxt: 'Lov',
+        //     props: {
+        //       label: 'Select Project',
+        //       query: 'string',
+        //       disabled: 'N',
+        //       required: 'Y',
+        //       parId: 'all_projects',
+        //       isDependent: 'Y',
+        //       depParId: 'all_employees',
+        //       multiple: 'Y',
+        //       maxSelections: '2',
+        //       placeholder: '',
+        //       searchable: 'Y',
+        //       searchPlaceholder: 'Search Value',
+        //       value: null,
 
-              payload: {
-                apiId: 'SUA00827',
-                mst: {
-                  parId: 'mod_id',
-                  qryId: 'QRY/000017',
-                  qryParam: [
-                    {
-                      parId: 'mod_grp_id',
-                      parVal: 'MG001',
-                    },
-                  ],
-                },
-              },
+        //       payload: {
+        //         apiId: 'SUA00827',
+        //         mst: {
+        //           parId: 'mod_id',
+        //           qryId: 'QRY/000017',
+        //           qryParam: [
+        //             {
+        //               parId: 'mod_grp_id',
+        //               parVal: 'MG001',
+        //             },
+        //           ],
+        //         },
+        //       },
 
-              sampleDataType: "allProjects"
-            },
-          },
-        ];
+        //       sampleDataType: "allProjects"
+        //     },
+        //   },
+        // ];
 
         response.content.mst.dtl01 = list;
         return response;

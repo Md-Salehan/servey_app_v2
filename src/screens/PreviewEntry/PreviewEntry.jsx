@@ -202,34 +202,34 @@ const PreviewScreen = ({ database }) => {
           />
         );
 
-      case '11': // LOV - Preview mode
-        return (
-          <LOVMaster
-            key={fcId}
-            fcId={fcId}
-            label={props?.label || 'Select Value'}
-            value={fieldValues[fcId]}
-            required={props?.required === 'Y'}
-            disabled={props?.disabled === 'Y'}
-            placeholder={props?.placeholder || 'Select value'}
-            multiple={props?.multiple === 'Y'}
-            maxSelections={
-              props?.maxSelections ? parseInt(props.maxSelections) : 1
-            }
-            searchable={false}
-            query={props?.query || ''}
-            parId={props?.parId || ''}
-            isDependent={props?.isDependent === 'Y'}
-            depParId={props?.depParId || ''}
-            appId={appId}
-            formId={formId}
-            isPreview={true}
-            // onError={(fcId, error) => console.warn('Preview LOV error:', error)}
-            database={database} // Pass the database instance for caching
-            payload={props?.payload || null}
-            sampleDataType={props?.sampleDataType || ''}
-          />
-        );
+      // case '10': // LOV - Preview mode
+      //   return (
+      //     <LOVMaster
+      //       key={fcId}
+      //       fcId={fcId}
+      //       label={props?.label || 'Select Value'}
+      //       value={fieldValues[fcId]}
+      //       required={props?.required === 'Y'}
+      //       disabled={props?.disabled === 'Y'}
+      //       placeholder={props?.placeholder || 'Select value'}
+      //       multiple={props?.multiple === 'Y'}
+      //       maxSelections={
+      //         props?.maxSelections ? parseInt(props.maxSelections) : 1
+      //       }
+      //       searchable={false}
+      //       query={props?.query || ''}
+      //       parId={props?.parId || ''}
+      //       isDependent={props?.isDependent === 'Y'}
+      //       depParId={props?.depParId || ''}
+      //       appId={appId}
+      //       formId={formId}
+      //       isPreview={true}
+      //       // onError={(fcId, error) => console.warn('Preview LOV error:', error)}
+      //       database={database} // Pass the database instance for caching
+      //       payload={props?.payload || null}
+      //       sampleDataType={props?.sampleDataType || ''}
+      //     />
+      //   );
 
       default:
         return (

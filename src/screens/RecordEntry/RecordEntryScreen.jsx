@@ -601,57 +601,57 @@ const RecordEntryScreen = ({ database }) => {
           />
         );
 
-      case '11': // LOV
-        // Determine if this LOV is dependent and get parent value
-        const isDependent = props?.isDependent === 'Y';
-        let parentValue = null;
-        if (isDependent) {
-          // Find parent component by matching depParId with some parent's parId
-          const parentComponent = formComponents.find(
-            comp =>
-              comp.compTyp === '11' && comp.props?.parId === props?.depParId,
-          );
-          if (parentComponent) {
-            parentValue = fieldValues[parentComponent.fcId];
-          }
-        }
+      // case '10': // LOV
+      //   // Determine if this LOV is dependent and get parent value
+      //   const isDependent = props?.isDependent === 'Y';
+      //   let parentValue = null;
+      //   if (isDependent) {
+      //     // Find parent component by matching depParId with some parent's parId
+      //     const parentComponent = formComponents.find(
+      //       comp =>
+      //         comp.compTyp === '10' && comp.props?.parId === props?.depParId,
+      //     );
+      //     if (parentComponent) {
+      //       parentValue = fieldValues[parentComponent.fcId];
+      //     }
+      //   }
 
-        // Compute disabled: if dependent and no parent value -> disabled
-        const isDisabled =
-          (isDependent && !parentValue) || props?.disabled === 'Y';
+      //   // Compute disabled: if dependent and no parent value -> disabled
+      //   const isDisabled =
+      //     (isDependent && !parentValue) || props?.disabled === 'Y';
 
-        return (
-          <LOVMaster
-            key={componentKey}
-            fcId={fcId}
-            label={props?.label || 'Select Value'}
-            value={fieldValues[fcId]}
-            onChange={value => handleFieldChange(fcId, value)}
-            required={props?.required === 'Y'}
-            disabled={isDisabled}
-            placeholder={props?.placeholder || 'Select value'}
-            multiple={props?.multiple === 'Y'}
-            maxSelections={
-              props?.maxSelections ? parseInt(props.maxSelections) : 1
-            }
-            searchable={props?.searchable === 'Y'}
-            searchPlaceholder={props?.searchPlaceholder || 'Search...'}
-            query={props?.query || ''}
-            parId={props?.parId || ''}
-            isDependent={isDependent}
-            depParId={props?.depParId || ''}
-            parentValue={parentValue}
-            appId={appId}
-            formId={formId}
-            isPreview={false}
-            errorText={''}
-            onError={error => handleError(fcId, error)}
-            database={database} // Pass the database instance for caching
-            depColNm={props?.depColNm || ''}
-            payload={props?.payload || null}
-            sampleDataType={props?.sampleDataType || ''}
-          />
-        );
+      //   return (
+      //     <LOVMaster
+      //       key={componentKey}
+      //       fcId={fcId}
+      //       label={props?.label || 'Select Value'}
+      //       value={fieldValues[fcId]}
+      //       onChange={value => handleFieldChange(fcId, value)}
+      //       required={props?.required === 'Y'}
+      //       disabled={isDisabled}
+      //       placeholder={props?.placeholder || 'Select value'}
+      //       multiple={props?.multiple === 'Y'}
+      //       maxSelections={
+      //         props?.maxSelections ? parseInt(props.maxSelections) : 1
+      //       }
+      //       searchable={props?.searchable === 'Y'}
+      //       searchPlaceholder={props?.searchPlaceholder || 'Search...'}
+      //       query={props?.query || ''}
+      //       parId={props?.parId || ''}
+      //       isDependent={isDependent}
+      //       depParId={props?.depParId || ''}
+      //       parentValue={parentValue}
+      //       appId={appId}
+      //       formId={formId}
+      //       isPreview={false}
+      //       errorText={''}
+      //       onError={error => handleError(fcId, error)}
+      //       database={database} // Pass the database instance for caching
+      //       depColNm={props?.depColNm || ''}
+      //       payload={props?.payload || null}
+      //       sampleDataType={props?.sampleDataType || ''}
+      //     />
+      //   );
 
       default:
         return (

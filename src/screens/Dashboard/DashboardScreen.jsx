@@ -289,6 +289,7 @@ const DashboardScreen = ({ database }) => {
     // Always try to fetch from server when online
     if (isOnline) {
       await fetchFormsFromServer();
+      await retryGeoFence(); // Retry fetching geofence data when online
     } else {
       // If offline, just reload from DB
       await loadFormsFromDB();

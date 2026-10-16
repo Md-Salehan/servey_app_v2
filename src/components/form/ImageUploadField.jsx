@@ -35,7 +35,7 @@ const ImageUploadField = ({
   errorText = '',
   onError = null,
   formId, // Add formId prop
-  sourceType = 'B', // Add sourceType prop with default value 'B'
+  sourceType = 'B', // Add sourceType prop with default value 'B', eg: 'B' for both, 'C' for camera only, 'G' for gallery only
 }) => {
   const [images, setImages] = useState(initialImages || []);
   const [uploading, setUploading] = useState(false);
